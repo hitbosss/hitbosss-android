@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Placeholder: mancuerna blanca centrada. Reemplazar por el icono oficial. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:scaleX="1.1" android:scaleY="1.1" android:pivotX="54" android:pivotY="54">
+        <path android:fillColor="#FFFFFF" android:pathData="M34,46h6v16h-6z" />
+        <path android:fillColor="#FFFFFF" android:pathData="M28,42h6v24h-6z" />
+        <path android:fillColor="#FFFFFF" android:pathData="M68,46h6v16h-6z" />
+        <path android:fillColor="#FFFFFF" android:pathData="M74,42h6v24h-6z" />
+        <path android:fillColor="#FFFFFF" android:pathData="M40,51h28v6h-28z" />
+    </group>
+</vector>

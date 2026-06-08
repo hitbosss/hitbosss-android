@@ -1,0 +1,8 @@
+<resources>
+    <!-- Tema base de la app. El theming real (colores, tipografía) lo gestiona Compose
+         (HitbosssTheme). Este XML solo da el contenedor de la Activity. -->
+    <style name="Theme.Hitbosss" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowBackground">@android:color/white</item>
+    </style>
+</resources>

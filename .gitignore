@@ -1,0 +1,22 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Secretos / Firebase (no commitear)
+google-services.json
+app/google-services.json
+app/build.gradle.kts
+
+# Gradle
+**/build/
+
+
+.DS_Store
+.claude/specs/decisions/003-entornos-buildtypes.md
