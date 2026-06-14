@@ -15,9 +15,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.hitbosss.R
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val signOut: SignOutUseCase,
     private val getCurrentUser: GetCurrentUserUseCase,
     private val deleteAccount: DeleteAccountUseCase,
@@ -51,7 +55,7 @@ class SettingsViewModel @Inject constructor(
                 }
                 .onFailure { e ->
                     _deleting.update { false }
-                    _error.update { e.message ?: "No se pudo eliminar la cuenta" }
+                    _error.update { e.message ?: context.getString(R.string.err_delete_account) }
                 }
         }
     }

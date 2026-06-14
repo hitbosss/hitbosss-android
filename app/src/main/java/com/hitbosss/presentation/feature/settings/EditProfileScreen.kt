@@ -73,6 +73,9 @@ import com.hitbosss.presentation.feature.ranking.countryFlag
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+import androidx.compose.ui.res.stringResource
+import com.hitbosss.presentation.designsystem.components.HitPopup
+import kotlinx.coroutines.launch
 
 @Composable
 fun EditProfileScreen(onBack: () -> Unit, viewModel: EditProfileViewModel = hiltViewModel()) {
@@ -86,7 +89,7 @@ fun EditProfileScreen(onBack: () -> Unit, viewModel: EditProfileViewModel = hilt
     LaunchedEffect(state.saved) { if (state.saved) onBack() }
 
     Column(Modifier.fillMaxSize().background(Gray100)) {
-        HitTopBar(title = "Editar perfil", onBack = onBack)
+        HitTopBar(title = stringResource(R.string.settings_edit_profile), onBack = onBack)
         if (state.isLoading) {
             Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = Primary500) }
             return@Column
@@ -95,81 +98,81 @@ fun EditProfileScreen(onBack: () -> Unit, viewModel: EditProfileViewModel = hilt
         Column(
             Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 16.dp),
         ) {
-            LabelEditRow("Foto principal") { pickProfile.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
+            LabelEditRow(stringResource(R.string.edit_main_photo)) { pickProfile.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
             AsyncImage(
                 model = state.profilePicUri ?: state.profilePicUrl, contentDescription = null, contentScale = ContentScale.Crop,
                 placeholder = placeholderPainter(), error = placeholderPainter(), fallback = placeholderPainter(),
                 // Centrada como en iOS (la foto va dentro de un VStack, que centra en horizontal).
                 modifier = Modifier.align(Alignment.CenterHorizontally).padding(vertical = 16.dp).size(90.dp).clip(RoundedCornerShape(10.dp)).background(Gray200),
             )
-            LabelEditRow("Cabecera") { pickCover.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
+            LabelEditRow(stringResource(R.string.edit_cover)) { pickCover.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
             AsyncImage(
                 model = state.coverPicUri ?: state.coverPicUrl, contentDescription = null, contentScale = ContentScale.Crop,
                 modifier = Modifier.padding(vertical = 16.dp).fillMaxWidth().height(200.dp).clip(RoundedCornerShape(8.dp)).background(Gray400),
             )
 
-            FieldLabel("Nombre")
+            FieldLabel(stringResource(R.string.edit_name))
             ProfileTextField(state.fullName, viewModel::onFullName)
             Counter(state.fullName.length, viewModel.maxNameLength)
             Spacer(Modifier.height(8.dp))
 
-            FieldLabel("Usuario")
+            FieldLabel(stringResource(R.string.edit_username))
             ProfileTextField(state.username, viewModel::onUsername)
             Counter(state.username.length, viewModel.maxUsernameLength)
             Spacer(Modifier.height(8.dp))
 
-            FieldLabel("Descripción")
+            FieldLabel(stringResource(R.string.common_description))
             DescriptionField(state.description, viewModel::onDescription)
             Counter(state.description.length, viewModel.maxDescriptionLength)
             Spacer(Modifier.height(8.dp))
 
-            FieldLabel("Redes sociales")
-            SocialField(R.drawable.im_icon_facebook, "Usuario de Facebook", state.facebook, viewModel::onFacebook)
+            FieldLabel(stringResource(R.string.edit_social))
+            SocialField(R.drawable.im_icon_facebook, stringResource(R.string.edit_facebook), state.facebook, viewModel::onFacebook)
             Spacer(Modifier.height(8.dp))
-            SocialField(R.drawable.im_icon_instagram, "Usuario de Instagram", state.instagram, viewModel::onInstagram)
+            SocialField(R.drawable.im_icon_instagram, stringResource(R.string.edit_instagram), state.instagram, viewModel::onInstagram)
             Spacer(Modifier.height(8.dp))
-            SocialField(R.drawable.im_icon_tik_tok, "Usuario de TikTok", state.tiktok, viewModel::onTiktok)
+            SocialField(R.drawable.im_icon_tik_tok, stringResource(R.string.edit_tiktok), state.tiktok, viewModel::onTiktok)
             Spacer(Modifier.height(8.dp))
-            SocialField(R.drawable.im_icon_x, "Usuario de X", state.x, viewModel::onX)
+            SocialField(R.drawable.im_icon_x, stringResource(R.string.edit_x), state.x, viewModel::onX)
             Spacer(Modifier.height(24.dp))
 
-            FieldLabel("Género")
+            FieldLabel(stringResource(R.string.edit_gender))
             GenderSegmented(state.gender, viewModel::onGender)
             Spacer(Modifier.height(24.dp))
 
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Fecha de nacimiento", style = HitbosssType.bodyDefaultEmphasis, color = Gray500, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.edit_birth), style = HitbosssType.bodyDefaultEmphasis, color = Gray500, modifier = Modifier.weight(1f))
                 Box(
                     Modifier.clip(RoundedCornerShape(8.dp)).background(Gray200).clickable { showDate = true }
                         .padding(horizontal = 16.dp, vertical = 10.dp),
                 ) {
-                    Text(state.birthDate?.let { formatDate(it) } ?: "Seleccionar", style = HitbosssType.bodyDefaultEmphasis, color = Gray800)
+                    Text(state.birthDate?.let { formatDate(it) } ?: stringResource(R.string.common_select), style = HitbosssType.bodyDefaultEmphasis, color = Gray800)
                 }
             }
             Spacer(Modifier.height(24.dp))
 
-            FieldLabel("País")
+            FieldLabel(stringResource(R.string.edit_country))
             DropdownBox(
                 content = {
                     if (state.countryCode.isNotBlank()) {
                         Text(countryFlag(state.countryCode), style = HitbosssType.bodyLargeRegular)
                         Spacer(Modifier.size(8.dp))
                     }
-                    Text(CountryData.label(state.countryCode).ifBlank { "Selecciona país" }, style = HitbosssType.bodyDefaultRegular, color = Gray800)
+                    Text(CountryData.label(state.countryCode).ifBlank { stringResource(R.string.edit_select_country) }, style = HitbosssType.bodyDefaultRegular, color = Gray800)
                 },
                 onClick = { showCountry = true },
             )
             Spacer(Modifier.height(24.dp))
 
-            FieldLabel("Sistema de medidas")
+            FieldLabel(stringResource(R.string.edit_measurement_system))
             SystemDropdown(state.system, viewModel::onSystem)
             Spacer(Modifier.height(24.dp))
 
-            FieldLabel("Peso")
+            FieldLabel(stringResource(R.string.edit_weight))
             UnitField(state.weightText, viewModel::onWeight, state.weightUnit)
             Spacer(Modifier.height(24.dp))
 
-            FieldLabel("Altura")
+            FieldLabel(stringResource(R.string.edit_height))
             if (state.system == MeasureSystem.Metric) {
                 UnitField(state.heightCmText, viewModel::onHeightCm, "CM")
             } else {
@@ -187,7 +190,7 @@ fun EditProfileScreen(onBack: () -> Unit, viewModel: EditProfileViewModel = hilt
             contentAlignment = Alignment.Center,
         ) {
             if (state.saving) CircularProgressIndicator(color = Gray100, modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
-            else Text("Guardar cambios", style = HitbosssType.bodyLargeEmphasis, color = if (enabled) Gray100 else Gray500)
+            else Text(stringResource(R.string.edit_save), style = HitbosssType.bodyLargeEmphasis, color = if (enabled) Gray100 else Gray500)
         }
     }
 
@@ -195,11 +198,12 @@ fun EditProfileScreen(onBack: () -> Unit, viewModel: EditProfileViewModel = hilt
     if (showCountry) CountryPickerDialog(onPick = { viewModel.onCountry(it); showCountry = false }, onDismiss = { showCountry = false })
 
     state.error?.let {
-        androidx.compose.material3.AlertDialog(
+        HitPopup(
+            title = stringResource(R.string.common_something_wrong),
+            message = stringResource(R.string.common_unexpected_error_msg),
+            confirmText = stringResource(R.string.common_accept),
+            onConfirm = viewModel::clearError,
             onDismissRequest = viewModel::clearError,
-            confirmButton = { TextButton(onClick = viewModel::clearError) { Text("Aceptar") } },
-            title = { Text("Error inesperado", style = HitbosssType.titleBody) },
-            text = { Text("Hubo un problema al procesar tu solicitud. Inténtalo más tarde.", style = HitbosssType.bodyDefaultRegular) },
         )
     }
 }
@@ -210,7 +214,7 @@ fun EditProfileScreen(onBack: () -> Unit, viewModel: EditProfileViewModel = hilt
 private fun LabelEditRow(label: String, onEdit: () -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(label, style = HitbosssType.bodySmallEmphasis, color = Gray500, modifier = Modifier.weight(1f))
-        Text("Editar", style = HitbosssType.bodySmallEmphasis, color = Secondary500, modifier = Modifier.clickable { onEdit() })
+        Text(stringResource(R.string.common_edit), style = HitbosssType.bodySmallEmphasis, color = Secondary500, modifier = Modifier.clickable { onEdit() })
     }
 }
 
@@ -264,7 +268,7 @@ private fun SocialField(@DrawableRes icon: Int, placeholder: String, value: Stri
 @Composable
 private fun GenderSegmented(gender: String, onSelect: (String) -> Unit) {
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(Gray200).padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        listOf("male" to "Hombre", "female" to "Mujer").forEach { (key, label) ->
+        listOf("male" to stringResource(R.string.common_male), "female" to stringResource(R.string.common_female)).forEach { (key, label) ->
             val sel = gender == key
             Box(
                 Modifier.weight(1f).clip(RoundedCornerShape(6.dp)).background(if (sel) Gray100 else Color.Transparent)
@@ -338,8 +342,8 @@ private fun BirthDatePicker(current: Long?, onPick: (Long) -> Unit, onDismiss: (
     )
     DatePickerDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = { pickerState.selectedDateMillis?.let(onPick) }) { Text("Aceptar") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
+        confirmButton = { TextButton(onClick = { pickerState.selectedDateMillis?.let(onPick) }) { Text(stringResource(R.string.common_accept)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } },
     ) { DatePicker(state = pickerState) }
 }
 
@@ -352,13 +356,13 @@ private fun CountryPickerDialog(onPick: (String) -> Unit, onDismiss: () -> Unit)
     }
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Gray100).padding(16.dp)) {
-            Text("País", style = HitbosssType.titleBody, color = Gray800)
+            Text(stringResource(R.string.edit_country), style = HitbosssType.titleBody, color = Gray800)
             Spacer(Modifier.height(12.dp))
             Box(
                 Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(8.dp)).background(Gray200).padding(horizontal = 12.dp),
                 contentAlignment = Alignment.CenterStart,
             ) {
-                if (query.isEmpty()) Text("Buscar país", style = HitbosssType.bodyDefaultRegular, color = Gray500)
+                if (query.isEmpty()) Text(stringResource(R.string.onboarding_search_country), style = HitbosssType.bodyDefaultRegular, color = Gray500)
                 BasicTextField(query, { query = it }, singleLine = true, textStyle = HitbosssType.bodyDefaultRegular.copy(color = Gray800), modifier = Modifier.fillMaxWidth())
             }
             Spacer(Modifier.height(8.dp))

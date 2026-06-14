@@ -56,41 +56,57 @@ import com.hitbosss.presentation.designsystem.theme.Gray100
 import com.hitbosss.presentation.designsystem.theme.Gray200
 import com.hitbosss.presentation.designsystem.theme.Gray400
 import com.hitbosss.presentation.designsystem.theme.Gray500
+import com.hitbosss.presentation.designsystem.theme.Gray700
 import com.hitbosss.presentation.designsystem.theme.Gray800
 import com.hitbosss.presentation.designsystem.theme.HitbosssType
 import com.hitbosss.presentation.designsystem.theme.Primary500
 import com.hitbosss.presentation.designsystem.theme.Secondary100
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
+import com.hitbosss.R
+import com.hitbosss.presentation.designsystem.components.HitButtonType
+import com.hitbosss.presentation.designsystem.components.HitPopup
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun EventDetailScreen(onBack: () -> Unit, viewModel: EventDetailViewModel = hiltViewModel()) {
+fun EventDetailScreen(
+    onBack: () -> Unit,
+    onOpenUserProfile: (String) -> Unit = {},
+    onEditEvent: () -> Unit = {},
+    viewModel: EventDetailViewModel = hiltViewModel(),
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showLeave by remember { mutableStateOf(false) }
+    var showAdminBlock by remember { mutableStateOf(false) }
+    var showDelete by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
     var showMembers by remember { mutableStateOf(false) }
 
-    LaunchedEffect(state.left) { if (state.left) onBack() }
+    LaunchedEffect(state.left, state.deleted) { if (state.left || state.deleted) onBack() }
 
     Column(Modifier.fillMaxSize().background(Gray100)) {
         Row(
             Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Atrás", tint = Gray800, modifier = Modifier.size(24.dp).clickable { onBack() })
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.common_back), tint = Gray800, modifier = Modifier.size(24.dp).clickable { onBack() })
             Spacer(Modifier.width(12.dp))
-            Text("Información del evento", style = HitbosssType.titleSubsection, color = Gray800, modifier = Modifier.weight(1f))
+            Text(stringResource(R.string.event_info_title), style = HitbosssType.titleSubsection, color = Gray800, modifier = Modifier.weight(1f))
             Box {
-                Icon(Icons.Filled.MoreVert, "Opciones", tint = Gray800, modifier = Modifier.size(24.dp).clickable { showMenu = true })
+                Icon(Icons.Filled.MoreVert, stringResource(R.string.common_options), tint = Gray800, modifier = Modifier.size(24.dp).clickable { showMenu = true })
                 DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                    DropdownMenuItem(text = { Text("Compartir evento") }, onClick = {
+                    if (state.isAdmin && !state.isPast) {
+                        DropdownMenuItem(text = { Text(stringResource(R.string.event_edit)) }, onClick = { showMenu = false; onEditEvent() })
+                    }
+                    DropdownMenuItem(text = { Text(stringResource(R.string.event_share)) }, onClick = {
                         showMenu = false
                         state.event?.let { ev ->
                             val intent = Intent(Intent.ACTION_SEND).apply {
                                 type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, "Únete al evento \"${ev.name}\" en HitBoss.")
+                                putExtra(Intent.EXTRA_TEXT, context.getString(R.string.event_share_text, ev.name))
                             }
-                            runCatching { context.startActivity(Intent.createChooser(intent, "Compartir evento")) }
+                            runCatching { context.startActivity(Intent.createChooser(intent, context.getString(R.string.event_share))) }
                         }
                     })
                 }
@@ -101,7 +117,7 @@ fun EventDetailScreen(onBack: () -> Unit, viewModel: EventDetailViewModel = hilt
         when {
             state.isLoading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = Primary500) }
             state.event == null -> Box(Modifier.fillMaxSize(), Alignment.Center) {
-                Text(state.error ?: "No se pudo cargar", style = HitbosssType.bodyDefaultRegular, color = Gray500)
+                Text(state.error ?: stringResource(R.string.community_load_failed), style = HitbosssType.bodyDefaultRegular, color = Gray500)
             }
             else -> {
                 val e = state.event!!
@@ -113,21 +129,21 @@ fun EventDetailScreen(onBack: () -> Unit, viewModel: EventDetailViewModel = hilt
                         )
                     }
                     Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Section("Nombre del evento") { Value(e.name) }
-                        Section("Descripción") { Value(e.description.orEmpty()) }
-                        Section("Duración") {
+                        Section(stringResource(R.string.create_event_name)) { Value(e.name) }
+                        Section(stringResource(R.string.common_description)) { Value(e.description.orEmpty()) }
+                        Section(stringResource(R.string.create_event_duration)) {
                             Value("${formatDate(e.startTime)} — ${formatDate(e.endTime)}")
-                            eventEndMessage(e)?.let { Text(it, style = HitbosssType.bodySmallRegular, color = Error500) }
+                            eventEndMessage(e, context)?.let { Text(it, style = HitbosssType.bodySmallRegular, color = Error500) }
                         }
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("Miembros", style = HitbosssType.titleBody, color = Gray800, modifier = Modifier.weight(1f))
-                                Text("ver listado", style = HitbosssType.bodySmallEmphasis, color = Primary500, modifier = Modifier.clickable { showMembers = true })
+                                Text(stringResource(R.string.common_members), style = HitbosssType.titleBody, color = Gray800, modifier = Modifier.weight(1f))
+                                Text(stringResource(R.string.community_see_list), style = HitbosssType.bodySmallEmphasis, color = Primary500, modifier = Modifier.clickable { showMembers = true })
                             }
                             Value("${e.stats.memberCount}")
                         }
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("Ejercicio", style = HitbosssType.titleBody, color = Gray800)
+                            Text(stringResource(R.string.common_exercise), style = HitbosssType.titleBody, color = Gray800)
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 e.exercises.forEach { ex ->
                                     Text(
@@ -140,25 +156,70 @@ fun EventDetailScreen(onBack: () -> Unit, viewModel: EventDetailViewModel = hilt
                         Spacer(Modifier.height(8.dp))
                     }
                 }
-                Box(
-                    Modifier.fillMaxWidth().padding(16.dp).clip(RoundedCornerShape(12.dp)).background(Error500)
-                        .clickable { showLeave = true }.padding(vertical = 16.dp),
-                    contentAlignment = Alignment.Center,
-                ) { Text("Dejar el evento", style = HitbosssType.bodyLargeEmphasis, color = Gray100) }
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Salir: bloquea solo si es el único admin con otros miembros (igual que iOS).
+                    Box(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                            .background(if (state.isAdmin) Gray700 else Error500)
+                            .clickable { if (state.canLeaveDirectly) showLeave = true else showAdminBlock = true }
+                            .padding(vertical = 16.dp),
+                        contentAlignment = Alignment.Center,
+                    ) { Text(stringResource(R.string.event_leave), style = HitbosssType.bodyLargeEmphasis, color = Gray100) }
+                    if (state.isAdmin) {
+                        Box(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Error500)
+                                .clickable { showDelete = true }.padding(vertical = 16.dp),
+                            contentAlignment = Alignment.Center,
+                        ) { Text(stringResource(R.string.event_delete), style = HitbosssType.bodyLargeEmphasis, color = Gray100) }
+                    }
+                }
             }
         }
     }
 
     if (showLeave) {
-        AlertDialog(
+        HitPopup(
+            title = stringResource(R.string.event_leave_confirm_title),
+            message = stringResource(R.string.event_leave_confirm_msg),
+            confirmText = stringResource(R.string.event_leave),
+            confirmType = HitButtonType.Destructive,
+            onConfirm = { showLeave = false; viewModel.leave() },
+            cancelText = stringResource(R.string.common_cancel),
+            onCancel = { showLeave = false },
             onDismissRequest = { showLeave = false },
-            title = { Text("¿Seguro que quieres dejar el evento?", style = HitbosssType.titleBody) },
-            text = { Text("Si dejas el evento, no podrás deshacerlo.", style = HitbosssType.bodyDefaultRegular) },
-            confirmButton = { TextButton(onClick = { showLeave = false; viewModel.leave() }) { Text("Dejar el evento", color = Error500) } },
-            dismissButton = { TextButton(onClick = { showLeave = false }) { Text("Cancelar") } },
         )
     }
-    if (showMembers) MembersDialog(state.event?.members.orEmpty()) { showMembers = false }
+    if (showAdminBlock) {
+        HitPopup(
+            title = stringResource(R.string.event_admin_block_title),
+            message = stringResource(R.string.event_admin_block_msg),
+            confirmText = stringResource(R.string.common_accept),
+            onConfirm = { showAdminBlock = false },
+            onDismissRequest = { showAdminBlock = false },
+        )
+    }
+    if (showDelete) {
+        HitPopup(
+            title = stringResource(R.string.event_delete_confirm_title),
+            message = stringResource(R.string.event_delete_confirm_msg),
+            icon = painterResource(R.drawable.im_ico_trash),
+            confirmText = stringResource(R.string.common_accept),
+            confirmType = HitButtonType.Destructive,
+            onConfirm = { showDelete = false; viewModel.delete() },
+            cancelText = stringResource(R.string.common_cancel),
+            onCancel = { showDelete = false },
+            onDismissRequest = { showDelete = false },
+        )
+    }
+    if (showMembers) MembersManageDialog(
+        members = state.event?.members.orEmpty(),
+        titleRes = R.string.event_participants_title,
+        isCurrentUserAdmin = state.isAdmin,
+        onOpenProfile = onOpenUserProfile,
+        onMakeAdmin = viewModel::makeAdmin,
+        onRemove = viewModel::removeMember,
+        onDismiss = { showMembers = false },
+    )
 }
 
 @Composable
@@ -173,39 +234,21 @@ private fun Section(title: String, content: @Composable () -> Unit) {
 private fun Value(text: String) = Text(text, style = HitbosssType.bodySmallRegular, color = Gray500)
 
 @Composable
-private fun MembersDialog(members: List<Member>, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Cerrar") } },
-        title = { Text("Participantes", style = HitbosssType.titleBody) },
-        text = {
-            LazyColumn {
-                items(members) { m ->
-                    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        AsyncImage(model = m.profilePic, contentDescription = null, contentScale = ContentScale.Crop, placeholder = placeholderPainter(), error = placeholderPainter(), fallback = placeholderPainter(), modifier = Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)).background(Gray200))
-                        Text(m.username, style = HitbosssType.bodyDefaultRegular, color = Gray800, modifier = Modifier.weight(1f))
-                        if (m.isAdmin) Text("Admin", style = HitbosssType.bodySmallEmphasis, color = Primary500)
-                    }
-                }
-            }
-        },
-    )
-}
-
 private fun exerciseTitle(apiKey: String): String =
-    Exercise.entries.firstOrNull { it.apiValue.equals(apiKey, true) }?.title ?: apiKey.replaceFirstChar { it.uppercase() }
+    com.hitbosss.presentation.feature.ranking.exerciseTitleResByApi(apiKey)?.let { stringResource(it) }
+        ?: apiKey.replaceFirstChar { it.uppercase() }
 
 private fun formatDate(unixSeconds: Long): String =
-    if (unixSeconds <= 0) "—" else java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale("es")).format(java.util.Date(unixSeconds * 1000))
+    if (unixSeconds <= 0) "—" else java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()).format(java.util.Date(unixSeconds * 1000))
 
 /** "Faltan N días para que finalice el evento." (igual que iOS eventEndMessage). */
-private fun eventEndMessage(e: EventDetail): String? {
+private fun eventEndMessage(e: EventDetail, context: android.content.Context): String? {
     val diff = e.endTime * 1000 - System.currentTimeMillis()
     if (diff <= 0) return null
     val days = (diff / 86_400_000L).toInt()
     return when {
-        days > 1 -> "Faltan $days días para que finalice el evento."
-        days == 1 -> "Falta 1 día para que finalice el evento."
-        else -> "El evento finaliza hoy."
+        days > 1 -> context.getString(R.string.event_ends_in_days, days)
+        days == 1 -> context.getString(R.string.event_ends_one_day)
+        else -> context.getString(R.string.event_ends_today)
     }
 }

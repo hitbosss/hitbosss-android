@@ -38,6 +38,8 @@ import com.hitbosss.presentation.designsystem.theme.Gray500
 import com.hitbosss.presentation.designsystem.theme.Gray800
 import com.hitbosss.presentation.designsystem.theme.HitbosssType
 import com.hitbosss.presentation.designsystem.theme.Secondary800
+import androidx.compose.ui.res.stringResource
+import com.hitbosss.R
 
 // MARK: - Hoja "Ordenar por"
 
@@ -46,7 +48,7 @@ import com.hitbosss.presentation.designsystem.theme.Secondary800
 fun RankingSortSheet(current: RankingOrder, onSelect: (RankingOrder) -> Unit, onDismiss: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Gray100) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 24.dp)) {
-            Text("Ordenar por", style = HitbosssType.titleBody, color = Gray800)
+            Text(stringResource(R.string.filter_sort_by), style = HitbosssType.titleBody, color = Gray800)
             Box(Modifier.fillMaxWidth().height(1.dp).background(Gray300).padding(top = 0.dp))
             Spacer(Modifier.height(8.dp))
             RankingOrder.entries.forEach { option ->
@@ -60,7 +62,7 @@ fun RankingSortSheet(current: RankingOrder, onSelect: (RankingOrder) -> Unit, on
                         if (current == option) Icons.Filled.RadioButtonChecked else Icons.Filled.RadioButtonUnchecked,
                         contentDescription = null, tint = Gray800, modifier = Modifier.size(22.dp),
                     )
-                    Text(option.label, style = HitbosssType.bodyLargeRegular, color = Gray800)
+                    Text(stringResource(option.label), style = HitbosssType.bodyLargeRegular, color = Gray800)
                 }
             }
         }
@@ -86,7 +88,7 @@ fun RankingFilterSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, containerColor = Gray100) {
         Column(Modifier.fillMaxWidth()) {
-            Text("Configurar ranking", style = HitbosssType.titleBody, color = Gray800, modifier = Modifier.padding(horizontal = 16.dp))
+            Text(stringResource(R.string.ranking_configure), style = HitbosssType.titleBody, color = Gray800, modifier = Modifier.padding(horizontal = 16.dp))
             Spacer(Modifier.height(12.dp))
             Box(Modifier.fillMaxWidth().height(1.dp).background(Gray300))
 
@@ -94,12 +96,12 @@ fun RankingFilterSheet(
                 Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                SectionTitle("Localización")
+                SectionTitle(stringResource(R.string.filter_location))
                 Segmented(
                     options = RankingLocation.entries, selected = location, label = { it.label }, onSelect = onLocation,
                 )
 
-                SectionTitle("Niveles")
+                SectionTitle(stringResource(R.string.filter_levels))
                 // 2 columnas de checkboxes
                 val rows = levelFilterOptions.chunked(2)
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -115,14 +117,14 @@ fun RankingFilterSheet(
                     }
                 }
 
-                SectionTitle("Edad")
+                SectionTitle(stringResource(R.string.filter_age))
                 Column {
                     AgeCategory.entries.forEach { age ->
                         CheckboxRow(age.label, age in selectedAges) { onToggleAge(age) }
                     }
                 }
 
-                SectionTitle("Género")
+                SectionTitle(stringResource(R.string.filter_gender))
                 Segmented(
                     options = RankingGender.entries, selected = gender, label = { it.label }, onSelect = onGender,
                 )
@@ -135,7 +137,7 @@ fun RankingFilterSheet(
                     .padding(vertical = 16.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("Guardar Cambios", style = HitbosssType.bodyLargeEmphasis, color = Gray100)
+                Text(stringResource(R.string.filter_save_changes), style = HitbosssType.bodyLargeEmphasis, color = Gray100)
             }
         }
     }
@@ -147,7 +149,7 @@ private fun SectionTitle(text: String) {
 }
 
 @Composable
-private fun CheckboxRow(label: String, checked: Boolean, onToggle: () -> Unit) {
+private fun CheckboxRow(@androidx.annotation.StringRes label: Int, checked: Boolean, onToggle: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().clickable { onToggle() }.padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -157,13 +159,13 @@ private fun CheckboxRow(label: String, checked: Boolean, onToggle: () -> Unit) {
             if (checked) Icons.Filled.CheckBox else Icons.Filled.CheckBoxOutlineBlank,
             contentDescription = null, tint = Gray800, modifier = Modifier.size(24.dp),
         )
-        Text(label, style = HitbosssType.bodyLargeRegular, color = Gray800)
+        Text(stringResource(label), style = HitbosssType.bodyLargeRegular, color = Gray800)
     }
 }
 
 /** Selector segmentado (pill blanca = activo), igual que SelectionButton de iOS. */
 @Composable
-private fun <T> Segmented(options: List<T>, selected: T, label: (T) -> String, onSelect: (T) -> Unit) {
+private fun <T> Segmented(options: List<T>, selected: T, label: (T) -> Int, onSelect: (T) -> Unit) {
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(Gray200).padding(4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -177,7 +179,7 @@ private fun <T> Segmented(options: List<T>, selected: T, label: (T) -> String, o
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    label(option),
+                    stringResource(label(option)),
                     style = if (sel) HitbosssType.bodyDefaultEmphasis else HitbosssType.bodyDefaultRegular,
                     color = if (sel) Gray800 else Gray500,
                 )

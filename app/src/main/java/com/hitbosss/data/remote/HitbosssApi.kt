@@ -72,6 +72,44 @@ interface HitbosssApi {
     @DELETE("event/{id}/leave")
     suspend fun leaveEvent(@Path("id") eventId: Int): MessageResponseDto
 
+    /** DELETE /event/{id} — eliminar el evento (solo admin). */
+    @DELETE("event/{id}")
+    suspend fun deleteEvent(@Path("id") eventId: Int): MessageResponseDto
+
+    /** PATCH /group/{id}/make-admin/{userId} — dar admin a un miembro (solo admin). */
+    @PATCH("group/{id}/make-admin/{userId}")
+    suspend fun makeGroupAdmin(@Path("id") groupId: Int, @Path("userId") userId: String): MessageResponseDto
+
+    /** DELETE /group/{id}/delete-user/{userId} — expulsar a un miembro (solo admin). */
+    @DELETE("group/{id}/delete-user/{userId}")
+    suspend fun removeGroupMember(@Path("id") groupId: Int, @Path("userId") userId: String): MessageResponseDto
+
+    /** PATCH /event/{id}/make-admin/{userId} — dar admin a un miembro (solo admin). */
+    @PATCH("event/{id}/make-admin/{userId}")
+    suspend fun makeEventAdmin(@Path("id") eventId: Int, @Path("userId") userId: String): MessageResponseDto
+
+    /** DELETE /event/{id}/delete-user/{userId} — expulsar a un miembro (solo admin). */
+    @DELETE("event/{id}/delete-user/{userId}")
+    suspend fun removeEventMember(@Path("id") eventId: Int, @Path("userId") userId: String): MessageResponseDto
+
+    /** PATCH /group/{groupId} (multipart, coverPic). Editar grupo (solo admin). */
+    @Multipart
+    @PATCH("group/{groupId}")
+    suspend fun updateGroup(
+        @Path("groupId") groupId: Int,
+        @PartMap fields: Map<String, @JvmSuppressWildcards RequestBody>,
+        @Part coverPic: MultipartBody.Part?,
+    ): MessageResponseDto
+
+    /** PATCH /event/{eventId} (multipart, coverPic). Editar evento (solo admin). */
+    @Multipart
+    @PATCH("event/{eventId}")
+    suspend fun updateEvent(
+        @Path("eventId") eventId: Int,
+        @PartMap fields: Map<String, @JvmSuppressWildcards RequestBody>,
+        @Part coverPic: MultipartBody.Part?,
+    ): MessageResponseDto
+
     /** POST /group/ (multipart). exercises/officialSports como CSV. */
     @Multipart
     @POST("group/")
@@ -136,5 +174,21 @@ interface HitbosssApi {
     suspend fun reportHit(
         @Path("hitId") hitId: Int,
         @Body body: ReportRequestDto,
+    ): MessageResponseDto
+
+    /** DELETE /ranking/hit/{hitId} — eliminar un hit propio. Requiere auth. */
+    @DELETE("ranking/hit/{hitId}")
+    suspend fun deleteHit(@Path("hitId") hitId: Int): MessageResponseDto
+
+    /**
+     * PATCH /ranking/hit/{hitId} (multipart) — editar un hit propio: nuevo performedAt y,
+     * opcionalmente, un vídeo recortado. Requiere auth.
+     */
+    @Multipart
+    @PATCH("ranking/hit/{hitId}")
+    suspend fun editHit(
+        @Path("hitId") hitId: Int,
+        @PartMap fields: Map<String, @JvmSuppressWildcards RequestBody>,
+        @Part video: MultipartBody.Part?,
     ): MessageResponseDto
 }

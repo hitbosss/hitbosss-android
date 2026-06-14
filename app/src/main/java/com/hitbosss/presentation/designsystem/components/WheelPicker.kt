@@ -25,6 +25,8 @@ import com.hitbosss.presentation.designsystem.theme.Gray200
 import com.hitbosss.presentation.designsystem.theme.Gray800
 import com.hitbosss.presentation.designsystem.theme.HitbosssType
 import kotlin.math.abs
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.padding
 
 /**
  * Rueda de selección estilo iOS (UIPickerView). Muestra [visibleCount] ítems, el central

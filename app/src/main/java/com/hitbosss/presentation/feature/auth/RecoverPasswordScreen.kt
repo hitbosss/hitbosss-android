@@ -25,7 +25,14 @@ import com.hitbosss.presentation.designsystem.theme.Gray500
 import com.hitbosss.presentation.designsystem.theme.Gray800
 import com.hitbosss.presentation.designsystem.theme.HitbosssType
 import com.hitbosss.presentation.designsystem.theme.Success600
+import androidx.compose.ui.res.stringResource
+import com.hitbosss.R
+import com.hitbosss.presentation.designsystem.components.HitPopup
 
+/**
+ * Recuperar contraseña — 1:1 con RecoverPasswordView de iOS: un solo paso (email) que envía un
+ * enlace de Firebase y muestra el popup "Correo enviado", volviendo atrás al aceptar.
+ */
 @Composable
 fun RecoverPasswordScreen(
     onBack: () -> Unit,
@@ -34,44 +41,51 @@ fun RecoverPasswordScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     Column(Modifier.fillMaxSize().background(Gray100)) {
-        HitTopBar(title = "Recuperar contraseña", onBack = onBack)
+        HitTopBar(title = stringResource(R.string.recover_title), onBack = onBack)
 
-        Column(
-            modifier = Modifier.padding(top = 32.dp, start = 16.dp, end = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp),
-        ) {
+        Column(Modifier.padding(horizontal = 16.dp)) {
             Text(
-                "Introduce tu correo y te enviaremos un enlace para restablecer la contraseña.",
+                stringResource(R.string.recover_desc),
                 style = HitbosssType.bodyDefaultRegular,
-                color = Gray800,
+                color = Gray500,
+                modifier = Modifier.padding(top = 16.dp),
             )
-            HitTextField(state.email, viewModel::onEmailChange, "Correo electrónico", keyboardType = KeyboardType.Email)
-
-            if (state.sent) {
-                Text(
-                    "✓ Enlace enviado. Revisa tu correo.",
-                    style = HitbosssType.bodyDefaultEmphasis,
-                    color = Success600,
-                )
-            }
+            HitTextField(
+                state.email,
+                viewModel::onEmailChange,
+                stringResource(R.string.auth_email),
+                keyboardType = KeyboardType.Email,
+                modifier = Modifier.padding(top = 32.dp),
+            )
+            HitButton(
+                text = stringResource(R.string.recover_button),
+                onClick = viewModel::send,
+                type = HitButtonType.Secondary,
+                enabled = state.isFormValid,
+                loading = state.isLoading,
+                modifier = Modifier.padding(top = 56.dp).fillMaxWidth(),
+            )
         }
+    }
 
-        HitButton(
-            text = "Enviar enlace",
-            onClick = viewModel::send,
-            type = HitButtonType.Primary,
-            enabled = state.isFormValid,
-            loading = state.isLoading,
-            modifier = Modifier.padding(top = 32.dp, start = 16.dp, end = 16.dp).fillMaxWidth(),
+    // Éxito: popup "Correo enviado" y, al aceptar, volver atrás (igual que iOS).
+    if (state.sent) {
+        HitPopup(
+            title = stringResource(R.string.recover_sent_title),
+            message = stringResource(R.string.recover_sent_message),
+            confirmText = stringResource(R.string.common_accept),
+            onConfirm = onBack,
+            onDismissRequest = onBack,
         )
     }
 
     state.error?.let { error ->
-        AlertDialog(
+        HitPopup(
+            title = stringResource(R.string.common_something_wrong),
+            message = error,
+            confirmText = stringResource(R.string.common_accept),
+            onConfirm = viewModel::clearError,
             onDismissRequest = viewModel::clearError,
-            confirmButton = { TextButton(onClick = viewModel::clearError) { Text("Aceptar") } },
-            title = { Text("Algo ha salido mal", style = HitbosssType.titleBody) },
-            text = { Text(error, style = HitbosssType.bodyDefaultRegular) },
         )
     }
 }

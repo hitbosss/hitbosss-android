@@ -14,7 +14,15 @@ interface CommunityRepository {
     suspend fun leaveGroup(groupId: Int): Result<Unit>
     suspend fun deleteGroup(groupId: Int): Result<Unit>
     suspend fun leaveEvent(eventId: Int): Result<Unit>
+    suspend fun deleteEvent(eventId: Int): Result<Unit>
+
+    suspend fun makeGroupAdmin(groupId: Int, userId: String): Result<Unit>
+    suspend fun removeGroupMember(groupId: Int, userId: String): Result<Unit>
+    suspend fun makeEventAdmin(eventId: Int, userId: String): Result<Unit>
+    suspend fun removeEventMember(eventId: Int, userId: String): Result<Unit>
 
     suspend fun createGroup(fields: Map<String, String>, coverPic: java.io.File? = null): Result<Unit>
     suspend fun createEvent(fields: Map<String, String>, coverPic: java.io.File? = null): Result<Unit>
+    suspend fun updateGroup(groupId: Int, fields: Map<String, String>, coverPic: java.io.File? = null): Result<Unit>
+    suspend fun updateEvent(eventId: Int, fields: Map<String, String>, coverPic: java.io.File? = null): Result<Unit>
 }

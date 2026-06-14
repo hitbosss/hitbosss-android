@@ -83,17 +83,32 @@ import com.hitbosss.presentation.designsystem.theme.Warning500
 import com.hitbosss.presentation.designsystem.components.placeholderPainter
 import com.hitbosss.presentation.feature.hit.HitVideoDialog
 import com.hitbosss.presentation.feature.hit.UploadHitFab
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInRoot
+import com.hitbosss.presentation.feature.ranking.titleRes
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun RankingScreen(
     onRecordHit: (String, Double) -> Unit = { _, _ -> },
+    onSavedHits: () -> Unit = {},
     onOpenUserProfile: (String) -> Unit = {},
     viewModel: RankingViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
     var selectedUserId by remember { mutableStateOf<String?>(null) }
     var showSortSheet by remember { mutableStateOf(false) }
     var showFilterSheet by remember { mutableStateOf(false) }
+
+    // Tutorial coach-marks (1:1 iOS): se muestra una vez en la primera visita al ranking.
+    var showOnboarding by remember { mutableStateOf(!TutorialTracker.hasSeenRankingOnboarding(context)) }
+    var onboardingStep by remember { mutableStateOf(RankingOnboardingStep.Exercises) }
+    var exercisesFrame by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
+    var filterFrame by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
+    var orderFrame by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
+    var fabFrame by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
 
     Box(Modifier.fillMaxSize().background(Gray100)) {
         Column(Modifier.fillMaxSize()) {
@@ -104,8 +119,12 @@ fun RankingScreen(
                 filtersActive = state.hasActiveFilters,
                 onFilter = { showFilterSheet = true },
                 onSort = { showSortSheet = true },
+                onFilterPositioned = { filterFrame = it },
+                onSortPositioned = { orderFrame = it },
             )
-            ExerciseTabs(state.categories, state.selectedCategory, viewModel::selectCategory)
+            Box(Modifier.onGloballyPositioned { exercisesFrame = it.boundsInRoot() }) {
+                ExerciseTabs(state.categories, state.selectedCategory, viewModel::selectCategory)
+            }
             LevelFilters(state.displayedEntries.size, state.selectedLevels, viewModel::toggleLevel)
 
             when {
@@ -114,11 +133,16 @@ fun RankingScreen(
                 }
 
                 state.error != null -> Box(Modifier.fillMaxSize(), Alignment.Center) {
-                    Text(state.error ?: "", style = HitbosssType.bodyDefaultRegular, color = Gray500)
+                    com.hitbosss.presentation.designsystem.components.ErrorConnectionView(onRetry = viewModel::refresh)
                 }
 
-                else -> LazyColumn(
-                    modifier = Modifier.weight(1f).background(Gray300),
+                else -> androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+                    isRefreshing = state.isRefreshing,
+                    onRefresh = viewModel::refresh,
+                    modifier = Modifier.weight(1f),
+                ) {
+                  LazyColumn(
+                    modifier = Modifier.fillMaxSize().background(Gray300),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
@@ -126,29 +150,12 @@ fun RankingScreen(
                         item { NoParticipaCard(state.sport.replaceFirstChar { it.uppercase() }, state.requiredExercises) }
                     }
                     if (state.displayedEntries.isEmpty() && !state.isOfficial) {
-                        item {
-                            Column(
-                                Modifier.fillMaxWidth().padding(horizontal = 70.dp, vertical = 48.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(32.dp),
-                            ) {
-                                Image(
-                                    painterResource(R.drawable.im_empty_ranking),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(width = 251.dp, height = 187.dp),
-                                )
-                                Text(
-                                    "No se ha encontrado ningún usuario",
-                                    style = HitbosssType.titleBody,
-                                    color = Gray500,
-                                    textAlign = TextAlign.Center,
-                                )
-                            }
-                        }
+                        item { RankingEmptyState() }
                     }
                     items(state.displayedEntries) { entry ->
                         RankingRow(entry, state.orderByPoints) { selectedUserId = entry.userId }
                     }
+                  }
                 }
             }
 
@@ -160,8 +167,39 @@ fun RankingScreen(
             isOfficial = state.isOfficial,
             exerciseKey = state.selectedCategory.uploadExerciseKey,
             onRecordHit = onRecordHit,
-            modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 88.dp),
+            onSavedHits = onSavedHits,
+            modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 88.dp)
+                .onGloballyPositioned { fabFrame = it.boundsInRoot() },
         )
+
+        if (showOnboarding) {
+            val frame = when (onboardingStep) {
+                RankingOnboardingStep.Exercises -> exercisesFrame
+                RankingOnboardingStep.Filters -> filterFrame
+                RankingOnboardingStep.OrderBy -> orderFrame
+                RankingOnboardingStep.UploadHit -> fabFrame
+            }
+            RankingOnboardingOverlay(
+                step = onboardingStep,
+                highlightFrame = frame,
+                onNext = {
+                    val next = RankingOnboardingStep.entries.getOrNull(onboardingStep.ordinal + 1)
+                    if (next != null) {
+                        onboardingStep = next
+                    } else {
+                        TutorialTracker.markRankingOnboardingSeen(context)
+                        showOnboarding = false
+                    }
+                },
+                onBack = {
+                    RankingOnboardingStep.entries.getOrNull(onboardingStep.ordinal - 1)?.let { onboardingStep = it }
+                },
+                onSkip = {
+                    TutorialTracker.markRankingOnboardingSeen(context)
+                    showOnboarding = false
+                },
+            )
+        }
     }
 
     if (showSortSheet) {
@@ -221,7 +259,7 @@ private fun SportHeader(sport: String, onSelect: (String) -> Unit) {
                 modifier = Modifier.size(28.dp).clip(CircleShape).border(1.dp, Gray300, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Cambiar deporte", tint = Gray800, modifier = Modifier.size(18.dp))
+                Icon(Icons.Filled.KeyboardArrowDown, contentDescription = stringResource(R.string.ranking_change_sport), tint = Gray800, modifier = Modifier.size(18.dp))
             }
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
@@ -239,6 +277,8 @@ private fun SearchRow(
     filtersActive: Boolean,
     onFilter: () -> Unit,
     onSort: () -> Unit,
+    onFilterPositioned: (androidx.compose.ui.geometry.Rect) -> Unit = {},
+    onSortPositioned: (androidx.compose.ui.geometry.Rect) -> Unit = {},
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
@@ -251,7 +291,7 @@ private fun SearchRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(Modifier.weight(1f)) {
-                if (value.isEmpty()) Text("Buscar", style = HitbosssType.bodyDefaultRegular, color = Gray500)
+                if (value.isEmpty()) Text(stringResource(R.string.ranking_search), style = HitbosssType.bodyDefaultRegular, color = Gray500)
                 BasicTextField(
                     value = value, onValueChange = onChange, singleLine = true,
                     textStyle = HitbosssType.bodyDefaultRegular.copy(color = Gray800),
@@ -265,14 +305,16 @@ private fun SearchRow(
             icon = Icons.Filled.Tune,
             borderColor = if (filtersActive) Secondary500 else Gray300,
             onClick = onFilter,
-            contentDescription = "Configurar ranking",
+            contentDescription = stringResource(R.string.ranking_configure),
+            modifier = Modifier.onGloballyPositioned { onFilterPositioned(it.boundsInRoot()) },
         )
         // Botón de orden
         CircleIconButton(
             icon = Icons.Filled.SwapVert,
             borderColor = Gray300,
             onClick = onSort,
-            contentDescription = "Ordenar",
+            contentDescription = stringResource(R.string.ranking_sort),
+            modifier = Modifier.onGloballyPositioned { onSortPositioned(it.boundsInRoot()) },
         )
     }
 }
@@ -283,9 +325,10 @@ private fun CircleIconButton(
     borderColor: Color,
     onClick: () -> Unit,
     contentDescription: String,
+    modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = Modifier.size(48.dp).clip(CircleShape).background(Gray100)
+        modifier = modifier.size(48.dp).clip(CircleShape).background(Gray100)
             .border(1.dp, borderColor, CircleShape).clickable { onClick() },
         contentAlignment = Alignment.Center,
     ) {
@@ -313,7 +356,7 @@ private fun ExerciseTabs(categories: List<RankingCategory>, selected: RankingCat
                 Text(
                     if (category == RankingCategory.PlOfficial || category == RankingCategory.CfOfficial) {
                         if (category == RankingCategory.PlOfficial) "Powerlifting" else "CrossHIT"
-                    } else category.title,
+                    } else stringResource(category.titleRes()),
                     style = HitbosssType.bodyLargeRegular,
                     color = Gray800,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -341,7 +384,7 @@ internal fun LevelFilters(count: Int, selected: Set<String>, onToggle: (String) 
             items(levelFilterOptions) { (key, label) ->
                 val sel = key in selected
                 Text(
-                    label,
+                    stringResource(label),
                     style = HitbosssType.bodyDefaultRegular,
                     color = Secondary800,
                     modifier = Modifier.clip(RoundedCornerShape(24.dp)).background(Gray100)
@@ -391,11 +434,36 @@ internal fun RankingRow(entry: RankingEntry, usePoints: Boolean, onClick: () -> 
     }
 }
 
+/**
+ * Estado vacío del ranking (sin usuarios en la categoría): ilustración + mensaje, igual que iOS
+ * RankingListView. Reutilizado por el ranking global y los de grupo/evento.
+ */
+@Composable
+internal fun RankingEmptyState(modifier: Modifier = Modifier) {
+    Column(
+        modifier.fillMaxWidth().padding(horizontal = 70.dp, vertical = 48.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(32.dp),
+    ) {
+        Image(
+            painterResource(R.drawable.im_empty_ranking),
+            contentDescription = null,
+            modifier = Modifier.size(width = 251.dp, height = 187.dp),
+        )
+        Text(
+            stringResource(R.string.ranking_no_users),
+            style = HitbosssType.titleBody,
+            color = Gray500,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
 /** Badge de nivel (ÉLITE, AVANZADO…) igual que LevelView de iOS: bodySmallRegular, h8/v2, radio 4. */
 @Composable
 internal fun LevelBadge(lvl: LevelStyle, modifier: Modifier = Modifier) {
     Text(
-        lvl.label, style = HitbosssType.bodySmallRegular, color = lvl.text,
+        stringResource(lvl.labelRes).uppercase(), style = HitbosssType.bodySmallRegular, color = lvl.text,
         modifier = modifier.clip(RoundedCornerShape(4.dp)).background(lvl.bg).padding(horizontal = 8.dp, vertical = 2.dp),
     )
 }
@@ -443,7 +511,7 @@ internal fun CurrentUserRow(entry: RankingEntry?, country: String?, usePoints: B
         )
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Tú", style = HitbosssType.bodySmallRegular, color = Gray100)
+                Text(stringResource(R.string.ranking_you), style = HitbosssType.bodySmallRegular, color = Gray100)
                 if (entry != null) {
                     Text(
                         "${entry.rank}", style = HitbosssType.bodySmallRegular, color = Primary800,
@@ -451,7 +519,7 @@ internal fun CurrentUserRow(entry: RankingEntry?, country: String?, usePoints: B
                     )
                 } else {
                     Text(
-                        "SIN CLASIFICAR", style = HitbosssType.bodySmallEmphasis, color = Primary500,
+                        stringResource(R.string.ranking_not_ranked), style = HitbosssType.bodySmallEmphasis, color = Primary500,
                         modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(Gray100).padding(horizontal = 8.dp, vertical = 2.dp),
                     )
                 }
@@ -482,7 +550,7 @@ internal fun NoParticipaCard(sportLabel: String, required: List<RequiredExercise
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Icon(Icons.Filled.WarningAmber, contentDescription = null, tint = Warning500, modifier = Modifier.size(22.dp))
-            Text("Aún no participas en este ranking", style = HitbosssType.bodyDefaultEmphasis, color = Gray800, modifier = Modifier.weight(1f))
+            Text(stringResource(R.string.ranking_not_participating), style = HitbosssType.bodyDefaultEmphasis, color = Gray800, modifier = Modifier.weight(1f))
             Icon(
                 Icons.Filled.KeyboardArrowUp, contentDescription = null, tint = Warning500,
                 modifier = Modifier.size(22.dp).rotate(if (expanded) 0f else 180f),
@@ -490,7 +558,7 @@ internal fun NoParticipaCard(sportLabel: String, required: List<RequiredExercise
         }
         if (expanded) {
             Text(
-                "Para activar tu participación, necesitas subir primero un hit de estos tres ejercicios de $sportLabel:",
+                stringResource(R.string.ranking_required_exercises, sportLabel),
                 style = HitbosssType.bodySmallRegular, color = Gray500,
             )
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
@@ -506,7 +574,7 @@ internal fun NoParticipaCard(sportLabel: String, required: List<RequiredExercise
                                 Icon(Icons.Filled.Check, contentDescription = null, tint = Gray100, modifier = Modifier.size(16.dp))
                             }
                         }
-                        Text(ex.label, style = HitbosssType.bodySmallRegular, color = Gray800, maxLines = 1)
+                        Text(stringResource(ex.labelRes), style = HitbosssType.bodySmallRegular, color = Gray800, maxLines = 1)
                     }
                 }
             }

@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlinx.coroutines.flow.update
 
 /** Destino al que arranca la app, decidido en el splash (equivale a AppStartManager de iOS). */
 enum class LaunchTarget { LOADING, FORCE_UPDATE, WELCOME, COMPLETE_PROFILE, MAIN }

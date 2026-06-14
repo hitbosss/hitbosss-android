@@ -66,6 +66,8 @@ import com.hitbosss.presentation.designsystem.theme.Primary500
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.ui.res.stringResource
+import okio.buffer
 
 /**
  * Modal con los hits del usuario (paginador) — equivale a UserDetailModal de iOS, que se presenta
@@ -114,7 +116,7 @@ fun UserDetailModal(userId: String, ranking: SportRanking, onDismiss: () -> Unit
                         .background(com.hitbosss.presentation.designsystem.theme.Secondary800)
                         .clickable { onVisitProfile() }.padding(horizontal = 20.dp, vertical = 12.dp),
                 ) {
-                    Text("Visitar perfil", style = HitbosssType.bodyDefaultEmphasis, color = Gray100)
+                    Text(stringResource(R.string.user_view_profile), style = HitbosssType.bodyDefaultEmphasis, color = Gray100)
                 }
             }
 
@@ -175,7 +177,7 @@ private fun HitPage(
                     androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
                     levelStyle(entry.levelWeight)?.let { lvl ->
                         Text(
-                            lvl.label, style = HitbosssType.bodyDefaultEmphasis, color = lvl.text,
+                            stringResource(lvl.labelRes).uppercase(), style = HitbosssType.bodyDefaultEmphasis, color = lvl.text,
                             modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(lvl.bg).padding(horizontal = 10.dp, vertical = 5.dp),
                         )
                     }

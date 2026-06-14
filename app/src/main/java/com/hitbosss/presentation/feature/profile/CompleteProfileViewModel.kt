@@ -14,6 +14,10 @@ import kotlinx.coroutines.launch
 import java.util.Calendar
 import javax.inject.Inject
 import kotlin.math.roundToInt
+import com.hitbosss.R
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
+import androidx.compose.foundation.layout.height
 
 enum class MeasurementSystem(val apiValue: String) { Metric("metric"), Imperial("imperial") }
 
@@ -76,6 +80,7 @@ fun isValidUsername(u: String): Boolean {
 
 @HiltViewModel
 class CompleteProfileViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val getCurrentUser: GetCurrentUserUseCase,
     private val createUser: CreateUserUseCase,
 ) : ViewModel() {
@@ -115,7 +120,7 @@ class CompleteProfileViewModel @Inject constructor(
             ).onSuccess { _state.update { it.copy(isLoading = false, success = true) } }
                 .onFailure { e ->
                     val taken = e.message?.contains("username", true) == true || e.message?.contains("taken", true) == true
-                    _state.update { it.copy(isLoading = false, usernameTaken = taken, error = if (taken) null else (e.message ?: "No se pudo crear el perfil")) }
+                    _state.update { it.copy(isLoading = false, usernameTaken = taken, error = if (taken) null else (e.message ?: context.getString(R.string.err_create_profile))) }
                 }
         }
     }

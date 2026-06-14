@@ -1,6 +1,7 @@
 package com.hitbosss.data.remote.dto
 
 import kotlinx.serialization.Serializable
+import androidx.compose.foundation.layout.height
 
 /** Body de POST /users/{id} (el id va en la ruta). */
 @Serializable

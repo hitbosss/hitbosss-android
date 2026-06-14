@@ -28,11 +28,12 @@ import com.hitbosss.presentation.designsystem.theme.Primary500
 import com.hitbosss.presentation.feature.community.CommunityScreen
 import com.hitbosss.presentation.feature.profile.ProfileScreen
 import com.hitbosss.presentation.feature.ranking.RankingScreen
+import androidx.compose.ui.res.stringResource
 
-private enum class MainTab(val label: String, @DrawableRes val icon: Int) {
-    Ranking("Ranking", R.drawable.im_tab_ranking),
-    Community("Comunidad", R.drawable.im_tab_community),
-    Profile("Perfil", R.drawable.im_tab_profile),
+private enum class MainTab(@androidx.annotation.StringRes val label: Int, @DrawableRes val icon: Int) {
+    Ranking(R.string.tab_ranking, R.drawable.im_tab_ranking),
+    Community(R.string.tab_community, R.drawable.im_tab_community),
+    Profile(R.string.tab_profile, R.drawable.im_tab_profile),
 }
 
 /**
@@ -43,11 +44,13 @@ private enum class MainTab(val label: String, @DrawableRes val icon: Int) {
 fun MainScreen(
     onOpenSettings: () -> Unit = {},
     onRecordHit: (String, Double) -> Unit = { _, _ -> },
+    onSavedHits: () -> Unit = {},
     onOpenGroup: (Int) -> Unit = {},
     onOpenEvent: (Int) -> Unit = {},
     onCreateGroup: () -> Unit = {},
     onCreateEvent: () -> Unit = {},
     onOpenUserProfile: (String) -> Unit = {},
+    onEditHit: (com.hitbosss.presentation.feature.profile.EditHitNav) -> Unit = {},
 ) {
     // rememberSaveable para conservar la pestaña al volver de pantallas que sacan a MainScreen de composición.
     var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
@@ -64,12 +67,12 @@ fun MainScreen(
                             // Iconos de iOS (tabRanking/tabCommunity/tabProfile), tintados según selección.
                             Image(
                                 painterResource(tab.icon),
-                                contentDescription = tab.label,
+                                contentDescription = stringResource(tab.label),
                                 colorFilter = ColorFilter.tint(if (selected == tab) Primary500 else Gray500),
                                 modifier = Modifier.height(26.dp),
                             )
                         },
-                        label = { Text(tab.label, style = HitbosssType.bodySmallRegular) },
+                        label = { Text(stringResource(tab.label), style = HitbosssType.bodySmallRegular) },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = Primary500,
                             selectedTextColor = Primary500,
@@ -84,14 +87,14 @@ fun MainScreen(
     ) { innerPadding ->
         Box(Modifier.fillMaxSize().padding(innerPadding)) {
             when (selected) {
-                MainTab.Ranking -> RankingScreen(onRecordHit = onRecordHit, onOpenUserProfile = onOpenUserProfile)
+                MainTab.Ranking -> RankingScreen(onRecordHit = onRecordHit, onSavedHits = onSavedHits, onOpenUserProfile = onOpenUserProfile)
                 MainTab.Community -> CommunityScreen(
                     onOpenGroup = onOpenGroup,
                     onOpenEvent = onOpenEvent,
                     onCreateGroup = onCreateGroup,
                     onCreateEvent = onCreateEvent,
                 )
-                MainTab.Profile -> ProfileScreen(onOpenSettings = onOpenSettings)
+                MainTab.Profile -> ProfileScreen(onOpenSettings = onOpenSettings, onEditHit = onEditHit)
             }
         }
     }

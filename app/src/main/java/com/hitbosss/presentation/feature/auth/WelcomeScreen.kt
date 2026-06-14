@@ -40,31 +40,20 @@ import com.hitbosss.presentation.designsystem.theme.Gray800
 import com.hitbosss.presentation.designsystem.theme.HitbosssType
 import com.hitbosss.presentation.designsystem.theme.Secondary500
 import com.hitbosss.presentation.designsystem.theme.Secondary800
+import androidx.compose.ui.res.stringResource
 
 /** Item del carrusel de onboarding (equivale a OnboardingItem de iOS). */
-private data class OnboardingItem(val title: String, val headline: String, val image: Int)
+private data class OnboardingItem(
+    @androidx.annotation.StringRes val title: Int,
+    @androidx.annotation.StringRes val headline: Int,
+    val image: Int,
+)
 
 private val onboardingData = listOf(
-    OnboardingItem(
-        "Verifica tu hit en vídeo",
-        "Cada levantamiento queda registrado en vídeo, validado y visible para toda la comunidad",
-        R.drawable.im_onboarding_verify,
-    ),
-    OnboardingItem(
-        "Demuestra tu fuerza al mundo",
-        "Compite en tus ejercicios favoritos y mide tu fuerza frente a atletas de todo el mundo",
-        R.drawable.im_onboarding_ranking,
-    ),
-    OnboardingItem(
-        "Compite en grupos privados",
-        "Crea o únete a un ranking privado y compite en los mismos ejercicios solo con tu grupo",
-        R.drawable.im_onboarding_group,
-    ),
-    OnboardingItem(
-        "Participa en eventos exclusivos",
-        "Participa en eventos temporales, registra tu mejor marca y asciende en rankings especiales",
-        R.drawable.im_onboarding_event,
-    ),
+    OnboardingItem(R.string.welcome_verify_title, R.string.welcome_verify_desc, R.drawable.im_onboarding_verify),
+    OnboardingItem(R.string.welcome_strength_title, R.string.welcome_strength_desc, R.drawable.im_onboarding_ranking),
+    OnboardingItem(R.string.welcome_groups_title, R.string.welcome_groups_desc, R.drawable.im_onboarding_group),
+    OnboardingItem(R.string.welcome_events_title, R.string.welcome_events_desc, R.drawable.im_onboarding_event),
 )
 
 /**
@@ -125,10 +114,10 @@ fun WelcomeScreen(
                             },
                     )
                     Spacer(Modifier.height(26.dp))
-                    Text(item.title, style = HitbosssType.titleSubsection, color = Gray800)
+                    Text(stringResource(item.title), style = HitbosssType.titleSubsection, color = Gray800)
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        item.headline,
+                        stringResource(item.headline),
                         style = HitbosssType.bodyLargeRegular,
                         color = Gray800,
                         textAlign = TextAlign.Center,
@@ -159,8 +148,8 @@ fun WelcomeScreen(
                 modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 26.dp, bottom = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                HitButton("Iniciar sesión", onClick = onSignIn, type = HitButtonType.Secondary)
-                HitButton("Crear una cuenta", onClick = onSignUp, type = HitButtonType.Tertiary)
+                HitButton(stringResource(R.string.auth_sign_in), onClick = onSignIn, type = HitButtonType.Secondary)
+                HitButton(stringResource(R.string.welcome_create_account), onClick = onSignUp, type = HitButtonType.Tertiary)
             }
         }
     }

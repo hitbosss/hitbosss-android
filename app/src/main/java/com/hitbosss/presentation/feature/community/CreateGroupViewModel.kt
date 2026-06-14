@@ -18,6 +18,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
+import com.hitbosss.R
 
 data class CreateGroupUiState(
     val name: String = "",
@@ -36,6 +37,7 @@ data class CreateGroupUiState(
 class CreateGroupViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val createGroup: CreateGroupUseCase,
+    private val refreshCoordinator: com.hitbosss.core.RefreshCoordinator,
 ) : ViewModel() {
 
     val maxName = 25
@@ -71,8 +73,8 @@ class CreateGroupViewModel @Inject constructor(
                     officialSports = officialSportsFor(s.exercises),
                     coverPic = cover,
                 ),
-            ).onSuccess { _state.update { it.copy(isLoading = false, success = true) } }
-                .onFailure { e -> _state.update { it.copy(isLoading = false, error = e.message ?: "No se pudo crear el grupo") } }
+            ).onSuccess { refreshCoordinator.invalidateCommunity(); _state.update { it.copy(isLoading = false, success = true) } }
+                .onFailure { e -> _state.update { it.copy(isLoading = false, error = e.message ?: context.getString(R.string.err_create_group)) } }
         }
     }
 

@@ -20,6 +20,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 import kotlin.math.abs
+import androidx.compose.foundation.layout.height
 
 /** Sistema de medidas (igual que MeasurementSystem de iOS). */
 enum class MeasureSystem(val apiValue: String, val display: String) {
@@ -84,6 +85,7 @@ class EditProfileViewModel @Inject constructor(
     private val getCurrentUser: GetCurrentUserUseCase,
     private val getPersonalInfo: GetPersonalInfoUseCase,
     private val updateProfile: UpdateProfileUseCase,
+    private val refreshCoordinator: com.hitbosss.core.RefreshCoordinator,
 ) : ViewModel() {
 
     val maxNameLength = 25
@@ -178,7 +180,10 @@ class EditProfileViewModel @Inject constructor(
             val coverFile = s.coverPicUri?.let { uriToFile(it, "cover") }
 
             updateProfile(uid, fields, profileFile, coverFile)
-                .onSuccess { _state.update { it.copy(saving = false, saved = true) } }
+                .onSuccess {
+                    refreshCoordinator.invalidateProfile()  // refleja los cambios al volver al perfil
+                    _state.update { it.copy(saving = false, saved = true) }
+                }
                 .onFailure { e -> _state.update { it.copy(saving = false, error = e.message ?: "Error") } }
         }
     }

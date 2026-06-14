@@ -58,6 +58,11 @@ import com.hitbosss.presentation.designsystem.theme.Gray800
 import com.hitbosss.presentation.designsystem.theme.HitbosssType
 import com.hitbosss.presentation.designsystem.theme.Secondary500
 import com.hitbosss.presentation.designsystem.theme.Secondary800
+import androidx.compose.ui.res.stringResource
+import com.hitbosss.R
+import com.hitbosss.presentation.designsystem.components.HitPopup
+import kotlinx.coroutines.launch
+import com.hitbosss.presentation.feature.ranking.titleRes
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -71,7 +76,7 @@ fun CreateGroupScreen(
     LaunchedEffect(state.success) { if (state.success) onCreated() }
 
     Column(Modifier.fillMaxSize().background(Gray100)) {
-        HitTopBar(title = "Nuevo grupo", onBack = onBack)
+        HitTopBar(title = stringResource(R.string.create_group_title), onBack = onBack)
 
         Column(
             Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
@@ -90,31 +95,31 @@ fun CreateGroupScreen(
                             .clickable { pickCover.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(Icons.Filled.Add, contentDescription = "Cambiar foto", tint = Gray600, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.create_group_change_photo), tint = Gray600, modifier = Modifier.size(20.dp))
                     }
                 }
             }
             Spacer(Modifier.height(24.dp))
 
-            FieldLabel("Nombre del grupo")
+            FieldLabel(stringResource(R.string.create_group_name))
             FormField(state.name, viewModel::onName, 52.dp)
             Counter(state.name.length, viewModel.maxName)
             Spacer(Modifier.height(8.dp))
 
-            FieldLabel("Lema")
+            FieldLabel(stringResource(R.string.create_group_motto))
             FormField(state.motto, viewModel::onMotto, 52.dp)
             Counter(state.motto.length, viewModel.maxMotto)
             Spacer(Modifier.height(8.dp))
 
-            Text("Descripción", style = HitbosssType.bodySmallEmphasis, color = Gray800, modifier = Modifier.padding(bottom = 8.dp))
+            Text(stringResource(R.string.common_description), style = HitbosssType.bodySmallEmphasis, color = Gray800, modifier = Modifier.padding(bottom = 8.dp))
             FormField(state.description, viewModel::onDescription, 152.dp, single = false)
             Counter(state.description.length, viewModel.maxDescription)
             Spacer(Modifier.height(16.dp))
 
-            Text("Ejercicios", style = HitbosssType.bodySmallEmphasis, color = Gray800)
+            Text(stringResource(R.string.common_exercises), style = HitbosssType.bodySmallEmphasis, color = Gray800)
             Spacer(Modifier.height(8.dp))
             Text(
-                "Selecciona los ejercicios para la competencia de este grupo. Más adelante, podrás agregar otros si lo necesitas.",
+                stringResource(R.string.create_group_exercises_desc),
                 style = HitbosssType.bodySmallRegular, color = Gray500,
             )
             Spacer(Modifier.height(16.dp))
@@ -126,7 +131,7 @@ fun CreateGroupScreen(
                     Exercise.forSport(sport).forEach { ex ->
                         val sel = ex in state.exercises
                         Text(
-                            ex.title, style = HitbosssType.bodyDefaultRegular, color = Gray800,
+                            stringResource(ex.titleRes()), style = HitbosssType.bodyDefaultRegular, color = Gray800,
                             modifier = Modifier.clip(RoundedCornerShape(32.dp)).background(Gray100)
                                 .border(1.dp, if (sel) Secondary500 else Gray300, RoundedCornerShape(32.dp))
                                 .clickable { viewModel.toggleExercise(ex) }.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -145,16 +150,17 @@ fun CreateGroupScreen(
             contentAlignment = Alignment.Center,
         ) {
             if (state.isLoading) CircularProgressIndicator(color = Gray100, modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
-            else Text("Crear grupo", style = HitbosssType.bodyLargeEmphasis, color = if (enabled) Gray100 else Gray500)
+            else Text(stringResource(R.string.create_group_button), style = HitbosssType.bodyLargeEmphasis, color = if (enabled) Gray100 else Gray500)
         }
     }
 
     state.error?.let { error ->
-        AlertDialog(
+        HitPopup(
+            title = stringResource(R.string.common_something_wrong),
+            message = error,
+            confirmText = stringResource(R.string.common_accept),
+            onConfirm = viewModel::clearError,
             onDismissRequest = viewModel::clearError,
-            confirmButton = { TextButton(onClick = viewModel::clearError) { Text("OK") } },
-            title = { Text("Error inesperado", style = HitbosssType.titleBody) },
-            text = { Text(error, style = HitbosssType.bodyDefaultRegular) },
         )
     }
 }

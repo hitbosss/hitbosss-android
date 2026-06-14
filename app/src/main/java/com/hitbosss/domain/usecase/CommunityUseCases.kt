@@ -49,6 +49,69 @@ class LeaveEventUseCase @Inject constructor(
     suspend operator fun invoke(eventId: Int): Result<Unit> = repository.leaveEvent(eventId)
 }
 
+class DeleteEventUseCase @Inject constructor(
+    private val repository: CommunityRepository,
+) {
+    suspend operator fun invoke(eventId: Int): Result<Unit> = repository.deleteEvent(eventId)
+}
+
+// --- Gestión de miembros (solo admin) ---
+
+class MakeGroupAdminUseCase @Inject constructor(private val repository: CommunityRepository) {
+    suspend operator fun invoke(groupId: Int, userId: String): Result<Unit> = repository.makeGroupAdmin(groupId, userId)
+}
+
+class RemoveGroupMemberUseCase @Inject constructor(private val repository: CommunityRepository) {
+    suspend operator fun invoke(groupId: Int, userId: String): Result<Unit> = repository.removeGroupMember(groupId, userId)
+}
+
+class MakeEventAdminUseCase @Inject constructor(private val repository: CommunityRepository) {
+    suspend operator fun invoke(eventId: Int, userId: String): Result<Unit> = repository.makeEventAdmin(eventId, userId)
+}
+
+class RemoveEventMemberUseCase @Inject constructor(private val repository: CommunityRepository) {
+    suspend operator fun invoke(eventId: Int, userId: String): Result<Unit> = repository.removeEventMember(eventId, userId)
+}
+
+class UpdateGroupUseCase @Inject constructor(
+    private val repository: CommunityRepository,
+) {
+    suspend operator fun invoke(groupId: Int, params: CreateGroupParams): Result<Unit> = repository.updateGroup(
+        groupId,
+        mapOf(
+            "name" to params.name,
+            "motto" to params.motto,
+            "description" to params.description,
+            "exercises" to params.exercises.joinToString(","),
+            "officialSports" to params.officialSports.joinToString(","),
+        ),
+        params.coverPic,
+    )
+}
+
+class UpdateEventUseCase @Inject constructor(
+    private val repository: CommunityRepository,
+) {
+    /** El backend de PATCH evento usa startDate/endDate (no startTime/endTime) y no edita ejercicios. */
+    suspend operator fun invoke(
+        eventId: Int,
+        name: String,
+        description: String,
+        startTime: Long,
+        endTime: Long,
+        coverPic: java.io.File? = null,
+    ): Result<Unit> = repository.updateEvent(
+        eventId,
+        mapOf(
+            "name" to name,
+            "description" to description,
+            "startDate" to startTime.toString(),
+            "endDate" to endTime.toString(),
+        ),
+        coverPic,
+    )
+}
+
 data class CreateGroupParams(
     val name: String,
     val motto: String,

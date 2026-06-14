@@ -19,6 +19,7 @@ import javax.inject.Inject
 
 data class RankingUiState(
     val isLoading: Boolean = false,
+    val isRefreshing: Boolean = false,
     val sport: String = "powerlifting",
     val ranking: SportRanking? = null,
     val selectedCategory: RankingCategory = RankingCategory.PlOfficial,
@@ -80,14 +81,14 @@ data class RankingUiState(
             fun hasUser(cat: RankingCategory) = r.byCategory[cat]?.any { it.userId == currentUserId } == true
             return when (sportEnum) {
                 Sport.Powerlifting -> listOf(
-                    RequiredExercise("Sentadilla", hasUser(RankingCategory.Squat)),
-                    RequiredExercise("Press banca", hasUser(RankingCategory.BenchPress)),
-                    RequiredExercise("Peso muerto/Sumo", hasUser(RankingCategory.Deadlift) || hasUser(RankingCategory.SumoDeadlift)),
+                    RequiredExercise(com.hitbosss.R.string.exercise_squat, hasUser(RankingCategory.Squat)),
+                    RequiredExercise(com.hitbosss.R.string.exercise_bench, hasUser(RankingCategory.BenchPress)),
+                    RequiredExercise(com.hitbosss.R.string.exercise_deadlift_sumo, hasUser(RankingCategory.Deadlift) || hasUser(RankingCategory.SumoDeadlift)),
                 )
                 Sport.Crossfit -> listOf(
-                    RequiredExercise("Snatch", hasUser(RankingCategory.Snatch)),
-                    RequiredExercise("Clean", hasUser(RankingCategory.Clean)),
-                    RequiredExercise("Clean & Jerk", hasUser(RankingCategory.CleanAndJerk)),
+                    RequiredExercise(com.hitbosss.R.string.exercise_snatch, hasUser(RankingCategory.Snatch)),
+                    RequiredExercise(com.hitbosss.R.string.exercise_clean, hasUser(RankingCategory.Clean)),
+                    RequiredExercise(com.hitbosss.R.string.exercise_clean_jerk, hasUser(RankingCategory.CleanAndJerk)),
                 )
             }
         }
@@ -97,21 +98,29 @@ data class RankingUiState(
 }
 
 /** Un ejercicio requerido para participar en el ranking oficial + si el usuario ya lo tiene. */
-data class RequiredExercise(val label: String, val done: Boolean)
+data class RequiredExercise(@androidx.annotation.StringRes val labelRes: Int, val done: Boolean)
 
 @HiltViewModel
 class RankingViewModel @Inject constructor(
     private val getRanking: GetRankingUseCase,
     private val getCurrentUser: GetCurrentUserUseCase,
     private val getUserProfile: GetUserProfileUseCase,
+    private val refreshCoordinator: com.hitbosss.core.RefreshCoordinator,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(RankingUiState(currentUserId = getCurrentUser()?.uid))
     val state: StateFlow<RankingUiState> = _state.asStateFlow()
 
+    private var reloading = false
+
     init {
         load(_state.value.sport)
-        // País del usuario actual (para la fila "Tú" aunque no esté clasificado).
+        loadCurrentUserProfile()
+        // Recarga dirigida por acción (p. ej. tras subir un HIT) sin resetear la pestaña.
+        viewModelScope.launch { refreshCoordinator.ranking.collect { reloadData(showRefreshing = false) } }
+    }
+
+    private fun loadCurrentUserProfile() {
         getCurrentUser()?.uid?.let { uid ->
             viewModelScope.launch {
                 getUserProfile(uid).onSuccess { p ->
@@ -119,6 +128,28 @@ class RankingViewModel @Inject constructor(
                     _state.update { it.copy(currentUserCountry = p.countryCode, currentUserPicUrl = p.profilePicUrl) }
                 }
             }
+        }
+    }
+
+    /** Pull-to-refresh manual. */
+    fun refresh() = reloadData(showRefreshing = true)
+
+    /** Recarga el ranking del deporte actual (sin tocar la pestaña/filtros). Guarda de concurrencia. */
+    private fun reloadData(showRefreshing: Boolean) {
+        if (reloading) return
+        reloading = true
+        viewModelScope.launch {
+            if (showRefreshing) _state.update { it.copy(isRefreshing = true) }
+            getRanking(_state.value.sport)
+                .onSuccess { r -> _state.update { it.copy(ranking = r, error = null) } }
+                .onFailure { e -> _state.update { it.copy(error = e.message ?: "Error") } }
+            getCurrentUser()?.uid?.let { uid ->
+                getUserProfile(uid).onSuccess { p ->
+                    _state.update { it.copy(currentUserCountry = p.countryCode, currentUserPicUrl = p.profilePicUrl) }
+                }
+            }
+            _state.update { it.copy(isRefreshing = false) }
+            reloading = false
         }
     }
 

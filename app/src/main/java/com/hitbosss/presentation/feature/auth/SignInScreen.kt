@@ -46,6 +46,8 @@ import com.hitbosss.presentation.designsystem.theme.Gray800
 import com.hitbosss.presentation.designsystem.theme.HitbosssType
 import androidx.compose.ui.text.input.KeyboardType
 import kotlinx.coroutines.launch
+import com.hitbosss.presentation.designsystem.components.HitPopup
+import androidx.compose.ui.res.stringResource
 
 @Composable
 fun SignInScreen(
@@ -70,7 +72,7 @@ fun SignInScreen(
     }
 
     Column(Modifier.fillMaxSize().background(Gray100)) {
-        HitTopBar(title = "Iniciar sesión", onBack = onBack)
+        HitTopBar(title = stringResource(R.string.auth_sign_in), onBack = onBack)
 
         Column(
             modifier = Modifier.padding(top = 32.dp, start = 16.dp, end = 16.dp),
@@ -79,18 +81,18 @@ fun SignInScreen(
             HitTextField(
                 value = state.email,
                 onValueChange = viewModel::onEmailChange,
-                placeholder = "Correo electrónico",
+                placeholder = stringResource(R.string.auth_email),
                 keyboardType = KeyboardType.Email,
             )
             HitTextField(
                 value = state.password,
                 onValueChange = viewModel::onPasswordChange,
-                placeholder = "Contraseña",
+                placeholder = stringResource(R.string.auth_password),
                 isSecure = true,
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 Text(
-                    "¿Has olvidado tu contraseña?",
+                    stringResource(R.string.auth_forgot_password),
                     style = HitbosssType.bodySmallLink,
                     color = Gray700,
                     modifier = Modifier.clickable { onRecoverPassword() },
@@ -99,7 +101,7 @@ fun SignInScreen(
         }
 
         HitButton(
-            text = "Iniciar sesión",
+            text = stringResource(R.string.auth_sign_in),
             onClick = viewModel::signIn,
             type = HitButtonType.Primary,
             enabled = state.isFormValid,
@@ -113,7 +115,7 @@ fun SignInScreen(
             modifier = Modifier.padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            LabelledDivider("o")
+            LabelledDivider(stringResource(R.string.common_or))
 
             // Continuar con Google
             Row(
@@ -141,25 +143,24 @@ fun SignInScreen(
                     modifier = Modifier.size(24.dp),
                 )
                 Spacer(Modifier.width(8.dp))
-                Text("Continuar con Google", style = HitbosssType.bodyDefaultRegular, color = Gray600)
+                Text(stringResource(R.string.auth_continue_google), style = HitbosssType.bodyDefaultRegular, color = Gray600)
             }
         }
 
-        Text(
-            "Al iniciar sesión, aceptas la Política de privacidad y los Términos y condiciones.",
-            style = HitbosssType.bodySmallRegular,
-            color = Gray800,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+        LegalFooter(
+            modifier = Modifier
+                .padding(top = 16.dp, start = 16.dp, end = 16.dp, bottom = 32.dp)
+                .fillMaxWidth(),
         )
     }
 
     state.error?.let { error ->
-        AlertDialog(
+        HitPopup(
+            title = stringResource(R.string.common_something_wrong),
+            message = error,
+            confirmText = stringResource(R.string.common_accept),
+            onConfirm = viewModel::clearError,
             onDismissRequest = viewModel::clearError,
-            confirmButton = { TextButton(onClick = viewModel::clearError) { Text("Aceptar") } },
-            title = { Text("Algo ha salido mal", style = HitbosssType.titleBody) },
-            text = { Text(error, style = HitbosssType.bodyDefaultRegular) },
         )
     }
 }

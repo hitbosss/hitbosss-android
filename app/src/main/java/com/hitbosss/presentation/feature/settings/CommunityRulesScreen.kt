@@ -48,6 +48,8 @@ import com.hitbosss.presentation.designsystem.theme.HitbosssType
 import com.hitbosss.presentation.designsystem.theme.Orange300
 import com.hitbosss.presentation.designsystem.theme.Warning500
 import com.hitbosss.presentation.designsystem.theme.Yellow300
+import androidx.compose.ui.res.stringResource
+import com.hitbosss.R
 
 private data class RuleSection(
     val title: String,
@@ -57,7 +59,7 @@ private data class RuleSection(
     val rules: List<Pair<String, String>>,
 )
 
-private val rulesSections = listOf(
+private val rulesSectionsEs = listOf(
     RuleSection(
         title = "Las 7 reglas de HitBosss",
         icon = Icons.AutoMirrored.Filled.MenuBook,
@@ -105,10 +107,61 @@ private val rulesSections = listOf(
     ),
 )
 
+/** Traducción propia al inglés (iOS solo tiene estas normas en español). */
+private val rulesSectionsEn = listOf(
+    RuleSection(
+        title = "The 7 HitBosss rules",
+        icon = Icons.AutoMirrored.Filled.MenuBook,
+        iconColor = Warning500,
+        message = "Compete with honesty, respect the community and become your best self.",
+        rules = listOf(
+            "1. Don't lie about the weights" to "📌 Transparency is key. Be honest about the kilos you lift.",
+            "2. Always use correct technique" to "✔️ Follow the standards in the tutorials to validate your lift.",
+            "3. Upload hits to the correct exercise" to "🎯 Register each lift in its correct category.",
+            "4. Don't edit or manipulate the videos" to "🎥 Videos must be recorded and uploaded from the app, without modifications.",
+            "5. Don't cheat" to "🚫 Any attempt to cheat will be penalized.",
+            "6. Avoid inappropriate or misleading content" to "⚠️ Nothing offensive, manipulated or unrelated to the app. Use the report system responsibly.",
+            "7. Participate responsibly" to "💪 Make sure you are in optimal condition to lift.",
+        ),
+    ),
+    RuleSection(
+        title = "The 7 HitBosss warnings",
+        icon = Icons.Filled.WarningAmber,
+        iconColor = Orange300,
+        message = "We want a community that is fair and respectful.",
+        rules = listOf(
+            "1. False reports have consequences" to "🚫 Reporting without reason can lead to sanctions or restrictions.",
+            "2. Lying about weights or technique has consequences" to "🛑 You may be removed from the ranking or banned.",
+            "3. Manipulating videos or data = expulsion" to "❌ Zero tolerance for alterations.",
+            "4. Mockery or disrespect will not be tolerated" to "🙅‍♂️ This is a support community, not a judgmental one.",
+            "5. No uploading content that isn't yours or is stolen" to "📛 Every hit must be yours. If it isn't, you will be sanctioned.",
+            "6. Don't manipulate the ranking system" to "🎭 If you register hits in the wrong categories, you will lose your spot.",
+            "7. Repeated misuse of the app will lead to a permanent ban" to "🚷 Following the rules is essential to keep competing.",
+        ),
+    ),
+    RuleSection(
+        title = "The 7 HitBosss tips",
+        icon = Icons.Filled.Lightbulb,
+        iconColor = Yellow300,
+        message = "Improving is not just about lifting more weight.",
+        rules = listOf(
+            "1. See a professional coach" to "🎓 They will help you avoid injuries and improve your progress.",
+            "2. Master the technique before adding weight" to "✅ A clean lift is worth more than a poorly done one.",
+            "3. Warm up before your max attempt" to "🔥 Do progressive sets to prepare body and mind.",
+            "4. Listen to your body" to "🧠 If there is pain or discomfort, rest.",
+            "5. Consistency is key" to "📈 Be patient, follow a plan and rest well.",
+            "6. Use proper equipment" to "🛡️ Knee sleeves, belt, wrist wraps... Safety first.",
+            "7. Enjoy the process and the community" to "🤝 Learn, share and grow with other athletes.",
+        ),
+    ),
+)
+
 @Composable
 fun CommunityRulesScreen(onBack: () -> Unit) {
+    val isEnglish = androidx.compose.ui.platform.LocalConfiguration.current.locales[0].language == "en"
+    val rulesSections = if (isEnglish) rulesSectionsEn else rulesSectionsEs
     Column(Modifier.fillMaxSize().background(Gray100)) {
-        HitTopBar(title = "HitBosss rules", onBack = onBack)
+        HitTopBar(title = stringResource(R.string.settings_community_rules), onBack = onBack)
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),

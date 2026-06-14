@@ -65,9 +65,11 @@ import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import com.hitbosss.R
+import androidx.compose.ui.res.stringResource
 
 private enum class SubTab { Mine, Community }
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun CommunityScreen(
     onOpenGroup: (Int) -> Unit = {},
@@ -82,24 +84,30 @@ fun CommunityScreen(
         // Tabs superiores subrayadas (Grupos / Eventos)
         TopTabs(state.selected, onSelect = viewModel::select)
 
-        when {
-            state.isLoading -> Box(Modifier.fillMaxSize(), Alignment.Center) {
-                CircularProgressIndicator(color = Primary500)
+        androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+            isRefreshing = state.isRefreshing,
+            onRefresh = viewModel::refresh,
+            modifier = Modifier.weight(1f),
+        ) {
+            when {
+                state.isLoading -> Box(Modifier.fillMaxSize(), Alignment.Center) {
+                    CircularProgressIndicator(color = Primary500)
+                }
+
+                state.selected == CommunityTab.Groups -> GroupsTab(
+                    myGroups = state.groups?.myGroups.orEmpty(),
+                    communityGroups = state.groups?.communityGroups.orEmpty(),
+                    onOpenGroup = onOpenGroup,
+                    onCreate = onCreateGroup,
+                )
+
+                else -> EventsTab(
+                    myEvents = state.events?.myEvents.orEmpty(),
+                    communityEvents = state.events?.communityEvents.orEmpty(),
+                    onOpenEvent = onOpenEvent,
+                    onCreate = onCreateEvent,
+                )
             }
-
-            state.selected == CommunityTab.Groups -> GroupsTab(
-                myGroups = state.groups?.myGroups.orEmpty(),
-                communityGroups = state.groups?.communityGroups.orEmpty(),
-                onOpenGroup = onOpenGroup,
-                onCreate = onCreateGroup,
-            )
-
-            else -> EventsTab(
-                myEvents = state.events?.myEvents.orEmpty(),
-                communityEvents = state.events?.communityEvents.orEmpty(),
-                onOpenEvent = onOpenEvent,
-                onCreate = onCreateEvent,
-            )
         }
     }
 }
@@ -109,12 +117,12 @@ fun CommunityScreen(
 @Composable
 private fun TopTabs(selected: CommunityTab, onSelect: (CommunityTab) -> Unit) {
     Row(Modifier.fillMaxWidth().padding(top = 8.dp, start = 16.dp, end = 16.dp)) {
-        listOf(CommunityTab.Groups to "Grupos", CommunityTab.Events to "Eventos").forEach { (tab, label) ->
+        listOf(CommunityTab.Groups to R.string.community_tab_groups, CommunityTab.Events to R.string.community_tab_events).forEach { (tab, label) ->
             Column(
                 modifier = Modifier.weight(1f).clickable { onSelect(tab) },
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text(label, style = HitbosssType.bodyLargeRegular, color = Gray800)
+                Text(stringResource(label), style = HitbosssType.bodyLargeRegular, color = Gray800)
                 Spacer(Modifier.height(8.dp))
                 Box(
                     Modifier.fillMaxWidth().height(2.dp)
@@ -140,19 +148,17 @@ private fun GroupsTab(
     val source = if (sub == SubTab.Mine) myGroups else communityGroups
     val displayed = source.filter { it.name.contains(search.trim(), ignoreCase = true) }
 
-    val title = if (sub == SubTab.Mine) "Mis grupos" else "Comunidad"
-    val desc = if (sub == SubTab.Mine)
-        "Aquí encontrarás todos los grupos en los que estás, cada uno con oportunidades únicas para conectar y competir."
-    else
-        "¡Únete a los grupos que te gusten! Entrena, diviértete y comparte tus logros con otros atletas."
-    val emptyMsg = if (sub == SubTab.Mine)
-        "Todavía no estás dentro de ningún grupo"
-    else
-        "Aún no hay ningún grupo creado. ¡Anímate y sé el primero!"
+    val title = stringResource(if (sub == SubTab.Mine) R.string.community_my_groups else R.string.community_title)
+    val desc = stringResource(
+        if (sub == SubTab.Mine) R.string.community_groups_mine_desc else R.string.community_groups_discover_desc,
+    )
+    val emptyMsg = stringResource(
+        if (sub == SubTab.Mine) R.string.community_groups_empty_mine else R.string.community_groups_empty_discover,
+    )
 
     Column(Modifier.fillMaxSize()) {
-        SearchAndCreate(search, { search = it }, "Buscar grupo", onCreate)
-        SubTabs(sub, listOf(SubTab.Mine to "Mis grupos", SubTab.Community to "Comunidad")) { sub = it }
+        SearchAndCreate(search, { search = it }, stringResource(R.string.community_search_group), onCreate)
+        SubTabs(sub, listOf(SubTab.Mine to R.string.community_my_groups, SubTab.Community to R.string.community_title)) { sub = it }
         SectionList(title, desc, displayed.size, emptyMsg, R.drawable.im_empty_group) {
             items(displayed) { g -> GroupCard(g) { onOpenGroup(g.id) } }
         }
@@ -161,7 +167,9 @@ private fun GroupsTab(
 
 // MARK: - Pestaña Eventos
 
-private enum class EventTab(val label: String) { Mine("Mis eventos"), Community("Comunidad"), Past("Eventos pasados") }
+private enum class EventTab(@androidx.annotation.StringRes val label: Int) {
+    Mine(R.string.community_my_events), Community(R.string.community_title), Past(R.string.community_past_events)
+}
 
 private fun EventSummary.isPast(): Boolean = endTime * 1000 < System.currentTimeMillis()
 
@@ -182,20 +190,24 @@ private fun EventsTab(
     }
     val displayed = source.filter { it.name.contains(search.trim(), ignoreCase = true) }
 
-    val title = sub.label
-    val desc = when (sub) {
-        EventTab.Mine -> "Aquí puedes ver en qué competiciones estás participando. ¡No olvides revisar tu posición actual para saber cómo vas!"
-        EventTab.Community -> "Aquí puedes descubrir los eventos que tenemos para ti. Revisa los detalles de cada uno y ¡anímate a participar!"
-        EventTab.Past -> "Aquí puedes explorar los eventos que ya han concluido. Revisa los detalles de cada uno y recuerda lo que viviste."
-    }
-    val emptyMsg = when (sub) {
-        EventTab.Mine -> "Actualmente no estás inscrito en ningún evento activo."
-        EventTab.Community -> "No hay eventos en este momento. ¡Anímate y organiza el tuyo!"
-        EventTab.Past -> "Aún no has participado en ningún evento que haya finalizado."
-    }
+    val title = stringResource(sub.label)
+    val desc = stringResource(
+        when (sub) {
+            EventTab.Mine -> R.string.community_events_mine_desc
+            EventTab.Community -> R.string.community_events_discover_desc
+            EventTab.Past -> R.string.community_events_past_desc
+        },
+    )
+    val emptyMsg = stringResource(
+        when (sub) {
+            EventTab.Mine -> R.string.community_events_empty_mine
+            EventTab.Community -> R.string.community_events_empty_discover
+            EventTab.Past -> R.string.community_events_empty_past
+        },
+    )
 
     Column(Modifier.fillMaxSize()) {
-        SearchAndCreate(search, { search = it }, "Buscar evento", onCreate)
+        SearchAndCreate(search, { search = it }, stringResource(R.string.community_search_event), onCreate)
         // Sub-toggle de 3 (cápsulas)
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -204,7 +216,7 @@ private fun EventsTab(
             EventTab.entries.forEach { tab ->
                 val sel = tab == sub
                 Text(
-                    tab.label, style = HitbosssType.bodyDefaultRegular, color = Gray800,
+                    stringResource(tab.label), style = HitbosssType.bodyDefaultRegular, color = Gray800,
                     modifier = Modifier.clip(RoundedCornerShape(32.dp)).background(Gray100)
                         .border(1.dp, if (sel) Secondary500 else Gray300, RoundedCornerShape(32.dp))
                         .clickable { sub = tab }.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -236,7 +248,7 @@ private fun EventCardBig(e: EventSummary, isPast: Boolean, onClick: () -> Unit) 
             )
             // Estado / cuenta atrás (arriba-der)
             Text(
-                eventStatusText(e, isPast), style = HitbosssType.bodySmallEmphasis, color = Gray100,
+                eventStatusText(e, isPast, androidx.compose.ui.platform.LocalContext.current), style = HitbosssType.bodySmallEmphasis, color = Gray100,
                 modifier = Modifier.align(Alignment.TopEnd).padding(12.dp).clip(RoundedCornerShape(8.dp))
                     .background(if (isPast) Gray600 else Primary600).padding(horizontal = 10.dp, vertical = 6.dp),
             )
@@ -256,24 +268,24 @@ private fun EventCardBig(e: EventSummary, isPast: Boolean, onClick: () -> Unit) 
             }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 Icon(Icons.Filled.EmojiEvents, contentDescription = null, tint = Purple300, modifier = Modifier.size(14.dp))
-                Text("Ranking: --", style = HitbosssType.bodyDefaultRegular, color = Secondary800)
+                Text(stringResource(R.string.community_rank_none), style = HitbosssType.bodyDefaultRegular, color = Secondary800)
             }
             Spacer(Modifier.weight(1f))
             Box(Modifier.size(34.dp).clip(CircleShape).background(Gray800), contentAlignment = Alignment.Center) {
-                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Abrir", tint = Gray100, modifier = Modifier.size(16.dp))
+                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = stringResource(R.string.common_open), tint = Gray100, modifier = Modifier.size(16.dp))
             }
         }
     }
 }
 
 /** "Faltan N días" / "Último día" / fecha si pasado (igual que EventStatusView de iOS). */
-private fun eventStatusText(e: EventSummary, isPast: Boolean): String {
-    if (isPast) return java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale("es")).format(java.util.Date(e.endTime * 1000))
+private fun eventStatusText(e: EventSummary, isPast: Boolean, context: android.content.Context): String {
+    if (isPast) return java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()).format(java.util.Date(e.endTime * 1000))
     val days = ((e.endTime * 1000 - System.currentTimeMillis()) / 86_400_000L).toInt()
     return when {
-        days > 1 -> "Faltan $days días"
-        days == 1 -> "Falta 1 día"
-        else -> "Último día"
+        days > 1 -> context.getString(R.string.event_days_left, days)
+        days == 1 -> context.getString(R.string.event_one_day_left)
+        else -> context.getString(R.string.event_last_day)
     }
 }
 
@@ -306,7 +318,7 @@ private fun SearchAndCreate(value: String, onValueChange: (String) -> Unit, plac
                 .border(1.dp, Gray300, CircleShape).clickable { onCreate() },
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Filled.Add, contentDescription = "Crear", tint = Gray600, modifier = Modifier.size(22.dp))
+            Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.common_create), tint = Gray600, modifier = Modifier.size(22.dp))
         }
     }
 }
@@ -314,7 +326,7 @@ private fun SearchAndCreate(value: String, onValueChange: (String) -> Unit, plac
 // MARK: - Sub-toggle (cápsulas)
 
 @Composable
-private fun SubTabs(selected: SubTab, options: List<Pair<SubTab, String>>, onSelect: (SubTab) -> Unit) {
+private fun SubTabs(selected: SubTab, options: List<Pair<SubTab, Int>>, onSelect: (SubTab) -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -322,7 +334,7 @@ private fun SubTabs(selected: SubTab, options: List<Pair<SubTab, String>>, onSel
         options.forEach { (tab, label) ->
             val sel = tab == selected
             Text(
-                label, style = HitbosssType.bodyDefaultRegular, color = Gray800,
+                stringResource(label), style = HitbosssType.bodyDefaultRegular, color = Gray800,
                 modifier = Modifier.clip(RoundedCornerShape(32.dp)).background(Gray100)
                     .border(1.dp, if (sel) Secondary500 else Gray300, RoundedCornerShape(32.dp))
                     .clickable { onSelect(tab) }.padding(horizontal = 12.dp, vertical = 8.dp),

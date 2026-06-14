@@ -62,6 +62,11 @@ import com.hitbosss.presentation.designsystem.theme.Orange300
 import com.hitbosss.presentation.designsystem.theme.Primary500
 import com.hitbosss.presentation.designsystem.theme.Purple400
 import com.hitbosss.presentation.designsystem.theme.Secondary500
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import com.hitbosss.R
+import com.hitbosss.presentation.designsystem.components.HitButtonType
+import com.hitbosss.presentation.designsystem.components.HitPopup
 
 @Composable
 fun SettingsScreen(
@@ -92,7 +97,7 @@ fun SettingsScreen(
     }
 
     Column(Modifier.fillMaxSize().background(Gray200)) {
-        HitTopBar(title = "Ajustes", onBack = onBack)
+        HitTopBar(title = stringResource(R.string.settings_title), onBack = onBack)
 
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -100,99 +105,105 @@ fun SettingsScreen(
         ) {
             // 1 — perfil / normas / tutorial
             SettingsCard {
-                SettingsRow(Icons.Filled.Person, Primary500, "Editar perfil", onEditProfile)
+                SettingsRow(Icons.Filled.Person, Primary500, stringResource(R.string.settings_edit_profile), onEditProfile)
                 RowDivider()
-                SettingsRow(Icons.AutoMirrored.Filled.MenuBook, Primary500, "Normas de la comunidad", onCommunityRules)
+                SettingsRow(Icons.AutoMirrored.Filled.MenuBook, Primary500, stringResource(R.string.settings_community_rules), onCommunityRules)
                 RowDivider()
-                SettingsRow(Icons.Filled.Videocam, Primary500, "Tutorial ejercicios", onTutorials)
+                SettingsRow(Icons.Filled.Videocam, Primary500, stringResource(R.string.settings_exercise_tutorial), onTutorials)
             }
             // 2 — calculadora
             SettingsCard {
-                SettingsRow(Icons.Filled.Calculate, Secondary500, "Calculadora de Points", onOpenCalculator)
+                SettingsRow(Icons.Filled.Calculate, Secondary500, stringResource(R.string.settings_points_calculator), onOpenCalculator)
             }
             // 3 — feedback / privacidad / soporte
             SettingsCard {
-                SettingsRow(Icons.Filled.Forum, Purple400, "Feedback y comunidad") {
-                    sendMail("feedback@hitbosss.com", "Feedback y comunidad")
+                val feedbackLabel = stringResource(R.string.settings_feedback)
+                val supportLabel = stringResource(R.string.settings_support)
+                SettingsRow(Icons.Filled.Forum, Purple400, feedbackLabel) {
+                    sendMail("feedback@hitbosss.com", feedbackLabel)
                 }
                 RowDivider()
-                SettingsRow(Icons.Filled.Lock, Purple400, "Privacidad y seguridad", onPrivacyPolicy)
+                SettingsRow(Icons.Filled.Lock, Purple400, stringResource(R.string.settings_privacy), onPrivacyPolicy)
                 RowDivider()
-                SettingsRow(Icons.AutoMirrored.Filled.HelpOutline, Purple400, "Soporte y ayuda") {
-                    sendMail("help@hitbosss.com", "Soporte y ayuda")
+                SettingsRow(Icons.AutoMirrored.Filled.HelpOutline, Purple400, supportLabel) {
+                    sendMail("help@hitbosss.com", supportLabel)
                 }
             }
             // 4 — idioma
             SettingsCard {
-                SettingsRow(Icons.Filled.Language, Orange300, "Idioma") { showLanguageDialog = true }
+                SettingsRow(Icons.Filled.Language, Orange300, stringResource(R.string.settings_language)) { showLanguageDialog = true }
             }
             // 5 — compartir
             SettingsCard {
-                SettingsRow(Icons.Filled.PersonAddAlt1, Color(0xFF34A853), "Compartir la app") {
+                val shareLabel = stringResource(R.string.settings_share_app)
+                val shareText = stringResource(R.string.settings_share_text)
+                SettingsRow(Icons.Filled.PersonAddAlt1, Color(0xFF34A853), shareLabel) {
                     val intent = Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"
-                        putExtra(
-                            Intent.EXTRA_TEXT,
-                            "Únete a nuestra comunidad en HitBoss y compite en el ranking. " +
-                                "Descarga la app aquí: https://play.google.com/store/apps/details?id=com.hitbosss",
-                        )
+                        putExtra(Intent.EXTRA_TEXT, shareText)
                     }
-                    runCatching { context.startActivity(Intent.createChooser(intent, "Compartir la app")) }
+                    runCatching { context.startActivity(Intent.createChooser(intent, shareLabel)) }
                 }
             }
             // 6 — cerrar sesión / eliminar cuenta
             SettingsCard {
-                SettingsRow(Icons.AutoMirrored.Filled.Logout, Gray600, "Cerrar sesión") { showLogoutDialog = true }
+                SettingsRow(Icons.AutoMirrored.Filled.Logout, Gray600, stringResource(R.string.settings_logout)) { showLogoutDialog = true }
                 RowDivider()
                 SettingsRow(
                     Icons.Filled.Delete, Color(0xFFE0352B),
-                    if (deleting) "Eliminando cuenta…" else "Eliminar cuenta",
+                    if (deleting) stringResource(R.string.settings_deleting_account) else stringResource(R.string.settings_delete_account),
                 ) { if (!deleting) showDeleteDialog = true }
             }
         }
     }
 
     if (showLogoutDialog) {
-        AlertDialog(
+        HitPopup(
+            title = stringResource(R.string.settings_logout_title),
+            message = stringResource(R.string.settings_logout_message),
+            icon = painterResource(R.drawable.im_ico_close_session),
+            confirmText = stringResource(R.string.common_confirm),
+            onConfirm = { showLogoutDialog = false; viewModel.logout() },
+            cancelText = stringResource(R.string.common_cancel),
+            onCancel = { showLogoutDialog = false },
             onDismissRequest = { showLogoutDialog = false },
-            title = { Text("¿Quieres cerrar sesión?", style = HitbosssType.titleBody) },
-            text = { Text("Si sigues con la sesión iniciada, podrás consultar el ranking más rápido.", style = HitbosssType.bodyDefaultRegular) },
-            confirmButton = { TextButton(onClick = { showLogoutDialog = false; viewModel.logout() }) { Text("Confirmar") } },
-            dismissButton = { TextButton(onClick = { showLogoutDialog = false }) { Text("Cancelar") } },
         )
     }
 
     if (showDeleteDialog) {
-        AlertDialog(
+        HitPopup(
+            title = stringResource(R.string.settings_delete_title),
+            message = stringResource(R.string.settings_delete_message),
+            icon = painterResource(R.drawable.im_ico_trash),
+            confirmText = stringResource(R.string.common_delete),
+            confirmType = HitButtonType.Destructive,
+            onConfirm = { showDeleteDialog = false; viewModel.deleteAccount() },
+            cancelText = stringResource(R.string.common_cancel),
+            onCancel = { showDeleteDialog = false },
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("¿Seguro que quieres eliminar tu cuenta?", style = HitbosssType.titleBody) },
-            text = { Text("Una vez eliminada tu cuenta, no podrás recuperarla. Quizá prefieras tomarte un descanso.", style = HitbosssType.bodyDefaultRegular) },
-            confirmButton = { TextButton(onClick = { showDeleteDialog = false; viewModel.deleteAccount() }) { Text("Eliminar", color = Color(0xFFE0352B)) } },
-            dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text("Cancelar") } },
         )
     }
 
     if (showLanguageDialog) {
-        AlertDialog(
+        HitPopup(
+            title = stringResource(R.string.settings_language_title),
+            message = stringResource(R.string.settings_language_message),
+            icon = painterResource(R.drawable.im_ico_language),
+            confirmText = stringResource(R.string.common_continue),
+            onConfirm = { showLanguageDialog = false; openAppLanguageSettings(context) },
+            cancelText = stringResource(R.string.common_cancel),
+            onCancel = { showLanguageDialog = false },
             onDismissRequest = { showLanguageDialog = false },
-            title = { Text("Cambia el idioma", style = HitbosssType.titleBody) },
-            text = { Text("Configura el idioma de HitBosss en la siguiente pantalla y sigue compitiendo sin distracciones.", style = HitbosssType.bodyDefaultRegular) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showLanguageDialog = false
-                    openAppLanguageSettings(context)
-                }) { Text("Continuar") }
-            },
-            dismissButton = { TextButton(onClick = { showLanguageDialog = false }) { Text("Cancelar") } },
         )
     }
 
     error?.let { msg ->
-        AlertDialog(
+        HitPopup(
+            title = stringResource(R.string.common_something_wrong),
+            message = msg,
+            confirmText = stringResource(R.string.common_accept),
+            onConfirm = viewModel::clearError,
             onDismissRequest = viewModel::clearError,
-            confirmButton = { TextButton(onClick = viewModel::clearError) { Text("Aceptar") } },
-            title = { Text("Error inesperado", style = HitbosssType.titleBody) },
-            text = { Text(msg, style = HitbosssType.bodyDefaultRegular) },
         )
     }
 }

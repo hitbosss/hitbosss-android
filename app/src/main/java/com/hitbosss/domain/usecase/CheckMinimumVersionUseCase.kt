@@ -1,6 +1,7 @@
 package com.hitbosss.domain.usecase
 
 import javax.inject.Inject
+import androidx.compose.foundation.layout.size
 
 /**
  * Equivale a CheckMinimumVersionUseCase de iOS: compara la versión instalada con la mínima

@@ -25,6 +25,10 @@ data class UploadHitParams(
     val gender: String,
     val videoFile: File,
     val performedAt: Double = 0.0,  // segundo DENTRO del vídeo para el frame de preview (no epoch)
+    val onProgress: ((Float) -> Unit)? = null,  // 0..1 de bytes subidos (para el % de "Subiendo HIT")
+    val contextType: String = "global",  // "global" | "group" | "event"
+    val groupId: Int? = null,
+    val eventId: Int? = null,
 )
 
 class UploadHitUseCase @Inject constructor(
@@ -36,19 +40,22 @@ class UploadHitUseCase @Inject constructor(
 
         // El backend espera "metric"/"imperial" (no "kg"/"lbs") y convierte el lift según unit.
         val apiUnit = if (params.unit.equals("lbs", true) || params.unit.equals("lb", true)) "imperial" else "metric"
-        val fields = mapOf(
-            "userId" to params.userId,
-            "sport" to params.sport,
-            "exercise" to params.exercise,
-            "lift" to params.lift.toString(),
-            "unit" to apiUnit,
-            "wilksScore" to wilks.toString(),
+        val fields = buildMap {
+            put("userId", params.userId)
+            put("sport", params.sport)
+            put("exercise", params.exercise)
+            put("lift", params.lift.toString())
+            put("unit", apiUnit)
+            put("wilksScore", wilks.toString())
             // performedAt es el segundo del vídeo para el frame de preview (igual que iOS pinnedTime),
             // NO un timestamp epoch (provocaba que iOS hiciese seek fuera del vídeo y no se viera).
-            "performedAt" to params.performedAt.toString(),
-            "contextType" to "global",
-        )
-        return hitRepository.uploadHit(params.videoFile, fields)
+            put("performedAt", params.performedAt.toString())
+            put("contextType", params.contextType)
+            // Solo se envían en su contexto (el backend valida que estén presentes).
+            params.groupId?.takeIf { params.contextType == "group" }?.let { put("groupId", it.toString()) }
+            params.eventId?.takeIf { params.contextType == "event" }?.let { put("eventId", it.toString()) }
+        }
+        return hitRepository.uploadHit(params.videoFile, fields, params.onProgress)
     }
 }
 
@@ -57,4 +64,22 @@ class ReportHitUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(hitId: Int, comment: String?): Result<Unit> =
         hitRepository.reportHit(hitId, comment)
+}
+
+class DeleteHitUseCase @Inject constructor(
+    private val hitRepository: HitRepository,
+) {
+    suspend operator fun invoke(hitId: Int): Result<Unit> = hitRepository.deleteHit(hitId)
+}
+
+class EditHitUseCase @Inject constructor(
+    private val hitRepository: HitRepository,
+) {
+    /** performedAt = segundo del vídeo (pin). videoFile null => solo se actualiza performedAt. */
+    suspend operator fun invoke(
+        hitId: Int,
+        performedAt: Double,
+        videoFile: File?,
+        onProgress: ((Float) -> Unit)? = null,
+    ): Result<Unit> = hitRepository.editHit(hitId, performedAt, videoFile, onProgress)
 }

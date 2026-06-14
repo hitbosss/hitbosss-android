@@ -60,10 +60,20 @@ import com.hitbosss.presentation.designsystem.theme.Gray800
 import com.hitbosss.presentation.designsystem.theme.HitbosssType
 import com.hitbosss.presentation.designsystem.theme.Primary500
 import com.hitbosss.presentation.designsystem.theme.Secondary100
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
+import com.hitbosss.R
+import com.hitbosss.presentation.designsystem.components.HitButtonType
+import com.hitbosss.presentation.designsystem.components.HitPopup
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun GroupDetailScreen(onBack: () -> Unit, viewModel: GroupDetailViewModel = hiltViewModel()) {
+fun GroupDetailScreen(
+    onBack: () -> Unit,
+    onOpenUserProfile: (String) -> Unit = {},
+    onEditGroup: () -> Unit = {},
+    viewModel: GroupDetailViewModel = hiltViewModel(),
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showLeave by remember { mutableStateOf(false) }
@@ -81,20 +91,23 @@ fun GroupDetailScreen(onBack: () -> Unit, viewModel: GroupDetailViewModel = hilt
             Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Atrás", tint = Gray800, modifier = Modifier.size(24.dp).clickable { onBack() })
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.common_back), tint = Gray800, modifier = Modifier.size(24.dp).clickable { onBack() })
             Spacer(Modifier.width(12.dp))
-            Text("Información del grupo", style = HitbosssType.titleSubsection, color = Gray800, modifier = Modifier.weight(1f))
+            Text(stringResource(R.string.group_info_title), style = HitbosssType.titleSubsection, color = Gray800, modifier = Modifier.weight(1f))
             Box {
-                Icon(Icons.Filled.MoreVert, "Opciones", tint = Gray800, modifier = Modifier.size(24.dp).clickable { showMenu = true })
+                Icon(Icons.Filled.MoreVert, stringResource(R.string.common_options), tint = Gray800, modifier = Modifier.size(24.dp).clickable { showMenu = true })
                 DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                    DropdownMenuItem(text = { Text("Compartir grupo") }, onClick = {
+                    if (state.isAdmin) {
+                        DropdownMenuItem(text = { Text(stringResource(R.string.group_edit)) }, onClick = { showMenu = false; onEditGroup() })
+                    }
+                    DropdownMenuItem(text = { Text(stringResource(R.string.group_share)) }, onClick = {
                         showMenu = false
                         g?.let { gr ->
                             val intent = Intent(Intent.ACTION_SEND).apply {
                                 type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, "Únete al grupo \"${gr.name}\" en HitBoss.")
+                                putExtra(Intent.EXTRA_TEXT, context.getString(R.string.group_share_text, gr.name))
                             }
-                            runCatching { context.startActivity(Intent.createChooser(intent, "Compartir grupo")) }
+                            runCatching { context.startActivity(Intent.createChooser(intent, context.getString(R.string.group_share))) }
                         }
                     })
                 }
@@ -105,7 +118,7 @@ fun GroupDetailScreen(onBack: () -> Unit, viewModel: GroupDetailViewModel = hilt
         when {
             state.isLoading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = Primary500) }
             g == null -> Box(Modifier.fillMaxSize(), Alignment.Center) {
-                Text(state.error ?: "No se pudo cargar", style = HitbosssType.bodyDefaultRegular, color = Gray500)
+                Text(state.error ?: stringResource(R.string.community_load_failed), style = HitbosssType.bodyDefaultRegular, color = Gray500)
             }
             else -> {
                 Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
@@ -118,18 +131,18 @@ fun GroupDetailScreen(onBack: () -> Unit, viewModel: GroupDetailViewModel = hilt
                         )
                     }
                     Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Section("Nombre del grupo") { Value(g.name) }
-                        g.motto?.takeIf { it.isNotBlank() }?.let { Section("Lema") { Value(it) } }
+                        Section(stringResource(R.string.create_group_name)) { Value(g.name) }
+                        g.motto?.takeIf { it.isNotBlank() }?.let { Section(stringResource(R.string.create_group_motto)) { Value(it) } }
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("Miembros", style = HitbosssType.titleBody, color = Gray800, modifier = Modifier.weight(1f))
-                                Text("ver listado", style = HitbosssType.bodySmallEmphasis, color = Primary500, modifier = Modifier.clickable { showMembers = true })
+                                Text(stringResource(R.string.common_members), style = HitbosssType.titleBody, color = Gray800, modifier = Modifier.weight(1f))
+                                Text(stringResource(R.string.community_see_list), style = HitbosssType.bodySmallEmphasis, color = Primary500, modifier = Modifier.clickable { showMembers = true })
                             }
                             Value("${g.stats.memberCount}")
                         }
-                        Section("Descripción") { Value(g.description.orEmpty()) }
+                        Section(stringResource(R.string.common_description)) { Value(g.description.orEmpty()) }
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("Ejercicio", style = HitbosssType.titleBody, color = Gray800)
+                            Text(stringResource(R.string.common_exercise), style = HitbosssType.titleBody, color = Gray800)
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 g.exercises.forEach { ex ->
                                     Text(
@@ -151,13 +164,13 @@ fun GroupDetailScreen(onBack: () -> Unit, viewModel: GroupDetailViewModel = hilt
                             .clickable { if (state.canLeaveDirectly) showLeave = true else showAdminBlock = true }
                             .padding(vertical = 16.dp),
                         contentAlignment = Alignment.Center,
-                    ) { Text("Dejar el grupo", style = HitbosssType.bodyLargeEmphasis, color = Gray100) }
+                    ) { Text(stringResource(R.string.group_leave), style = HitbosssType.bodyLargeEmphasis, color = Gray100) }
                     if (state.isAdmin) {
                         Box(
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Error500)
                                 .clickable { showDelete = true }.padding(vertical = 16.dp),
                             contentAlignment = Alignment.Center,
-                        ) { Text("Eliminar grupo", style = HitbosssType.bodyLargeEmphasis, color = Gray100) }
+                        ) { Text(stringResource(R.string.group_delete), style = HitbosssType.bodyLargeEmphasis, color = Gray100) }
                     }
                 }
             }
@@ -165,32 +178,48 @@ fun GroupDetailScreen(onBack: () -> Unit, viewModel: GroupDetailViewModel = hilt
     }
 
     if (showLeave) {
-        AlertDialog(
+        HitPopup(
+            title = stringResource(R.string.group_leave_confirm_title),
+            message = stringResource(R.string.group_leave_confirm_msg),
+            confirmText = stringResource(R.string.group_leave),
+            confirmType = HitButtonType.Destructive,
+            onConfirm = { showLeave = false; viewModel.leave() },
+            cancelText = stringResource(R.string.common_cancel),
+            onCancel = { showLeave = false },
             onDismissRequest = { showLeave = false },
-            title = { Text("¿Seguro que quieres dejar el grupo?", style = HitbosssType.titleBody) },
-            text = { Text("Si dejas el grupo, no podrás deshacerlo.", style = HitbosssType.bodyDefaultRegular) },
-            confirmButton = { TextButton(onClick = { showLeave = false; viewModel.leave() }) { Text("Salir del grupo", color = Error500) } },
-            dismissButton = { TextButton(onClick = { showLeave = false }) { Text("Cancelar") } },
         )
     }
     if (showAdminBlock) {
-        AlertDialog(
+        HitPopup(
+            title = stringResource(R.string.group_admin_block_title),
+            message = stringResource(R.string.group_admin_block_msg),
+            confirmText = stringResource(R.string.common_accept),
+            onConfirm = { showAdminBlock = false },
             onDismissRequest = { showAdminBlock = false },
-            title = { Text("Antes de irte…", style = HitbosssType.titleBody) },
-            text = { Text("Eres el administrador. Si quieres salir del grupo, primero debes pasar el rol de administrador a otro miembro.", style = HitbosssType.bodyDefaultRegular) },
-            confirmButton = { TextButton(onClick = { showAdminBlock = false }) { Text("Aceptar") } },
         )
     }
     if (showDelete) {
-        AlertDialog(
+        HitPopup(
+            title = stringResource(R.string.group_delete_confirm_title),
+            message = stringResource(R.string.group_delete_confirm_msg),
+            icon = painterResource(R.drawable.im_ico_trash),
+            confirmText = stringResource(R.string.common_accept),
+            confirmType = HitButtonType.Destructive,
+            onConfirm = { showDelete = false; viewModel.delete() },
+            cancelText = stringResource(R.string.common_cancel),
+            onCancel = { showDelete = false },
             onDismissRequest = { showDelete = false },
-            title = { Text("¿Seguro que quieres eliminar este grupo?", style = HitbosssType.titleBody) },
-            text = { Text("Eliminar este grupo es una acción permanente: los miembros perderán el acceso y no podrás deshacerlo.", style = HitbosssType.bodyDefaultRegular) },
-            confirmButton = { TextButton(onClick = { showDelete = false; viewModel.delete() }) { Text("Eliminar grupo", color = Error500) } },
-            dismissButton = { TextButton(onClick = { showDelete = false }) { Text("Cancelar") } },
         )
     }
-    if (showMembers) MembersDialog(g?.members.orEmpty()) { showMembers = false }
+    if (showMembers) MembersManageDialog(
+        members = g?.members.orEmpty(),
+        titleRes = R.string.group_members_title,
+        isCurrentUserAdmin = state.isAdmin,
+        onOpenProfile = onOpenUserProfile,
+        onMakeAdmin = viewModel::makeAdmin,
+        onRemove = viewModel::removeMember,
+        onDismiss = { showMembers = false },
+    )
 }
 
 @Composable
@@ -205,24 +234,6 @@ private fun Section(title: String, content: @Composable () -> Unit) {
 private fun Value(text: String) = Text(text, style = HitbosssType.bodySmallRegular, color = Gray500)
 
 @Composable
-private fun MembersDialog(members: List<Member>, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Cerrar") } },
-        title = { Text("Miembros del grupo", style = HitbosssType.titleBody) },
-        text = {
-            LazyColumn {
-                items(members) { m ->
-                    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        AsyncImage(model = m.profilePic, contentDescription = null, contentScale = ContentScale.Crop, placeholder = placeholderPainter(), error = placeholderPainter(), fallback = placeholderPainter(), modifier = Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)).background(Gray200))
-                        Text(m.username, style = HitbosssType.bodyDefaultRegular, color = Gray800, modifier = Modifier.weight(1f))
-                        if (m.isAdmin) Text("Admin", style = HitbosssType.bodySmallEmphasis, color = Primary500)
-                    }
-                }
-            }
-        },
-    )
-}
-
 private fun exerciseTitle(apiKey: String): String =
-    Exercise.entries.firstOrNull { it.apiValue.equals(apiKey, true) }?.title ?: apiKey.replaceFirstChar { it.uppercase() }
+    com.hitbosss.presentation.feature.ranking.exerciseTitleResByApi(apiKey)?.let { stringResource(it) }
+        ?: apiKey.replaceFirstChar { it.uppercase() }

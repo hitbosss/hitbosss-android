@@ -8,6 +8,9 @@ import com.hitbosss.domain.usecase.GetCurrentUserUseCase
 import com.hitbosss.domain.usecase.GetEventUseCase
 import com.hitbosss.domain.usecase.GetUserProfileUseCase
 import com.hitbosss.domain.usecase.LeaveEventUseCase
+import com.hitbosss.domain.usecase.DeleteEventUseCase
+import com.hitbosss.domain.usecase.MakeEventAdminUseCase
+import com.hitbosss.domain.usecase.RemoveEventMemberUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,6 +18,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.hitbosss.R
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 
 data class EventDetailUiState(
     val isLoading: Boolean = true,
@@ -25,14 +31,36 @@ data class EventDetailUiState(
     val error: String? = null,
     val leaving: Boolean = false,
     val left: Boolean = false,
-)
+    val deleted: Boolean = false,
+) {
+    /** ¿El usuario actual es admin del evento? */
+    val isAdmin: Boolean
+        get() = event?.members?.firstOrNull { it.userId == currentUserId }?.isAdmin == true
+
+    /** Igual que el grupo: solo se bloquea salir si es el único admin con otros miembros. */
+    val canLeaveDirectly: Boolean
+        get() {
+            val members = event?.members ?: return true
+            val adminCount = members.count { it.isAdmin }
+            return !isAdmin || adminCount > 1 || members.size == 1
+        }
+
+    /** El evento ya terminó (no se puede editar). */
+    val isPast: Boolean
+        get() = event?.let { it.endTime * 1000 < System.currentTimeMillis() } == true
+}
 
 @HiltViewModel
 class EventDetailViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val getEvent: GetEventUseCase,
     private val leaveEvent: LeaveEventUseCase,
+    private val deleteEvent: DeleteEventUseCase,
+    private val makeEventAdmin: MakeEventAdminUseCase,
+    private val removeEventMember: RemoveEventMemberUseCase,
     private val getCurrentUser: GetCurrentUserUseCase,
     private val getUserProfile: GetUserProfileUseCase,
+    private val refreshCoordinator: com.hitbosss.core.RefreshCoordinator,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -45,7 +73,11 @@ class EventDetailViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
             getEvent(eventId)
-                .onSuccess { e -> _state.update { it.copy(isLoading = false, event = e) } }
+                .onSuccess { e ->
+                    // Abrir un evento te auto-une (backend) → refresca "Mis eventos".
+                    refreshCoordinator.invalidateCommunity()
+                    _state.update { it.copy(isLoading = false, event = e) }
+                }
                 .onFailure { e -> _state.update { it.copy(isLoading = false, error = e.message ?: "Error") } }
         }
         getCurrentUser()?.uid?.let { uid ->
@@ -53,14 +85,49 @@ class EventDetailViewModel @Inject constructor(
                 getUserProfile(uid).onSuccess { p -> _state.update { it.copy(currentUserCountry = p.countryCode, currentUserPicUrl = p.profilePicUrl) } }
             }
         }
+        // Recarga el ranking de ESTE evento tras subir un HIT en su contexto.
+        viewModelScope.launch {
+            refreshCoordinator.event.collect { id -> if (id == eventId) reloadEvent() }
+        }
+    }
+
+    private fun reloadEvent() {
+        viewModelScope.launch {
+            getEvent(eventId).onSuccess { e -> _state.update { it.copy(event = e) } }
+        }
     }
 
     fun leave() {
         viewModelScope.launch {
             _state.update { it.copy(leaving = true) }
             leaveEvent(eventId)
-                .onSuccess { _state.update { it.copy(leaving = false, left = true) } }
-                .onFailure { e -> _state.update { it.copy(leaving = false, error = e.message ?: "No se pudo salir") } }
+                .onSuccess { refreshCoordinator.invalidateCommunity(); _state.update { it.copy(leaving = false, left = true) } }
+                .onFailure { e -> _state.update { it.copy(leaving = false, error = e.message ?: context.getString(R.string.err_leave)) } }
+        }
+    }
+
+    fun delete() {
+        viewModelScope.launch {
+            _state.update { it.copy(leaving = true) }
+            deleteEvent(eventId)
+                .onSuccess { refreshCoordinator.invalidateCommunity(); _state.update { it.copy(leaving = false, deleted = true) } }
+                .onFailure { e -> _state.update { it.copy(leaving = false, error = e.message ?: context.getString(R.string.err_delete)) } }
+        }
+    }
+
+    fun makeAdmin(userId: String) {
+        viewModelScope.launch {
+            makeEventAdmin(eventId, userId)
+                .onSuccess { refreshCoordinator.invalidateCommunity(); reloadEvent() }
+                .onFailure { e -> _state.update { it.copy(error = e.message ?: context.getString(R.string.err_generic_action)) } }
+        }
+    }
+
+    fun removeMember(userId: String) {
+        viewModelScope.launch {
+            removeEventMember(eventId, userId)
+                .onSuccess { refreshCoordinator.invalidateCommunity(); reloadEvent() }
+                .onFailure { e -> _state.update { it.copy(error = e.message ?: context.getString(R.string.err_generic_action)) } }
         }
     }
 }

@@ -77,17 +77,27 @@ import com.hitbosss.presentation.designsystem.theme.Secondary500
 import com.hitbosss.presentation.designsystem.theme.Secondary800
 import com.hitbosss.presentation.feature.ranking.countryFlag
 import com.hitbosss.presentation.feature.ranking.levelStyle
+import androidx.compose.ui.res.stringResource
+import androidx.compose.runtime.LaunchedEffect
+import com.hitbosss.presentation.designsystem.components.HitPopup
+import androidx.compose.foundation.combinedClickable
+import com.hitbosss.presentation.feature.ranking.titleRes
 
-private enum class MediaTab(val label: String) { Marcas("Marcas"), Hits("HITS") }
-private enum class RecordTab(val label: String) { Ranking("Ranking"), Grupos("Grupos"), Eventos("Eventos") }
+private enum class MediaTab(@androidx.annotation.StringRes val label: Int) { Marcas(R.string.profile_tab_marks), Hits(R.string.profile_tab_hits) }
+private enum class RecordTab(@androidx.annotation.StringRes val label: Int) { Ranking(R.string.tab_ranking), Grupos(R.string.community_tab_groups), Eventos(R.string.community_tab_events) }
 
 @Composable
 fun ProfileScreen(
     onOpenSettings: () -> Unit = {},
     onBack: () -> Unit = {},
+    onEditHit: (EditHitNav) -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    // HIT seleccionado por long-press (solo perfil propio) → menú Editar/Eliminar.
+    var menuHit by remember { mutableStateOf<Participation?>(null) }
+
+    LaunchedEffect(Unit) { viewModel.editEvents.collect { onEditHit(it) } }
 
     when {
         state.isLoading -> Box(Modifier.fillMaxSize().background(Gray200), Alignment.Center) {
@@ -98,17 +108,71 @@ fun ProfileScreen(
             Text(state.error ?: "", style = HitbosssType.bodyDefaultRegular, color = Gray500)
         }
 
-        state.profile != null -> ProfileContent(state.profile!!, state.isOtherUser, state.rankings, onOpenSettings, onBack)
+        state.profile != null -> ProfileContent(
+            state.profile!!, state.isOtherUser, state.rankings, state.isRefreshing, viewModel::refresh, onOpenSettings, onBack,
+            onHitLongPress = if (!state.isOtherUser) ({ menuHit = it }) else null,
+        )
+    }
+
+    // Menú de acciones del HIT (1:1 con el action sheet de iOS: Editar / Eliminar).
+    menuHit?.let { hit ->
+        HitActionSheet(
+            onEdit = { menuHit = null; viewModel.startEditHit(hit) },
+            onDelete = { menuHit = null; hit.hitId?.let { viewModel.deleteHit(it) } },
+            onDismiss = { menuHit = null },
+        )
+    }
+
+    // Overlay mientras se borra / prepara la edición.
+    if (state.isProcessingHit) {
+        Box(Modifier.fillMaxSize().background(Secondary800.copy(alpha = 0.4f)), Alignment.Center) {
+            CircularProgressIndicator(color = Gray100)
+        }
+    }
+
+    // Error de borrar/editar (1:1 con iOS: popup "Error inesperado").
+    state.actionError?.let {
+        HitPopup(
+            title = stringResource(R.string.common_unexpected_error),
+            message = stringResource(R.string.common_unexpected_error_msg),
+            confirmText = stringResource(R.string.common_accept),
+            onConfirm = viewModel::clearActionError,
+            onDismissRequest = viewModel::clearActionError,
+        )
     }
 }
 
+/** Action sheet inferior con Editar HIT / Eliminar HIT (equivalente al confirmationDialog de iOS). */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun HitActionSheet(onEdit: () -> Unit, onDelete: () -> Unit, onDismiss: () -> Unit) {
+    androidx.compose.material3.ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Gray100) {
+        Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
+            Text(
+                stringResource(R.string.hit_edit),
+                style = HitbosssType.bodyLargeRegular, color = Gray800,
+                modifier = Modifier.fillMaxWidth().clickable { onEdit() }.padding(horizontal = 24.dp, vertical = 16.dp),
+            )
+            Text(
+                stringResource(R.string.hit_delete),
+                style = HitbosssType.bodyLargeRegular, color = Error500,
+                modifier = Modifier.fillMaxWidth().clickable { onDelete() }.padding(horizontal = 24.dp, vertical = 16.dp),
+            )
+        }
+    }
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun ProfileContent(
     p: UserProfile,
     isOtherUser: Boolean,
     rankings: Map<String, com.hitbosss.domain.model.SportRanking>,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
     onOpenSettings: () -> Unit,
     onBack: () -> Unit,
+    onHitLongPress: ((Participation) -> Unit)? = null,
 ) {
     var media by rememberSaveable { mutableStateOf(MediaTab.Marcas) }
     var record by rememberSaveable { mutableStateOf(RecordTab.Ranking) }
@@ -116,8 +180,9 @@ private fun ProfileContent(
     var viewer by remember { mutableStateOf<Pair<List<HitVideoData>, Int>?>(null) }
     val openViewer: (List<HitVideoData>, Int) -> Unit = { list, idx -> viewer = list to idx }
 
+    androidx.compose.material3.pulltorefresh.PullToRefreshBox(isRefreshing = isRefreshing, onRefresh = onRefresh) {
     LazyColumn(Modifier.fillMaxSize().background(Gray200)) {
-        // Cabecera "← Atrás" solo en perfil ajeno (CustomNavigationHeader de iOS)
+        // Cabecera stringResource(R.string.common_back) solo en perfil ajeno (CustomNavigationHeader de iOS)
         if (isOtherUser) {
             item {
                 Row(
@@ -127,10 +192,10 @@ private fun ProfileContent(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Atrás", tint = Gray800,
+                        Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = Gray800,
                         modifier = Modifier.size(24.dp).clickable { onBack() },
                     )
-                    Text("Atrás", style = HitbosssType.titleSubsection, color = Gray800)
+                    Text(stringResource(R.string.common_back), style = HitbosssType.titleSubsection, color = Gray800)
                 }
             }
         }
@@ -156,8 +221,8 @@ private fun ProfileContent(
                     RecordTab.Grupos -> if (p.groups.isEmpty()) {
                         item {
                             EmptyState(
-                                if (isOtherUser) "Este usuario no ha participado en ningún grupo."
-                                else "No has participado en ningún grupo.",
+                                if (isOtherUser) stringResource(R.string.profile_empty_groups_other)
+                                else stringResource(R.string.profile_empty_groups_mine),
                                 R.drawable.im_empty_group,
                             )
                         }
@@ -171,8 +236,8 @@ private fun ProfileContent(
                     RecordTab.Eventos -> if (p.events.isEmpty()) {
                         item {
                             EmptyState(
-                                if (isOtherUser) "Aún no ha participado en ningún evento que haya finalizado."
-                                else "Aún no has participado en ningún evento que haya finalizado.",
+                                if (isOtherUser) stringResource(R.string.profile_empty_events_other)
+                                else stringResource(R.string.profile_empty_events_mine),
                                 R.drawable.im_empty_event,
                             )
                         }
@@ -187,8 +252,9 @@ private fun ProfileContent(
                 item { Spacer(Modifier.height(24.dp)) }
             }
 
-            MediaTab.Hits -> item { HitsSection(p.participations, openViewer) }
+            MediaTab.Hits -> item { HitsSection(p.participations, openViewer, onHitLongPress) }
         }
+    }
     }
 
     // Visor del vídeo del HIT con paginador (al tocar una marca / hit de grupo / evento / miniatura).
@@ -214,7 +280,7 @@ private fun ProfileHeader(p: UserProfile, isOtherUser: Boolean, onOpenSettings: 
                         .size(32.dp).clip(CircleShape).background(Gray100).clickable { onOpenSettings() },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Icons.Filled.Settings, contentDescription = "Ajustes", tint = Gray500, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.settings_title), tint = Gray500, modifier = Modifier.size(16.dp))
                 }
             }
         }
@@ -263,7 +329,7 @@ private fun ProfileHeader(p: UserProfile, isOtherUser: Boolean, onOpenSettings: 
                 )
                 if (desc.length > 90) {
                     Text(
-                        if (expanded) "Ver menos" else "Ver más",
+                        if (expanded) stringResource(R.string.common_see_less) else stringResource(R.string.common_see_more),
                         style = HitbosssType.bodySmallEmphasis, color = Secondary500,
                         modifier = Modifier.clickable { expanded = !expanded },
                     )
@@ -304,7 +370,7 @@ private fun MediaTabs(selected: MediaTab, onSelect: (MediaTab) -> Unit) {
                 modifier = Modifier.weight(1f).clickable { onSelect(tab) }.padding(top = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text(tab.label, style = HitbosssType.bodyLargeRegular, color = Gray800)
+                Text(stringResource(tab.label), style = HitbosssType.bodyLargeRegular, color = Gray800)
                 Spacer(Modifier.height(8.dp))
                 Box(
                     Modifier.fillMaxWidth().height(2.dp)
@@ -333,7 +399,7 @@ private fun RecordSegment(selected: RecordTab, onSelect: (RecordTab) -> Unit) {
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    tab.label,
+                    stringResource(tab.label),
                     style = if (isSel) HitbosssType.bodyDefaultEmphasis else HitbosssType.bodyDefaultRegular,
                     color = if (isSel) Gray800 else Gray500,
                 )
@@ -380,8 +446,9 @@ private fun SportMarksCard(
             participations.filter { it.exercise.equals(cat.apiKey, ignoreCase = true) }
                 .maxByOrNull { it.maxLift?.value ?: 0.0 }
         }
+        val exTitle = rememberExerciseTitleResolver()
         val videoPairs = exercises.mapNotNull { cat ->
-            bestByCat[cat]?.takeIf { !it.videoUrl.isNullOrBlank() }?.let { cat to it.toHitVideo(cat.title) }
+            bestByCat[cat]?.takeIf { !it.videoUrl.isNullOrBlank() }?.let { cat to it.toHitVideo(exTitle(cat.apiKey)) }
         }
         val videoList = videoPairs.map { it.second }
         exercises.forEach { cat ->
@@ -390,7 +457,7 @@ private fun SportMarksCard(
             val idx = videoPairs.indexOfFirst { it.first == cat }
             val clickable: (() -> Unit)? = if (idx >= 0) ({ onHitClick(videoList, idx) }) else null
             ExerciseMarkRow(
-                name = cat.title,
+                name = exTitle(cat.apiKey),
                 weight = part?.maxLift?.let { "${formatWeight(it.value)} ${it.unit}" },
                 levelWeight = part?.levelWeight,
                 topPercent = topPercentage(part?.position, total),
@@ -443,7 +510,7 @@ private fun ExerciseMarkRow(name: String, weight: String?, levelWeight: String?,
                 }
             }
         } else {
-            Text("SIN MARCA", style = HitbosssType.bodySmallRegular, color = Gray500)
+            Text(stringResource(R.string.profile_no_mark), style = HitbosssType.bodySmallRegular, color = Gray500)
         }
     }
 }
@@ -460,7 +527,8 @@ private fun topPercentage(position: Int?, total: Int?): String? {
 
 @Composable
 private fun ProfileGroupCard(group: com.hitbosss.domain.model.ProfileGroup, onHitClick: (List<HitVideoData>, Int) -> Unit) {
-    val videoHits = group.userHits.filter { !it.videoUrl.isNullOrBlank() }.map { it.toHitVideo() }
+    val exTitle = rememberExerciseTitleResolver()
+    val videoHits = group.userHits.filter { !it.videoUrl.isNullOrBlank() }.map { it.toHitVideo(exTitle(it.exercise)) }
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Gray100)
             .border(1.dp, Gray300, RoundedCornerShape(12.dp)),
@@ -493,7 +561,8 @@ private fun ProfileGroupCard(group: com.hitbosss.domain.model.ProfileGroup, onHi
 
 @Composable
 private fun ProfileEventCard(event: com.hitbosss.domain.model.ProfileEvent, onHitClick: (List<HitVideoData>, Int) -> Unit) {
-    val videoHits = event.userHits.filter { !it.videoUrl.isNullOrBlank() }.map { it.toHitVideo(event.finalPosition) }
+    val exTitle = rememberExerciseTitleResolver()
+    val videoHits = event.userHits.filter { !it.videoUrl.isNullOrBlank() }.map { it.toHitVideo(exTitle(it.exercise), event.finalPosition) }
     val isPl = event.sport.equals("powerlifting", true)
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Gray100)
@@ -554,10 +623,11 @@ private fun StatExerciseRow(
 ) {
     val pos = hit.position ?: fallbackPosition
     val weightText = hit.maxLift?.let { "${formatWeight(it.value)} ${it.unit.uppercase()}" } ?: ""
-    val idx = if (hit.videoUrl.isNullOrBlank()) -1 else videoHits.indexOfFirst { it.hitId == hit.hitId && it.exerciseTitle == exerciseTitle(hit.exercise) }
+    val exTitle = rememberExerciseTitleResolver()
+    val idx = if (hit.videoUrl.isNullOrBlank()) -1 else videoHits.indexOfFirst { it.hitId == hit.hitId && it.exerciseTitle == exTitle(hit.exercise) }
     val onClick: (() -> Unit)? = if (idx >= 0) ({ onHitClick(videoHits, idx) }) else null
     StatRowLayout(
-        name = exerciseTitle(hit.exercise),
+        name = exTitle(hit.exercise),
         weight = weightText,
         levelWeight = hit.levelWeight,
         rankingText = pos?.let { "#$it" } ?: "",
@@ -608,10 +678,14 @@ private fun StatRowLayout(name: String, weight: String, levelWeight: String?, ra
 // MARK: - HITS (grid 3 columnas)
 
 private enum class HitTab { Subidos, EnRanking }
-private enum class SportFilter(val label: String) { Todos("Todos"), Powerlifting("Powerlifting"), Crossfit("CrossHIT") }
+private enum class SportFilter(@androidx.annotation.StringRes val label: Int) { Todos(R.string.common_all), Powerlifting(R.string.sport_powerlifting), Crossfit(R.string.sport_crosshit) }
 
 @Composable
-private fun HitsSection(participations: List<Participation>, onHitClick: (List<HitVideoData>, Int) -> Unit) {
+private fun HitsSection(
+    participations: List<Participation>,
+    onHitClick: (List<HitVideoData>, Int) -> Unit,
+    onHitLongPress: ((Participation) -> Unit)? = null,
+) {
     var tab by rememberSaveable { mutableStateOf(HitTab.Subidos) }
     var sport by rememberSaveable { mutableStateOf(SportFilter.Todos) }
 
@@ -637,7 +711,7 @@ private fun HitsSection(participations: List<Participation>, onHitClick: (List<H
             SportFilter.entries.forEach { s ->
                 val sel = s == sport
                 Text(
-                    s.label, style = HitbosssType.bodyDefaultRegular, color = Gray800,
+                    stringResource(s.label), style = HitbosssType.bodyDefaultRegular, color = Gray800,
                     modifier = Modifier.clip(RoundedCornerShape(32.dp)).background(Gray100)
                         .border(1.dp, if (sel) Secondary500 else Gray300, RoundedCornerShape(32.dp))
                         .clickable { sport = s }.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -647,21 +721,25 @@ private fun HitsSection(participations: List<Participation>, onHitClick: (List<H
 
         if (filtered.isEmpty()) {
             val emptyMsg = when (sport) {
-                SportFilter.Todos -> "Todavía no has subido ningún HIT.\n¡Anímate a hacerlo ahora!"
-                SportFilter.Powerlifting -> "No tienes ningún HIT de Powerlifting.\n¡Anímate y sube el primero!"
-                SportFilter.Crossfit -> "No tienes ningún HIT de CrossHIT.\n¡Anímate y sube el primero!"
+                SportFilter.Todos -> stringResource(R.string.profile_empty_hits_all)
+                SportFilter.Powerlifting -> stringResource(R.string.profile_empty_hits_pl)
+                SportFilter.Crossfit -> stringResource(R.string.profile_empty_hits_cf)
             }
             EmptyState(emptyMsg, R.drawable.im_empty_hits)
         } else {
             // Lista paginable = todos los hits filtrados (en orden del grid).
-            val videoList = filtered.map { it.toHitVideo(exerciseTitle(it.exercise)) }
+            val exTitle = rememberExerciseTitleResolver()
+            val videoList = filtered.map { it.toHitVideo(exTitle(it.exercise)) }
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 filtered.chunked(3).forEachIndexed { rowIndex, rowItems ->
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         rowItems.forEachIndexed { colIndex, hit ->
                             val globalIndex = rowIndex * 3 + colIndex
                             Box(Modifier.weight(1f)) {
-                                HitThumb(hit, isBest = hit in bestPerExercise) { onHitClick(videoList, globalIndex) }
+                                HitThumb(
+                                    hit, isBest = hit in bestPerExercise,
+                                    onLongPress = onHitLongPress?.let { lp -> { lp(hit) } },
+                                ) { onHitClick(videoList, globalIndex) }
                             }
                         }
                         repeat(3 - rowItems.size) { Spacer(Modifier.weight(1f)) }
@@ -678,7 +756,7 @@ private fun HitSubSegment(selected: HitTab, subidos: Int, enRanking: Int, onSele
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Gray300).padding(4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        listOf(HitTab.Subidos to ("Subidos" to subidos), HitTab.EnRanking to ("En ranking" to enRanking)).forEach { (t, data) ->
+        listOf(HitTab.Subidos to (stringResource(R.string.profile_tab_uploaded) to subidos), HitTab.EnRanking to (stringResource(R.string.profile_tab_on_ranking) to enRanking)).forEach { (t, data) ->
             val sel = t == selected
             Row(
                 modifier = Modifier.weight(1f).clip(RoundedCornerShape(8.dp))
@@ -703,12 +781,21 @@ private fun HitSubSegment(selected: HitTab, subidos: Int, enRanking: Int, onSele
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-private fun HitThumb(hit: Participation, isBest: Boolean, onClick: () -> Unit) {
+private fun HitThumb(hit: Participation, isBest: Boolean, onLongPress: (() -> Unit)? = null, onClick: () -> Unit) {
     val context = LocalContext.current
     val isPl = hit.sport.equals("powerlifting", true)
+    val exTitleThumb = rememberExerciseTitleResolver()
     Box(
-        Modifier.fillMaxWidth().aspectRatio(9f / 16f).clip(RoundedCornerShape(12.dp)).background(Gray800).clickable { onClick() },
+        Modifier.fillMaxWidth().aspectRatio(9f / 16f).clip(RoundedCornerShape(12.dp)).background(Gray800)
+            .let { m ->
+                if (onLongPress != null) {
+                    m.combinedClickable(onClick = onClick, onLongClick = onLongPress)
+                } else {
+                    m.clickable { onClick() }
+                }
+            },
     ) {
         AsyncImage(
             model = ImageRequest.Builder(context).data(hit.videoUrl)
@@ -746,7 +833,7 @@ private fun HitThumb(hit: Participation, isBest: Boolean, onClick: () -> Unit) {
             }
         }
         Column(Modifier.align(Alignment.BottomStart).padding(10.dp)) {
-            Text(exerciseTitle(hit.exercise), style = HitbosssType.bodySmallRegular, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(exTitleThumb(hit.exercise), style = HitbosssType.bodySmallRegular, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
             hit.maxLift?.let {
                 Text("${formatWeight(it.value)} ${it.unit}", style = HitbosssType.bodyDefaultEmphasis, color = Color.White)
             }
@@ -754,10 +841,15 @@ private fun HitThumb(hit: Participation, isBest: Boolean, onClick: () -> Unit) {
     }
 }
 
-/** Nombre legible del ejercicio (igual que iOS ExerciseType.localizedName). */
-private fun exerciseTitle(raw: String): String =
-    RankingCategory.entries.firstOrNull { it.apiKey.equals(raw, true) }?.title
-        ?: raw.replaceFirstChar { it.uppercase() }
+/**
+ * Resolver de nombre de ejercicio localizado por apiKey. Pre-resuelve los recursos (composable) en un
+ * mapa para usarse después dentro de `.map {}` (no-composable) sin romper el matching del visor.
+ */
+@Composable
+private fun rememberExerciseTitleResolver(): (String) -> String {
+    val map = RankingCategory.entries.associate { it.apiKey.lowercase() to stringResource(it.titleRes()) }
+    return { raw -> map[raw.lowercase()] ?: raw.replaceFirstChar { c -> c.uppercase() } }
+}
 
 // MARK: - Vacío
 
@@ -803,10 +895,10 @@ private fun Participation.toHitVideo(title: String) = HitVideoData(
 )
 
 /** ProfileHit -> HitVideoData (requiere videoUrl no vacío). */
-private fun com.hitbosss.domain.model.ProfileHit.toHitVideo(fallbackPosition: Int? = null) = HitVideoData(
+private fun com.hitbosss.domain.model.ProfileHit.toHitVideo(title: String, fallbackPosition: Int? = null) = HitVideoData(
     videoUrl = videoUrl.orEmpty(),
     seekSeconds = performedAt,
-    exerciseTitle = exerciseTitle(exercise),
+    exerciseTitle = title,
     dateText = formatShortDate(createdAt),
     weightText = maxLift?.let { "${formatWeight(it.value)} ${it.unit.uppercase()}" } ?: "",
     levelWeight = levelWeight,

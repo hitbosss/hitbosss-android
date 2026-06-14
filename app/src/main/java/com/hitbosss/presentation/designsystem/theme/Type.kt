@@ -10,6 +10,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.hitbosss.R
+import androidx.compose.foundation.layout.size
 
 /** Familia Inter, portada de la app iOS (Inter24pt Regular / SemiBold / Italic). */
 val InterFontFamily = FontFamily(

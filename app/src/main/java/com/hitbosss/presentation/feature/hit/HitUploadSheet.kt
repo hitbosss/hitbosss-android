@@ -67,6 +67,10 @@ import com.hitbosss.presentation.designsystem.theme.Purple400
 import com.hitbosss.presentation.designsystem.theme.Secondary100
 import com.hitbosss.presentation.designsystem.theme.Secondary200
 import com.hitbosss.presentation.designsystem.theme.Secondary500
+import androidx.compose.ui.res.stringResource
+import com.hitbosss.R
+import com.hitbosss.presentation.designsystem.components.HitPopup
+import com.hitbosss.presentation.feature.ranking.titleRes
 
 /**
  * FAB de subir HIT del ranking. En pestañas oficiales muestra el aviso "no es un ejercicio"; en un
@@ -80,6 +84,7 @@ fun UploadHitFab(
     onRecordHit: (exercise: String, weight: Double) -> Unit,
     modifier: Modifier = Modifier,
     onTutorial: () -> Unit = {},
+    onSavedHits: () -> Unit = {},
 ) {
     var showSheet by remember { mutableStateOf(false) }
     var showAlert by remember { mutableStateOf(false) }
@@ -89,7 +94,7 @@ fun UploadHitFab(
         containerColor = Primary500,
         contentColor = Gray100,
         modifier = modifier,
-    ) { Icon(Icons.Filled.Add, contentDescription = "Subir HIT") }
+    ) { Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.hit_upload)) }
 
     if (showAlert) OfficialNotExerciseAlert(sport) { showAlert = false }
 
@@ -100,6 +105,7 @@ fun UploadHitFab(
             onDismiss = { showSheet = false },
             onRecord = { weight -> showSheet = false; onRecordHit(exerciseKey, weight) },
             onTutorial = onTutorial,
+            onSavedHits = { showSheet = false; onSavedHits() },
         )
     }
 }
@@ -111,6 +117,7 @@ private fun UploadHitSheet(
     onDismiss: () -> Unit,
     onRecord: (Double) -> Unit,
     onTutorial: () -> Unit,
+    onSavedHits: () -> Unit,
     viewModel: HitUploadViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -132,9 +139,9 @@ private fun UploadHitSheet(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text("Registra tu HIT", style = HitbosssType.titleSection, color = Gray800, textAlign = TextAlign.Center)
+                Text(stringResource(R.string.hit_register), style = HitbosssType.titleSection, color = Gray800, textAlign = TextAlign.Center)
                 Text(
-                    exercise.title,
+                    stringResource(exercise.titleRes()),
                     style = HitbosssType.bodySmallEmphasis,
                     color = sportColor,
                     modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(sportChipBg)
@@ -143,7 +150,7 @@ private fun UploadHitSheet(
             }
 
             Text(
-                "Peso total a levantar",
+                stringResource(R.string.hit_total_weight),
                 style = HitbosssType.bodyDefaultEmphasis,
                 color = Gray500,
                 modifier = Modifier.padding(top = 26.dp, start = 16.dp, end = 16.dp),
@@ -192,10 +199,10 @@ private fun UploadHitSheet(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Filled.Info, contentDescription = null, tint = Secondary500, modifier = Modifier.size(20.dp))
-                    Text("Importante", style = HitbosssType.bodyDefaultEmphasis, color = Gray800)
+                    Text(stringResource(R.string.hit_important), style = HitbosssType.bodyDefaultEmphasis, color = Gray800)
                 }
                 Text(
-                    "Incluye el peso de la barra más el de los discos. Revisa las normas para evitar penalizaciones.",
+                    stringResource(R.string.hit_important_desc),
                     style = HitbosssType.bodyDefaultRegular,
                     color = Gray500,
                 )
@@ -205,21 +212,21 @@ private fun UploadHitSheet(
                 icon = { Icon(Icons.Filled.SaveAlt, contentDescription = null, tint = Orange300, modifier = Modifier.size(18.dp)) },
                 iconBg = Orange100,
                 iconBorder = Orange200,
-                title = "HITS guardados",
-                subtitle = "Ninguno pendiente de subir",
-                onClick = {},
+                title = stringResource(R.string.hit_saved_list),
+                subtitle = stringResource(R.string.hit_none_pending),
+                onClick = onSavedHits,
             )
             ActionRow(
                 icon = { Icon(Icons.Filled.PlayCircle, contentDescription = null, tint = Purple400, modifier = Modifier.size(18.dp)) },
                 iconBg = Purple100,
                 iconBorder = Purple200,
-                title = "Ver tutorial",
-                subtitle = "Cómo grabar tu HIT",
+                title = stringResource(R.string.hit_see_tutorial),
+                subtitle = stringResource(R.string.hit_how_record),
                 onClick = onTutorial,
             )
 
             HitButton(
-                text = "Grabar hit",
+                text = stringResource(R.string.hit_record),
                 onClick = { state.lift.toDoubleOrNull()?.let(onRecord) },
                 enabled = state.canRecord,
                 modifier = Modifier.padding(top = 16.dp, start = 16.dp, end = 16.dp),
@@ -260,34 +267,19 @@ private fun ActionRow(
 private fun OfficialNotExerciseAlert(sport: Sport, onDismiss: () -> Unit) {
     val isPl = sport == Sport.Powerlifting
     val name = if (isPl) "Powerlifting" else "CrossHIT"
-    val exercisesText = if (isPl) "Sentadilla, Press Banca y Peso Muerto (o Sumo)" else "Snatch, Clean y Clean & Jerk"
+    val exercisesText = if (isPl) stringResource(R.string.hit_pl_exercises) else stringResource(R.string.hit_cf_exercises)
 
-    androidx.compose.material3.AlertDialog(
+    HitPopup(
+        title = stringResource(R.string.hit_not_exercise_title, name),
+        message = buildAnnotatedString {
+            append(stringResource(R.string.hit_official_explain_1, name, exercisesText))
+            append("\n\n")
+            withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(stringResource(R.string.hit_official_improve_lead)) }
+            append(stringResource(R.string.hit_official_improve_rest))
+        },
+        confirmText = stringResource(R.string.common_accept),
+        confirmType = HitButtonType.Secondary,
+        onConfirm = onDismiss,
         onDismissRequest = onDismiss,
-        containerColor = Gray100,
-        title = {
-            Text(
-                "$name no es un ejercicio",
-                style = HitbosssType.titleSection,
-                color = Gray800,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        },
-        text = {
-            Text(
-                buildAnnotatedString {
-                    append("No puedes subir un hit directamente a $name, porque se calcula sumando tus marcas en $exercisesText.\n\n")
-                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("Para mejorar tu posición, ") }
-                    append("sube un nuevo hit que supere el anterior en cualquiera de esos ejercicios.")
-                },
-                style = HitbosssType.bodyDefaultRegular,
-                color = Gray500,
-                textAlign = TextAlign.Center,
-            )
-        },
-        confirmButton = {
-            HitButton("Aceptar", onClick = onDismiss, type = HitButtonType.Secondary)
-        },
     )
 }

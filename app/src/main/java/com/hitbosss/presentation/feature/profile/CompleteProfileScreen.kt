@@ -66,8 +66,9 @@ import com.hitbosss.presentation.designsystem.theme.Success500
 import com.hitbosss.presentation.feature.ranking.countryFlag
 import com.hitbosss.presentation.feature.settings.CountryData
 import java.util.Calendar
-
-private val MONTHS = listOf("Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre")
+import androidx.compose.ui.res.stringArrayResource
+import androidx.compose.ui.res.stringResource
+import com.hitbosss.presentation.designsystem.components.HitPopup
 
 @Composable
 fun CompleteProfileScreen(
@@ -88,9 +89,9 @@ fun CompleteProfileScreen(
     Column(Modifier.fillMaxSize().background(Gray100)) {
         // Cabecera
         Row(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Atrás", tint = Gray800, modifier = Modifier.size(24.dp).clickable { back() })
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.common_back), tint = Gray800, modifier = Modifier.size(24.dp).clickable { back() })
             Spacer(Modifier.width(12.dp))
-            Text("Configurar Perfil", style = HitbosssType.titleSubsection, color = Gray800)
+            Text(stringResource(R.string.onboarding_title), style = HitbosssType.titleSubsection, color = Gray800)
         }
         Box(Modifier.fillMaxWidth().height(1.dp).background(Gray200))
 
@@ -101,7 +102,7 @@ fun CompleteProfileScreen(
                     Box(Modifier.weight(1f).height(4.dp).clip(RoundedCornerShape(2.dp)).background(if (i < step) Primary500 else Gray200))
                 }
             }
-            Text("Paso $step de $total", style = HitbosssType.bodyDefaultRegular, color = Gray500, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp))
+            Text(stringResource(R.string.onboarding_step, step, total), style = HitbosssType.bodyDefaultRegular, color = Gray500, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp))
 
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 when (step) {
@@ -125,9 +126,20 @@ fun CompleteProfileScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 if (state.isLoading) CircularProgressIndicator(color = Gray100, modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
-                else Text("Continuar", style = HitbosssType.bodyLargeEmphasis, color = if (enabled) Gray100 else Gray500)
+                else Text(stringResource(R.string.common_continue), style = HitbosssType.bodyLargeEmphasis, color = if (enabled) Gray100 else Gray500)
             }
         }
+    }
+
+    // Popup de error al guardar el perfil (1:1 con iOS: texto fijo "Error inesperado").
+    state.error?.let {
+        HitPopup(
+            title = stringResource(R.string.common_unexpected_error),
+            message = stringResource(R.string.common_unexpected_error_msg),
+            confirmText = stringResource(R.string.common_accept),
+            onConfirm = viewModel::clearError,
+            onDismissRequest = viewModel::clearError,
+        )
     }
 }
 
@@ -138,10 +150,10 @@ private fun StepTitle(text: String) =
 @Composable
 private fun GenderStep(gender: String, onGender: (String) -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(30.dp)) {
-        StepTitle("¿Cuál es tu género?")
+        StepTitle(stringResource(R.string.onboarding_gender))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            GenderCard(R.drawable.ic_gender_male, "Hombre", gender == "male", Modifier.weight(1f)) { onGender("male") }
-            GenderCard(R.drawable.ic_gender_female, "Mujer", gender == "female", Modifier.weight(1f)) { onGender("female") }
+            GenderCard(R.drawable.ic_gender_male, stringResource(R.string.common_male), gender == "male", Modifier.weight(1f)) { onGender("male") }
+            GenderCard(R.drawable.ic_gender_female, stringResource(R.string.common_female), gender == "female", Modifier.weight(1f)) { onGender("female") }
         }
     }
 }
@@ -165,7 +177,7 @@ private fun GenderCard(res: Int, label: String, selected: Boolean, modifier: Mod
 private fun CountryStep(code: String, onCountry: (String) -> Unit) {
     var showDialog by remember { mutableStateOf(false) }
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(30.dp)) {
-        StepTitle("¿Qué país quieres representar?")
+        StepTitle(stringResource(R.string.onboarding_country))
         Row(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).border(1.dp, Gray300, RoundedCornerShape(8.dp)).clickable { showDialog = true }.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -188,7 +200,7 @@ private fun CountryDialog(onPick: (String) -> Unit, onDismiss: () -> Unit) {
                 Icon(Icons.Filled.Search, contentDescription = null, tint = Gray500)
                 Spacer(Modifier.width(8.dp))
                 Box(Modifier.weight(1f)) {
-                    if (query.isEmpty()) Text("Buscar país", style = HitbosssType.bodyDefaultRegular, color = Gray500)
+                    if (query.isEmpty()) Text(stringResource(R.string.onboarding_search_country), style = HitbosssType.bodyDefaultRegular, color = Gray500)
                     BasicTextField(query, { query = it }, singleLine = true, textStyle = HitbosssType.bodyDefaultRegular.copy(color = Gray800), modifier = Modifier.fillMaxWidth())
                 }
             }
@@ -209,7 +221,7 @@ private fun CountryDialog(onPick: (String) -> Unit, onDismiss: () -> Unit) {
 private fun SystemBadge(state: CompleteProfileUiState) {
     val metric = state.system == MeasurementSystem.Metric
     Text(
-        if (metric) "SISTEMA MÉTRICO" else "SISTEMA IMPERIAL",
+        if (metric) stringResource(R.string.system_metric) else stringResource(R.string.system_imperial),
         style = HitbosssType.bodySmallEmphasis, color = if (metric) Secondary500 else Success500,
         modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(if (metric) Secondary100 else Success100).padding(horizontal = 8.dp, vertical = 4.dp),
     )
@@ -218,7 +230,7 @@ private fun SystemBadge(state: CompleteProfileUiState) {
 @Composable
 private fun HeightStep(state: CompleteProfileUiState, vm: CompleteProfileViewModel) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        StepTitle("¿Cuál es tu altura?")
+        StepTitle(stringResource(R.string.onboarding_height))
         SystemBadge(state)
         Spacer(Modifier.height(16.dp))
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -238,7 +250,7 @@ private fun HeightStep(state: CompleteProfileUiState, vm: CompleteProfileViewMod
 @Composable
 private fun WeightStep(state: CompleteProfileUiState, vm: CompleteProfileViewModel) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        StepTitle("¿Cuál es tu peso?")
+        StepTitle(stringResource(R.string.onboarding_weight))
         SystemBadge(state)
         Spacer(Modifier.height(16.dp))
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -266,11 +278,11 @@ private fun BirthStep(state: CompleteProfileUiState, vm: CompleteProfileViewMode
     val years = (nowYear - 90..nowYear - 18).toList()
     val days = (1..31).toList()
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(30.dp)) {
-        StepTitle("¿Cuál es tu fecha de nacimiento?")
+        StepTitle(stringResource(R.string.onboarding_birth))
         Spacer(Modifier.height(16.dp))
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             WheelPicker(days.map { it.toString() }, days.indexOf(state.birthDay).coerceAtLeast(0), { vm.onBirth(days[it], state.birthMonth, state.birthYear) }, Modifier.weight(0.8f))
-            WheelPicker(MONTHS, state.birthMonth - 1, { vm.onBirth(state.birthDay, it + 1, state.birthYear) }, Modifier.weight(1.4f))
+            WheelPicker(stringArrayResource(R.array.months).toList(), state.birthMonth - 1, { vm.onBirth(state.birthDay, it + 1, state.birthYear) }, Modifier.weight(1.4f))
             WheelPicker(years.map { it.toString() }, years.indexOf(state.birthYear).coerceAtLeast(0), { vm.onBirth(state.birthDay, state.birthMonth, years[it]) }, Modifier.weight(1f))
         }
     }
@@ -279,15 +291,15 @@ private fun BirthStep(state: CompleteProfileUiState, vm: CompleteProfileViewMode
 @Composable
 private fun UsernameStep(state: CompleteProfileUiState, onUsername: (String) -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(30.dp)) {
-        StepTitle("¿Con qué nombre de usuario quieres que te conozcan?")
+        StepTitle(stringResource(R.string.onboarding_username_q))
         Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(Gray200).padding(16.dp)) {
-            if (state.username.isEmpty()) Text("Nombre de usuario", style = HitbosssType.bodyLargeRegular, color = Gray500)
+            if (state.username.isEmpty()) Text(stringResource(R.string.onboarding_username_ph), style = HitbosssType.bodyLargeRegular, color = Gray500)
             BasicTextField(state.username, onUsername, singleLine = true, textStyle = HitbosssType.bodyLargeRegular.copy(color = Gray800), modifier = Modifier.fillMaxWidth())
         }
         if (state.usernameTaken) {
-            Text("Este nombre de usuario ya está en uso. Prueba con otro.", style = HitbosssType.bodySmallRegular, color = Error500)
+            Text(stringResource(R.string.onboarding_username_taken), style = HitbosssType.bodySmallRegular, color = Error500)
         } else if (state.username.isNotEmpty() && !state.isUsernameValid) {
-            Text("El nombre debe tener 3-16 caracteres alfanuméricos. Puede contener '.' o '_' (no consecutivos).", style = HitbosssType.bodySmallRegular, color = Error500)
+            Text(stringResource(R.string.onboarding_username_invalid), style = HitbosssType.bodySmallRegular, color = Error500)
         }
     }
 }

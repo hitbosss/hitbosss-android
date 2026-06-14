@@ -16,21 +16,48 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.hitbosss.R
+import android.content.Context
+import com.hitbosss.domain.model.Participation
+import com.hitbosss.domain.usecase.DeleteHitUseCase
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.net.URL
+import kotlinx.coroutines.flow.asSharedFlow
 
 data class ProfileUiState(
     val isLoading: Boolean = false,
+    val isRefreshing: Boolean = false,
     val profile: UserProfile? = null,
     val isOtherUser: Boolean = false,
     // Ranking por deporte (apiValue -> ranking) para calcular TOP% y el TOTAL oficial.
     val rankings: Map<String, SportRanking> = emptyMap(),
     val error: String? = null,
+    val isProcessingHit: Boolean = false,   // borrando o preparando edición de un HIT
+    val actionError: String? = null,        // error de borrar/editar (popup "Error inesperado")
+)
+
+/** Evento de navegación para editar un HIT ya subido (con el vídeo ya descargado en local). */
+data class EditHitNav(
+    val exercise: String,
+    val weight: Double,
+    val hitId: Int,
+    val performedAt: Double,
+    val localPath: String,
 )
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val getCurrentUser: GetCurrentUserUseCase,
     private val getUserProfile: GetUserProfileUseCase,
     private val getRanking: GetRankingUseCase,
+    private val deleteHitUseCase: DeleteHitUseCase,
+    private val refreshCoordinator: com.hitbosss.core.RefreshCoordinator,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -40,15 +67,48 @@ class ProfileViewModel @Inject constructor(
     private val _state = MutableStateFlow(ProfileUiState(isOtherUser = otherUserId != null))
     val state: StateFlow<ProfileUiState> = _state.asStateFlow()
 
+    private val _editEvents = MutableSharedFlow<EditHitNav>(extraBufferCapacity = 1)
+    val editEvents: SharedFlow<EditHitNav> = _editEvents.asSharedFlow()
+
+    private var reloading = false
+
     init {
         load()
         loadRankings()
+        // Recarga el perfil propio tras acciones (subir HIT, editar perfil). El ajeno no escucha.
+        if (otherUserId == null) {
+            viewModelScope.launch { refreshCoordinator.profile.collect { reloadAll(showRefreshing = false) } }
+        }
+    }
+
+    /** Pull-to-refresh manual. */
+    fun refresh() = reloadAll(showRefreshing = true)
+
+    /** Recarga perfil + rankings sin el spinner de pantalla completa. Guarda de concurrencia. */
+    private fun reloadAll(showRefreshing: Boolean) {
+        if (reloading) return
+        val uid = otherUserId ?: getCurrentUser()?.uid
+        if (uid.isNullOrBlank()) return
+        reloading = true
+        viewModelScope.launch {
+            if (showRefreshing) _state.update { it.copy(isRefreshing = true) }
+            val profileD = async { getUserProfile(uid) }
+            val pl = async { getRanking("powerlifting").getOrNull() }
+            val cf = async { getRanking("crossfit").getOrNull() }
+            profileD.await().onSuccess { p -> _state.update { it.copy(profile = p, error = null) } }
+            val map = buildMap {
+                pl.await()?.let { put("powerlifting", it) }
+                cf.await()?.let { put("crossfit", it) }
+            }
+            _state.update { it.copy(rankings = if (map.isNotEmpty()) it.rankings + map else it.rankings, isRefreshing = false) }
+            reloading = false
+        }
     }
 
     fun load() {
         val uid = otherUserId ?: getCurrentUser()?.uid
         if (uid.isNullOrBlank()) {
-            _state.update { it.copy(error = "No hay sesión activa") }
+            _state.update { it.copy(error = appContext.getString(R.string.err_no_session)) }
             return
         }
         viewModelScope.launch {
@@ -69,6 +129,57 @@ class ProfileViewModel @Inject constructor(
                 cf.await()?.let { put("crossfit", it) }
             }
             if (map.isNotEmpty()) _state.update { it.copy(rankings = it.rankings + map) }
+        }
+    }
+
+    fun clearActionError() = _state.update { it.copy(actionError = null) }
+
+    /** Elimina un HIT propio (long-press → Eliminar). Recarga el perfil + ranking al terminar. */
+    fun deleteHit(hitId: Int) {
+        if (_state.value.isProcessingHit) return
+        viewModelScope.launch {
+            _state.update { it.copy(isProcessingHit = true, actionError = null) }
+            deleteHitUseCase(hitId)
+                .onSuccess {
+                    refreshCoordinator.onHitUploaded()  // invalida ranking + perfil
+                    reloadAll(showRefreshing = false)
+                    _state.update { it.copy(isProcessingHit = false) }
+                }
+                .onFailure { _state.update { it.copy(isProcessingHit = false, actionError = "delete") } }
+        }
+    }
+
+    /**
+     * Prepara la edición de un HIT propio: descarga el vídeo remoto a local y emite el evento de
+     * navegación a EditVideo. (La pantalla de edición trabaja con un fichero local.)
+     */
+    fun startEditHit(p: Participation) {
+        if (_state.value.isProcessingHit) return
+        val hitId = p.hitId ?: return
+        val url = p.videoUrl?.takeIf { it.isNotBlank() } ?: return
+        viewModelScope.launch {
+            _state.update { it.copy(isProcessingHit = true, actionError = null) }
+            val file = withContext(Dispatchers.IO) {
+                runCatching {
+                    val dest = File(appContext.cacheDir, "edit_hit_$hitId.mp4")
+                    URL(url).openStream().use { input -> dest.outputStream().use { out -> input.copyTo(out) } }
+                    dest
+                }.getOrNull()
+            }
+            _state.update { it.copy(isProcessingHit = false) }
+            if (file != null) {
+                _editEvents.tryEmit(
+                    EditHitNav(
+                        exercise = p.exercise,
+                        weight = p.maxLift?.value ?: 0.0,
+                        hitId = hitId,
+                        performedAt = p.performedAt,
+                        localPath = file.absolutePath,
+                    ),
+                )
+            } else {
+                _state.update { it.copy(actionError = "edit") }
+            }
         }
     }
 }

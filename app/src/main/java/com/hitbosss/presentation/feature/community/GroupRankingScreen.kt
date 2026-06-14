@@ -72,12 +72,16 @@ import com.hitbosss.presentation.feature.ranking.RankingOrder
 import com.hitbosss.presentation.feature.ranking.RankingRow
 import com.hitbosss.presentation.feature.ranking.RankingSortSheet
 import com.hitbosss.presentation.feature.ranking.RequiredExercise
+import androidx.compose.ui.res.stringResource
+import com.hitbosss.R
+import com.hitbosss.presentation.feature.ranking.titleRes
 
 @Composable
 fun GroupRankingScreen(
     onBack: () -> Unit,
     onInfo: (Int) -> Unit,
     onRecordHit: (String, Double) -> Unit = { _, _ -> },
+    onSavedHits: () -> Unit = {},
     viewModel: GroupDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -85,8 +89,8 @@ fun GroupRankingScreen(
     Box(Modifier.fillMaxSize().background(Gray100)) {
         when {
             state.isLoading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = Primary500) }
-            g == null -> Box(Modifier.fillMaxSize(), Alignment.Center) { Text(state.error ?: "No se pudo cargar", color = Gray500, style = HitbosssType.bodyDefaultRegular) }
-            else -> GroupRankingContent(g, state.currentUserId, state.currentUserCountry, state.currentUserPicUrl, onBack, { onInfo(g.id) }, onRecordHit)
+            g == null -> Box(Modifier.fillMaxSize(), Alignment.Center) { Text(state.error ?: stringResource(R.string.community_load_failed), color = Gray500, style = HitbosssType.bodyDefaultRegular) }
+            else -> GroupRankingContent(g, state.currentUserId, state.currentUserCountry, state.currentUserPicUrl, onBack, { onInfo(g.id) }, onRecordHit, onSavedHits)
         }
     }
 }
@@ -100,6 +104,7 @@ private fun GroupRankingContent(
     onBack: () -> Unit,
     onInfo: () -> Unit,
     onRecordHit: (String, Double) -> Unit,
+    onSavedHits: () -> Unit,
 ) {
     val sportKey = g.officialSports.firstOrNull()
         ?: g.exercises.firstNotNullOfOrNull { ex -> Exercise.entries.firstOrNull { it.apiValue.equals(ex, true) }?.sport?.apiValue }
@@ -132,13 +137,13 @@ private fun GroupRankingContent(
 
     fun has(cat: RankingCategory) = ranking?.byCategory?.get(cat)?.any { it.userId == currentUserId } == true
     val required = if (isPl) listOf(
-        RequiredExercise("Sentadilla", has(RankingCategory.Squat)),
-        RequiredExercise("Press banca", has(RankingCategory.BenchPress)),
-        RequiredExercise("Peso muerto/Sumo", has(RankingCategory.Deadlift) || has(RankingCategory.SumoDeadlift)),
+        RequiredExercise(R.string.exercise_squat, has(RankingCategory.Squat)),
+        RequiredExercise(R.string.exercise_bench, has(RankingCategory.BenchPress)),
+        RequiredExercise(R.string.exercise_deadlift_sumo, has(RankingCategory.Deadlift) || has(RankingCategory.SumoDeadlift)),
     ) else listOf(
-        RequiredExercise("Snatch", has(RankingCategory.Snatch)),
-        RequiredExercise("Clean", has(RankingCategory.Clean)),
-        RequiredExercise("Clean & Jerk", has(RankingCategory.CleanAndJerk)),
+        RequiredExercise(R.string.exercise_snatch, has(RankingCategory.Snatch)),
+        RequiredExercise(R.string.exercise_clean, has(RankingCategory.Clean)),
+        RequiredExercise(R.string.exercise_clean_jerk, has(RankingCategory.CleanAndJerk)),
     )
     val notParticipating = required.count { it.done } < 3
 
@@ -146,17 +151,17 @@ private fun GroupRankingContent(
         Column(Modifier.fillMaxSize()) {
             // Cabecera grupo (avatar + nombre + menú)
             Row(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Atrás", tint = Gray800, modifier = Modifier.size(24.dp).clickable { onBack() })
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.common_back), tint = Gray800, modifier = Modifier.size(24.dp).clickable { onBack() })
                 Spacer(Modifier.width(12.dp))
                 AsyncImage(model = g.coverImageUrl, contentDescription = null, contentScale = ContentScale.Crop, placeholder = placeholderPainter(), error = placeholderPainter(), fallback = placeholderPainter(), modifier = Modifier.size(40.dp).clip(RoundedCornerShape(8.dp)).background(Gray300))
                 Spacer(Modifier.width(12.dp))
                 Text(g.name, style = HitbosssType.titleSubsection, color = Gray800, modifier = Modifier.weight(1f))
                 Box {
                     Box(Modifier.size(32.dp).clip(CircleShape).border(1.dp, Gray300, CircleShape), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Filled.MoreVert, "Opciones", tint = Gray800, modifier = Modifier.size(20.dp).clickable { showMenu = true })
+                        Icon(Icons.Filled.MoreVert, stringResource(R.string.common_options), tint = Gray800, modifier = Modifier.size(20.dp).clickable { showMenu = true })
                     }
                     DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                        DropdownMenuItem(text = { Text("Información del grupo") }, onClick = { showMenu = false; onInfo() })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.group_info_title)) }, onClick = { showMenu = false; onInfo() })
                     }
                 }
             }
@@ -166,13 +171,13 @@ private fun GroupRankingContent(
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(Modifier.weight(1f).clip(RoundedCornerShape(24.dp)).background(Color(0xFFF2F2F2)).padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.weight(1f)) {
-                        if (search.isEmpty()) Text("Buscar", style = HitbosssType.bodyDefaultRegular, color = Gray500)
+                        if (search.isEmpty()) Text(stringResource(R.string.ranking_search), style = HitbosssType.bodyDefaultRegular, color = Gray500)
                         BasicTextField(search, { search = it }, singleLine = true, textStyle = HitbosssType.bodyDefaultRegular.copy(color = Gray800), modifier = Modifier.fillMaxWidth())
                     }
                     Icon(Icons.Filled.Search, contentDescription = null, tint = Gray500)
                 }
                 Box(Modifier.size(48.dp).clip(CircleShape).background(Gray100).border(1.dp, Gray300, CircleShape).clickable { showSort = true }, contentAlignment = Alignment.Center) {
-                    Icon(Icons.Filled.SwapVert, contentDescription = "Ordenar", tint = Gray800, modifier = Modifier.size(22.dp))
+                    Icon(Icons.Filled.SwapVert, contentDescription = stringResource(R.string.ranking_sort), tint = Gray800, modifier = Modifier.size(22.dp))
                 }
             }
 
@@ -180,7 +185,7 @@ private fun GroupRankingContent(
             LazyRow(Modifier.fillMaxWidth().padding(top = 8.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                 items(categories) { cat ->
                     val sel = cat == selected
-                    val label = if (cat == officialCat) sportEnum.title else cat.title
+                    val label = if (cat == officialCat) sportEnum.title else stringResource(cat.titleRes())
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { selected = cat }) {
                         Text(label, style = HitbosssType.titleBody, color = if (sel) Gray800 else Gray500, fontWeight = if (sel) FontWeight.SemiBold else FontWeight.Normal, modifier = Modifier.padding(vertical = 8.dp))
                         Box(Modifier.height(2.dp).width(if (sel) 40.dp else 0.dp).background(sportColor))
@@ -196,7 +201,7 @@ private fun GroupRankingContent(
             LazyColumn(Modifier.weight(1f).background(Gray300), contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (isOfficial && notParticipating) item { NoParticipaCard(sportEnum.title, required) }
                 if (entries.isEmpty() && !(isOfficial && notParticipating)) {
-                    item { Text("No hay usuarios en esta categoría", style = HitbosssType.bodyDefaultRegular, color = Gray500, modifier = Modifier.padding(24.dp)) }
+                    item { com.hitbosss.presentation.feature.ranking.RankingEmptyState() }
                 }
                 items(entries) { entry -> RankingRow(entry, usePoints) {} }
             }
@@ -209,6 +214,7 @@ private fun GroupRankingContent(
             isOfficial = isOfficial,
             exerciseKey = selected.uploadExerciseKey,
             onRecordHit = onRecordHit,
+            onSavedHits = onSavedHits,
             modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 88.dp),
         )
     }

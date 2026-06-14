@@ -34,6 +34,9 @@ import com.hitbosss.presentation.designsystem.theme.Primary600
 /** Equivalente a RectangleButton de iOS (mismos colores por tipo y estado). */
 enum class HitButtonType { Primary, Secondary, Tertiary, Destructive }
 
+/** Tamaños de RectangleButton de iOS: medium (padding 12/16, body 14) y large (16/32, body 16). */
+enum class HitButtonSize { Medium, Large }
+
 private data class BtnColors(val text: Color, val bg: Color, val border: Color)
 
 private fun colorsFor(type: HitButtonType, enabled: Boolean): BtnColors {
@@ -54,8 +57,12 @@ fun HitButton(
     type: HitButtonType = HitButtonType.Primary,
     enabled: Boolean = true,
     loading: Boolean = false,
+    size: HitButtonSize = HitButtonSize.Large,
 ) {
     val c = colorsFor(type, enabled)
+    val vPad = if (size == HitButtonSize.Medium) 12.dp else 16.dp
+    val hPad = if (size == HitButtonSize.Medium) 16.dp else 32.dp
+    val textStyle = if (size == HitButtonSize.Medium) HitbosssType.bodyDefaultRegular else HitbosssType.bodyLargeRegular
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -63,13 +70,13 @@ fun HitButton(
             .background(c.bg)
             .border(1.dp, c.border, RoundedCornerShape(8.dp))
             .clickable(enabled = enabled && !loading) { onClick() }
-            .padding(vertical = 16.dp, horizontal = 32.dp),
+            .padding(vertical = vPad, horizontal = hPad),
         contentAlignment = Alignment.Center,
     ) {
         if (loading) {
             CircularProgressIndicator(color = c.text, modifier = Modifier.size(20.dp))
         } else {
-            Text(text, style = HitbosssType.bodyLargeRegular, color = c.text)
+            Text(text, style = textStyle, color = c.text)
         }
     }
 }

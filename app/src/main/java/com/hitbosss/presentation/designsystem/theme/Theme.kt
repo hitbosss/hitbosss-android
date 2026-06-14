@@ -4,6 +4,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.background
 
 /**
  * Mapeo de la paleta a un ColorScheme de Material3. La app iOS es light-only;

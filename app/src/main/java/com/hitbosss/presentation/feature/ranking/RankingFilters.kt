@@ -1,29 +1,32 @@
 package com.hitbosss.presentation.feature.ranking
 
+import androidx.annotation.StringRes
+import com.hitbosss.R
+
 /** Orden del ranking — igual que OrderByOption de iOS. */
-enum class RankingOrder(val label: String) {
-    Lift("Peso levantado"),
-    Points("Points"),
+enum class RankingOrder(@StringRes val label: Int) {
+    Lift(R.string.order_lift),
+    Points(R.string.order_points),
 }
 
 /** Localización — igual que LocationOption de iOS. */
-enum class RankingLocation(val label: String) {
-    World("Mundial"),
-    National("Nacional"),
-    Current("Actual"),
+enum class RankingLocation(@StringRes val label: Int) {
+    World(R.string.loc_world),
+    National(R.string.loc_national),
+    Current(R.string.loc_current),
 }
 
 /** Categorías de edad — igual que AgeCategoryOption de iOS. */
-enum class AgeCategory(val label: String) {
-    SubJunior("SubJunior (14 a 18 años)"),
-    Junior("Junior (19 a 23 años)"),
-    Open("Open (24 a 39 años)"),
-    Masters("Masters (Más de 40 años)"),
+enum class AgeCategory(@StringRes val label: Int) {
+    SubJunior(R.string.age_subjunior),
+    Junior(R.string.age_junior),
+    Open(R.string.age_open),
+    Masters(R.string.age_masters),
 }
 
 /** Género — igual que GenderOption de iOS. */
-enum class RankingGender(val label: String, val apiValue: String?) {
-    Male("Hombre", "male"),
-    Female("Mujer", "female"),
-    Both("Ambos", null),
+enum class RankingGender(@StringRes val label: Int, val apiValue: String?) {
+    Male(R.string.common_male, "male"),
+    Female(R.string.common_female, "female"),
+    Both(R.string.gender_both, null),
 }

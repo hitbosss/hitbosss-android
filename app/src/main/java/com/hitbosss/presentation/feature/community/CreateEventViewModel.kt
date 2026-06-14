@@ -19,6 +19,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
+import com.hitbosss.R
 
 data class CreateEventUiState(
     val name: String = "",
@@ -40,6 +41,7 @@ data class CreateEventUiState(
 class CreateEventViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val createEvent: CreateEventUseCase,
+    private val refreshCoordinator: com.hitbosss.core.RefreshCoordinator,
 ) : ViewModel() {
 
     val maxName = 25
@@ -80,8 +82,8 @@ class CreateEventViewModel @Inject constructor(
                     endTime = s.endMillis!! / 1000,
                     coverPic = cover,
                 ),
-            ).onSuccess { _state.update { it.copy(isLoading = false, success = true) } }
-                .onFailure { e -> _state.update { it.copy(isLoading = false, error = e.message ?: "No se pudo crear el evento") } }
+            ).onSuccess { refreshCoordinator.invalidateCommunity(); _state.update { it.copy(isLoading = false, success = true) } }
+                .onFailure { e -> _state.update { it.copy(isLoading = false, error = e.message ?: context.getString(R.string.err_create_event)) } }
         }
     }
 

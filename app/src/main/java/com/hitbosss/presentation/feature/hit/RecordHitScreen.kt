@@ -73,6 +73,10 @@ import com.hitbosss.presentation.designsystem.theme.Secondary800
 import com.hitbosss.presentation.designsystem.theme.Success500
 import java.io.File
 import java.util.concurrent.Executors
+import androidx.compose.ui.res.stringResource
+import com.hitbosss.R
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 private const val MAX_SECONDS = 105 // 01:45, igual que iOS
 
@@ -83,14 +87,10 @@ private const val MAX_SECONDS = 105 // 01:45, igual que iOS
 @Composable
 fun RecordHitScreen(
     onClose: () -> Unit,
-    onUploaded: () -> Unit,
-    viewModel: RecordHitViewModel = hiltViewModel(),
+    onRecorded: (String) -> Unit,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val uploadState by viewModel.state.collectAsStateWithLifecycle()
-
-    LaunchedEffect(uploadState.success) { if (uploadState.success) onUploaded() }
 
     var hasPermissions by remember {
         mutableStateOf(
@@ -164,8 +164,8 @@ fun RecordHitScreen(
                     is VideoRecordEvent.Finalize -> {
                         isRecording = false
                         recording.value = null
-                        // Sube si el fichero existe (algunos emuladores reportan error benigno).
-                        if (file.exists() && file.length() > 0) viewModel.upload(file)
+                        // Tras grabar se navega a stringResource(R.string.hit_split_title) (no se sube aquí).
+                        if (file.exists() && file.length() > 0) onRecorded(file.absolutePath)
                     }
                 }
             }
@@ -185,12 +185,12 @@ fun RecordHitScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    Icons.Filled.Close, contentDescription = "Cerrar", tint = Gray800,
+                    Icons.Filled.Close, contentDescription = stringResource(R.string.common_close), tint = Gray800,
                     modifier = Modifier.size(28.dp).clickable { recording.value?.stop(); onClose() },
                 )
                 Spacer(Modifier.weight(1f))
                 Icon(
-                    Icons.Filled.Cameraswitch, contentDescription = "Cambiar cámara", tint = Gray800,
+                    Icons.Filled.Cameraswitch, contentDescription = stringResource(R.string.record_switch_camera), tint = Gray800,
                     modifier = Modifier.size(28.dp).clickable {
                         if (!isRecording) {
                             lensFacing = if (lensFacing == CameraSelector.LENS_FACING_BACK) CameraSelector.LENS_FACING_FRONT else CameraSelector.LENS_FACING_BACK
@@ -218,7 +218,7 @@ fun RecordHitScreen(
                 ) {
                     if (isRecording) {
                         Box(Modifier.size(56.dp).clip(CircleShape).background(Gray100).border(1.dp, Gray300, CircleShape), contentAlignment = Alignment.Center) {
-                            Icon(Icons.Filled.Pause, contentDescription = "Parar", tint = Gray600, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Filled.Pause, contentDescription = stringResource(R.string.record_stop), tint = Gray600, modifier = Modifier.size(20.dp))
                         }
                     } else {
                         Box(Modifier.size(56.dp).clip(CircleShape).background(Color.Red).border(5.dp, Gray100, CircleShape))
@@ -227,7 +227,7 @@ fun RecordHitScreen(
             }
         }
 
-        // Popup inicial "Grabar ejercicio".
+        // Popup inicial stringResource(R.string.record_exercise).
         if (showPopup && hasPermissions) {
             Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f)), contentAlignment = Alignment.Center) {
                 Column(
@@ -236,10 +236,10 @@ fun RecordHitScreen(
                 ) {
                     Icon(Icons.Filled.CropFree, contentDescription = null, tint = Gray800, modifier = Modifier.size(64.dp))
                     Spacer(Modifier.height(16.dp))
-                    Text("Grabar ejercicio", style = HitbosssType.titleSection, color = Gray800, textAlign = TextAlign.Center)
+                    Text(stringResource(R.string.record_exercise), style = HitbosssType.titleSection, color = Gray800, textAlign = TextAlign.Center)
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "Asegúrate de realizar tu ejercicio dentro del área de seguridad para garantizar una visibilidad óptima.",
+                        stringResource(R.string.record_safety_desc),
                         style = HitbosssType.bodyDefaultRegular, color = Gray500, textAlign = TextAlign.Center,
                     )
                     Spacer(Modifier.height(24.dp))
@@ -255,36 +255,17 @@ fun RecordHitScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                Text("Permisos necesarios", style = HitbosssType.titleSection, color = Gray100, textAlign = TextAlign.Center)
+                Text(stringResource(R.string.record_perms_title), style = HitbosssType.titleSection, color = Gray100, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "Para usar la cámara y el micrófono, concede los permisos.",
+                    stringResource(R.string.record_perms_msg),
                     style = HitbosssType.bodyDefaultRegular, color = Gray300, textAlign = TextAlign.Center,
                 )
                 Spacer(Modifier.height(24.dp))
-                HitButton("Conceder", onClick = {
+                HitButton(stringResource(R.string.record_grant), onClick = {
                     permissionLauncher.launch(arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO))
                 })
             }
-        }
-
-        // Subiendo el HIT.
-        if (uploadState.isUploading) {
-            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    CircularProgressIndicator(color = Gray100)
-                    Text("Subiendo tu HIT…", style = HitbosssType.bodyDefaultRegular, color = Gray100)
-                }
-            }
-        }
-
-        uploadState.error?.let { error ->
-            AlertDialog(
-                onDismissRequest = viewModel::clearError,
-                confirmButton = { TextButton(onClick = viewModel::clearError) { Text("Aceptar") } },
-                title = { Text("Algo ha salido mal", style = HitbosssType.titleBody) },
-                text = { Text(error, style = HitbosssType.bodyDefaultRegular) },
-            )
         }
     }
 }

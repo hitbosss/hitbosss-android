@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import com.hitbosss.R
+import kotlinx.coroutines.launch
 
 /** Splash mientras LaunchViewModel decide el destino. */
 @Composable

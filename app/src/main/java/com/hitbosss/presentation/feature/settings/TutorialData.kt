@@ -1,5 +1,6 @@
 package com.hitbosss.presentation.feature.settings
 
+
 /** Contenido de los tutoriales (generado del iOS: ExerciseType+UI + Tutorials.xcstrings). */
 data class TutorialSection(val title: String, val body: String)
 data class TutorialExercise(
@@ -7,7 +8,14 @@ data class TutorialExercise(
     val info: String, val videoUrl: String?, val sections: List<TutorialSection>,
 )
 
-val tutorialData: List<TutorialExercise> = listOf(
+/** Selecciona el contenido por idioma (en/es). iOS solo tiene es; el inglés es traducción propia. */
+@androidx.compose.runtime.Composable
+fun rememberTutorialData(): List<TutorialExercise> {
+    val isEnglish = androidx.compose.ui.platform.LocalConfiguration.current.locales[0].language == "en"
+    return if (isEnglish) tutorialDataEn else tutorialDataEs
+}
+
+val tutorialDataEs: List<TutorialExercise> = listOf(
     TutorialExercise(
         apiKey = "officialPowerlifting", title = "Powerlifting", sport = "powerlifting",
         info = "Dado que nuestra comunidad no está compuesta mayoritariamente por atletas que compiten a nivel profesional, hemos ajustado los umbrales para que sean más accesibles y motivadores.\n\nEsto asegura que los niveles más altos no queden vacíos y que haya una progresión clara y alcanzable para todos los usuarios.",

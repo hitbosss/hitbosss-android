@@ -24,6 +24,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
+import com.hitbosss.R
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.offset
+import okio.buffer
 
 data class RecordHitUiState(
     val isUploading: Boolean = false,
@@ -33,6 +39,7 @@ data class RecordHitUiState(
 
 @HiltViewModel
 class RecordHitViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val getCurrentUser: GetCurrentUserUseCase,
     private val getPersonalInfo: GetPersonalInfoUseCase,
     private val uploadHit: UploadHitUseCase,
@@ -52,12 +59,12 @@ class RecordHitViewModel @Inject constructor(
     init {
         val uid = getCurrentUser()?.uid
         if (uid == null) {
-            _state.update { it.copy(error = "No se pudo identificar al usuario") }
+            _state.update { it.copy(error = context.getString(R.string.err_identify_user)) }
         } else {
             viewModelScope.launch {
                 getPersonalInfo(uid)
                     .onSuccess { personalInfo = it; pendingFile?.let(::doUpload) }
-                    .onFailure { e -> if (pendingFile != null) _state.update { it.copy(isUploading = false, error = e.message ?: "No se pudieron cargar tus datos") } }
+                    .onFailure { e -> if (pendingFile != null) _state.update { it.copy(isUploading = false, error = e.message ?: context.getString(R.string.err_load_data)) } }
             }
         }
     }
@@ -91,7 +98,7 @@ class RecordHitViewModel @Inject constructor(
                     performedAt = videoMidpointSeconds(compatible),
                 ),
             ).onSuccess { _state.update { it.copy(isUploading = false, success = true) } }
-                .onFailure { e -> _state.update { it.copy(isUploading = false, error = e.message ?: "No se pudo subir el HIT") } }
+                .onFailure { e -> _state.update { it.copy(isUploading = false, error = e.message ?: context.getString(R.string.err_upload_hit)) } }
         }
     }
 

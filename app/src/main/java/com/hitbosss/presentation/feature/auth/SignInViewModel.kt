@@ -16,6 +16,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.hitbosss.R
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 
 data class SignInUiState(
     val email: String = "",
@@ -28,6 +31,7 @@ data class SignInUiState(
 
 @HiltViewModel
 class SignInViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val signInWithEmailPassword: SignInWithEmailPasswordUseCase,
     private val signInWithGoogle: SignInWithGoogleUseCase,
     private val resolvePostLogin: ResolvePostLoginUseCase,
@@ -50,7 +54,7 @@ class SignInViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
             signInWithEmailPassword(s.email, s.password)
-                .onFailure { e -> _state.update { it.copy(isLoading = false, error = e.toAuthMessage()) } }
+                .onFailure { e -> _state.update { it.copy(isLoading = false, error = e.toAuthMessage(appContext)) } }
                 .onSuccess { resolveDestination() }
         }
     }
@@ -59,7 +63,7 @@ class SignInViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
             signInWithGoogle(idToken)
-                .onFailure { e -> _state.update { it.copy(isLoading = false, error = e.toAuthMessage()) } }
+                .onFailure { e -> _state.update { it.copy(isLoading = false, error = e.toAuthMessage(appContext)) } }
                 .onSuccess { resolveDestination() }
         }
     }
@@ -71,7 +75,7 @@ class SignInViewModel @Inject constructor(
             PostLoginDestination.MAIN -> { _state.update { it.copy(isLoading = false) }; _events.tryEmit(AuthNavEvent.ToMain) }
             PostLoginDestination.COMPLETE_PROFILE -> { _state.update { it.copy(isLoading = false) }; _events.tryEmit(AuthNavEvent.ToCompleteProfile) }
             PostLoginDestination.STAY -> _state.update {
-                it.copy(isLoading = false, error = "No se pudo verificar tu cuenta. Inténtalo de nuevo.")
+                it.copy(isLoading = false, error = appContext.getString(R.string.err_verify_account))
             }
         }
     }

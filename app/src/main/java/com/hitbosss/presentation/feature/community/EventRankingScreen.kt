@@ -73,12 +73,16 @@ import com.hitbosss.presentation.feature.ranking.RankingSortSheet
 import com.hitbosss.presentation.feature.ranking.RankingOrder
 import com.hitbosss.presentation.feature.ranking.RequiredExercise
 import com.hitbosss.presentation.feature.ranking.countryFlag
+import androidx.compose.ui.res.stringResource
+import com.hitbosss.R
+import com.hitbosss.presentation.feature.ranking.titleRes
 
 @Composable
 fun EventRankingScreen(
     onBack: () -> Unit,
     onInfo: (Int) -> Unit,
     onRecordHit: (String, Double) -> Unit = { _, _ -> },
+    onSavedHits: () -> Unit = {},
     viewModel: EventDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -87,8 +91,8 @@ fun EventRankingScreen(
     Box(Modifier.fillMaxSize().background(Gray100)) {
         when {
             state.isLoading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = Primary500) }
-            e == null -> Box(Modifier.fillMaxSize(), Alignment.Center) { Text(state.error ?: "No se pudo cargar", color = Gray500, style = HitbosssType.bodyDefaultRegular) }
-            else -> EventRankingContent(e, state.currentUserId, state.currentUserCountry, state.currentUserPicUrl, onBack, { onInfo(e.id) }, onRecordHit)
+            e == null -> Box(Modifier.fillMaxSize(), Alignment.Center) { Text(state.error ?: stringResource(R.string.community_load_failed), color = Gray500, style = HitbosssType.bodyDefaultRegular) }
+            else -> EventRankingContent(e, state.currentUserId, state.currentUserCountry, state.currentUserPicUrl, onBack, { onInfo(e.id) }, onRecordHit, onSavedHits)
         }
     }
 }
@@ -102,6 +106,7 @@ private fun EventRankingContent(
     onBack: () -> Unit,
     onInfo: () -> Unit,
     onRecordHit: (String, Double) -> Unit,
+    onSavedHits: () -> Unit,
 ) {
     val sportEnum = Sport.entries.firstOrNull { it.apiValue == e.sport } ?: Sport.Powerlifting
     val isPl = sportEnum == Sport.Powerlifting
@@ -127,13 +132,13 @@ private fun EventRankingContent(
 
     fun has(cat: RankingCategory) = ranking?.byCategory?.get(cat)?.any { it.userId == currentUserId } == true
     val required = if (isPl) listOf(
-        RequiredExercise("Sentadilla", has(RankingCategory.Squat)),
-        RequiredExercise("Press banca", has(RankingCategory.BenchPress)),
-        RequiredExercise("Peso muerto/Sumo", has(RankingCategory.Deadlift) || has(RankingCategory.SumoDeadlift)),
+        RequiredExercise(R.string.exercise_squat, has(RankingCategory.Squat)),
+        RequiredExercise(R.string.exercise_bench, has(RankingCategory.BenchPress)),
+        RequiredExercise(R.string.exercise_deadlift_sumo, has(RankingCategory.Deadlift) || has(RankingCategory.SumoDeadlift)),
     ) else listOf(
-        RequiredExercise("Snatch", has(RankingCategory.Snatch)),
-        RequiredExercise("Clean", has(RankingCategory.Clean)),
-        RequiredExercise("Clean & Jerk", has(RankingCategory.CleanAndJerk)),
+        RequiredExercise(R.string.exercise_snatch, has(RankingCategory.Snatch)),
+        RequiredExercise(R.string.exercise_clean, has(RankingCategory.Clean)),
+        RequiredExercise(R.string.exercise_clean_jerk, has(RankingCategory.CleanAndJerk)),
     )
     val notParticipating = required.count { it.done } < 3
 
@@ -151,7 +156,7 @@ private fun EventRankingContent(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Box(Modifier.weight(1f)) {
-                        if (search.isEmpty()) Text("Buscar", style = HitbosssType.bodyDefaultRegular, color = Gray500)
+                        if (search.isEmpty()) Text(stringResource(R.string.ranking_search), style = HitbosssType.bodyDefaultRegular, color = Gray500)
                         BasicTextField(search, { search = it }, singleLine = true, textStyle = HitbosssType.bodyDefaultRegular.copy(color = Gray800), modifier = Modifier.fillMaxWidth())
                     }
                     Icon(Icons.Filled.Search, contentDescription = null, tint = Gray500)
@@ -159,7 +164,7 @@ private fun EventRankingContent(
                 Box(
                     Modifier.size(48.dp).clip(CircleShape).background(Gray100).border(1.dp, Gray300, CircleShape).clickable { showSort = true },
                     contentAlignment = Alignment.Center,
-                ) { Icon(Icons.Filled.SwapVert, contentDescription = "Ordenar", tint = Gray800, modifier = Modifier.size(22.dp)) }
+                ) { Icon(Icons.Filled.SwapVert, contentDescription = stringResource(R.string.ranking_sort), tint = Gray800, modifier = Modifier.size(22.dp)) }
             }
             // Tabs ejercicio
             LazyRow(
@@ -169,7 +174,7 @@ private fun EventRankingContent(
             ) {
                 items(categories) { cat ->
                     val sel = cat == selected
-                    val label = if (cat == officialCat) sportEnum.title else cat.title
+                    val label = if (cat == officialCat) sportEnum.title else stringResource(cat.titleRes())
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { selected = cat }) {
                         Text(label, style = HitbosssType.titleBody, color = if (sel) Gray800 else Gray500, fontWeight = if (sel) FontWeight.SemiBold else FontWeight.Normal, modifier = Modifier.padding(vertical = 8.dp))
                         Box(Modifier.height(2.dp).width(if (sel) 40.dp else 0.dp).background(sportColor))
@@ -186,7 +191,7 @@ private fun EventRankingContent(
                     item { NoParticipaCard(sportEnum.title, required) }
                 }
                 if (entries.isEmpty() && !(isOfficial && notParticipating)) {
-                    item { Text("No hay usuarios en esta categoría", style = HitbosssType.bodyDefaultRegular, color = Gray500, modifier = Modifier.padding(24.dp)) }
+                    item { com.hitbosss.presentation.feature.ranking.RankingEmptyState() }
                 }
                 items(entries) { entry -> RankingRow(entry, order == RankingOrder.Points) {} }
             }
@@ -199,6 +204,7 @@ private fun EventRankingContent(
             isOfficial = isOfficial,
             exerciseKey = selected.uploadExerciseKey,
             onRecordHit = onRecordHit,
+            onSavedHits = onSavedHits,
             modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 88.dp),
         )
     }
@@ -214,14 +220,14 @@ private fun EventHeader(e: EventDetail, sportTitle: String, onBack: () -> Unit, 
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.4f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.75f))))
 
         Row(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Atrás", tint = Color.White, modifier = Modifier.size(24.dp).clickable { onBack() })
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.common_back), tint = Color.White, modifier = Modifier.size(24.dp).clickable { onBack() })
             Spacer(Modifier.weight(1f))
             Box {
                 Box(Modifier.size(32.dp).clip(CircleShape).background(Gray100), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Filled.MoreVert, "Opciones", tint = Gray800, modifier = Modifier.size(20.dp).clickable { setMenu(true) })
+                    Icon(Icons.Filled.MoreVert, stringResource(R.string.common_options), tint = Gray800, modifier = Modifier.size(20.dp).clickable { setMenu(true) })
                 }
                 DropdownMenu(expanded = showMenu, onDismissRequest = { setMenu(false) }) {
-                    DropdownMenuItem(text = { Text("Información del evento") }, onClick = { setMenu(false); onInfo() })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.event_info_title)) }, onClick = { setMenu(false); onInfo() })
                 }
             }
         }
@@ -233,7 +239,7 @@ private fun EventHeader(e: EventDetail, sportTitle: String, onBack: () -> Unit, 
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Icon(Icons.Filled.Info, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                Text(eventStatus(e), style = HitbosssType.bodySmallEmphasis, color = Color.White)
+                Text(stringResource(eventStatus(e)), style = HitbosssType.bodySmallEmphasis, color = Color.White)
             }
             Spacer(Modifier.height(8.dp))
             // Fechas
@@ -262,14 +268,15 @@ private fun EventHeader(e: EventDetail, sportTitle: String, onBack: () -> Unit, 
     }
 }
 
-private fun eventStatus(e: EventDetail): String {
+@androidx.annotation.StringRes
+private fun eventStatus(e: EventDetail): Int {
     val now = System.currentTimeMillis()
     return when {
-        e.endTime * 1000 < now -> "Finalizado"
-        e.startTime * 1000 > now -> "Próximo"
-        else -> "Activo"
+        e.endTime * 1000 < now -> R.string.event_state_finished
+        e.startTime * 1000 > now -> R.string.event_state_upcoming
+        else -> R.string.event_state_active
     }
 }
 
 private fun formatDate(s: Long): String =
-    if (s <= 0) "—" else java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale("es")).format(java.util.Date(s * 1000))
+    if (s <= 0) "—" else java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()).format(java.util.Date(s * 1000))

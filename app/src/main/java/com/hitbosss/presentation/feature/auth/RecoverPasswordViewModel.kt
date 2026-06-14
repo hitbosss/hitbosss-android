@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 
 data class RecoverPasswordUiState(
     val email: String = "",
@@ -22,6 +24,7 @@ data class RecoverPasswordUiState(
 
 @HiltViewModel
 class RecoverPasswordViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val sendPasswordReset: SendPasswordResetUseCase,
 ) : ViewModel() {
 
@@ -38,7 +41,7 @@ class RecoverPasswordViewModel @Inject constructor(
             _state.update { it.copy(isLoading = true, error = null) }
             sendPasswordReset(s.email)
                 .onSuccess { _state.update { it.copy(isLoading = false, sent = true) } }
-                .onFailure { e -> _state.update { it.copy(isLoading = false, error = e.toAuthMessage()) } }
+                .onFailure { e -> _state.update { it.copy(isLoading = false, error = e.toRecoverMessage(appContext)) } }
         }
     }
 }

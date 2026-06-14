@@ -39,11 +39,32 @@ class CommunityRepositoryImpl @Inject constructor(
     override suspend fun leaveEvent(eventId: Int): Result<Unit> =
         withContext(Dispatchers.IO) { runCatching { api.leaveEvent(eventId); Unit } }
 
+    override suspend fun deleteEvent(eventId: Int): Result<Unit> =
+        withContext(Dispatchers.IO) { runCatching { api.deleteEvent(eventId); Unit } }
+
+    override suspend fun makeGroupAdmin(groupId: Int, userId: String): Result<Unit> =
+        withContext(Dispatchers.IO) { runCatching { api.makeGroupAdmin(groupId, userId); Unit } }
+
+    override suspend fun removeGroupMember(groupId: Int, userId: String): Result<Unit> =
+        withContext(Dispatchers.IO) { runCatching { api.removeGroupMember(groupId, userId); Unit } }
+
+    override suspend fun makeEventAdmin(eventId: Int, userId: String): Result<Unit> =
+        withContext(Dispatchers.IO) { runCatching { api.makeEventAdmin(eventId, userId); Unit } }
+
+    override suspend fun removeEventMember(eventId: Int, userId: String): Result<Unit> =
+        withContext(Dispatchers.IO) { runCatching { api.removeEventMember(eventId, userId); Unit } }
+
     override suspend fun createGroup(fields: Map<String, String>, coverPic: java.io.File?): Result<Unit> =
         withContext(Dispatchers.IO) { runCatching { api.createGroup(fields.toParts(), coverPart(coverPic)); Unit } }
 
     override suspend fun createEvent(fields: Map<String, String>, coverPic: java.io.File?): Result<Unit> =
         withContext(Dispatchers.IO) { runCatching { api.createEvent(fields.toParts(), coverPart(coverPic)); Unit } }
+
+    override suspend fun updateGroup(groupId: Int, fields: Map<String, String>, coverPic: java.io.File?): Result<Unit> =
+        withContext(Dispatchers.IO) { runCatching { api.updateGroup(groupId, fields.toParts(), coverPart(coverPic)); Unit } }
+
+    override suspend fun updateEvent(eventId: Int, fields: Map<String, String>, coverPic: java.io.File?): Result<Unit> =
+        withContext(Dispatchers.IO) { runCatching { api.updateEvent(eventId, fields.toParts(), coverPart(coverPic)); Unit } }
 
     private fun coverPart(file: java.io.File?): okhttp3.MultipartBody.Part? = file?.let {
         okhttp3.MultipartBody.Part.createFormData(

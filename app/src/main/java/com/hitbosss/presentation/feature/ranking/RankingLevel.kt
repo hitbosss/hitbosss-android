@@ -11,26 +11,29 @@ import com.hitbosss.presentation.designsystem.theme.Red100
 import com.hitbosss.presentation.designsystem.theme.Red500
 import com.hitbosss.presentation.designsystem.theme.SkyBlue100
 import com.hitbosss.presentation.designsystem.theme.SkyBlue500
+import androidx.annotation.StringRes
+import com.hitbosss.R
 
-data class LevelStyle(val label: String, val text: Color, val bg: Color)
+/** labelRes = nombre del nivel localizado (el badge lo muestra en MAYÚSCULAS, como iOS). */
+data class LevelStyle(@StringRes val labelRes: Int, val text: Color, val bg: Color)
 
 /** Mapea levelWilks/levelWeight a etiqueta + colores (LevelStyle.swift de iOS). */
 fun levelStyle(level: String?): LevelStyle? = when (level?.lowercase()) {
-    "elite" -> LevelStyle("ÉLITE", Aqua500, Aqua100)
-    "advanced" -> LevelStyle("AVANZADO", SkyBlue500, SkyBlue100)
-    "intermediate" -> LevelStyle("INTERMEDIO", LemonGreen500, LemonGreen100)
-    "noob" -> LevelStyle("NOVATO", Brown500, Brown100)
-    "beginner" -> LevelStyle("PRINCIPIANTE", Red500, Red100)
+    "elite" -> LevelStyle(R.string.level_elite, Aqua500, Aqua100)
+    "advanced" -> LevelStyle(R.string.level_advanced, SkyBlue500, SkyBlue100)
+    "intermediate" -> LevelStyle(R.string.level_intermediate, LemonGreen500, LemonGreen100)
+    "noob" -> LevelStyle(R.string.level_noob, Brown500, Brown100)
+    "beginner" -> LevelStyle(R.string.level_beginner, Red500, Red100)
     else -> null
 }
 
-/** Opciones de filtro (apiKey -> nombre), igual que LevelOption.allCases de iOS. */
+/** Opciones de filtro (apiKey -> labelRes), igual que LevelOption.allCases de iOS. */
 val levelFilterOptions = listOf(
-    "elite" to "Élite",
-    "advanced" to "Avanzado",
-    "intermediate" to "Intermedio",
-    "noob" to "Novato",
-    "beginner" to "Principiante",
+    "elite" to R.string.level_elite,
+    "advanced" to R.string.level_advanced,
+    "intermediate" to R.string.level_intermediate,
+    "noob" to R.string.level_noob,
+    "beginner" to R.string.level_beginner,
 )
 
 /** Código ISO de país -> emoji bandera. */

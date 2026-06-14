@@ -9,6 +9,8 @@ import com.hitbosss.domain.usecase.DeleteGroupUseCase
 import com.hitbosss.domain.usecase.GetGroupUseCase
 import com.hitbosss.domain.usecase.GetUserProfileUseCase
 import com.hitbosss.domain.usecase.LeaveGroupUseCase
+import com.hitbosss.domain.usecase.MakeGroupAdminUseCase
+import com.hitbosss.domain.usecase.RemoveGroupMemberUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,6 +18,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.hitbosss.R
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
+import androidx.compose.foundation.layout.size
 
 data class GroupDetailUiState(
     val isLoading: Boolean = true,
@@ -46,11 +52,15 @@ data class GroupDetailUiState(
 
 @HiltViewModel
 class GroupDetailViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val getGroup: GetGroupUseCase,
     private val leaveGroup: LeaveGroupUseCase,
     private val deleteGroup: DeleteGroupUseCase,
+    private val makeGroupAdmin: MakeGroupAdminUseCase,
+    private val removeGroupMember: RemoveGroupMemberUseCase,
     private val getCurrentUser: GetCurrentUserUseCase,
     private val getUserProfile: GetUserProfileUseCase,
+    private val refreshCoordinator: com.hitbosss.core.RefreshCoordinator,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -63,7 +73,11 @@ class GroupDetailViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
             getGroup(groupId)
-                .onSuccess { g -> _state.update { it.copy(isLoading = false, group = g) } }
+                .onSuccess { g ->
+                    // Abrir un grupo te auto-une (backend) → refresca "Mis grupos".
+                    refreshCoordinator.invalidateCommunity()
+                    _state.update { it.copy(isLoading = false, group = g) }
+                }
                 .onFailure { e -> _state.update { it.copy(isLoading = false, error = e.message ?: "Error") } }
         }
         getCurrentUser()?.uid?.let { uid ->
@@ -71,14 +85,24 @@ class GroupDetailViewModel @Inject constructor(
                 getUserProfile(uid).onSuccess { p -> _state.update { it.copy(currentUserCountry = p.countryCode, currentUserPicUrl = p.profilePicUrl) } }
             }
         }
+        // Recarga el ranking de ESTE grupo tras subir un HIT en su contexto.
+        viewModelScope.launch {
+            refreshCoordinator.group.collect { id -> if (id == groupId) reloadGroup() }
+        }
+    }
+
+    private fun reloadGroup() {
+        viewModelScope.launch {
+            getGroup(groupId).onSuccess { g -> _state.update { it.copy(group = g) } }
+        }
     }
 
     fun leave() {
         viewModelScope.launch {
             _state.update { it.copy(leaving = true) }
             leaveGroup(groupId)
-                .onSuccess { _state.update { it.copy(leaving = false, left = true) } }
-                .onFailure { e -> _state.update { it.copy(leaving = false, error = e.message ?: "No se pudo salir") } }
+                .onSuccess { refreshCoordinator.invalidateCommunity(); _state.update { it.copy(leaving = false, left = true) } }
+                .onFailure { e -> _state.update { it.copy(leaving = false, error = e.message ?: context.getString(R.string.err_leave)) } }
         }
     }
 
@@ -86,8 +110,26 @@ class GroupDetailViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(leaving = true) }
             deleteGroup(groupId)
-                .onSuccess { _state.update { it.copy(leaving = false, deleted = true) } }
-                .onFailure { e -> _state.update { it.copy(leaving = false, error = e.message ?: "No se pudo eliminar") } }
+                .onSuccess { refreshCoordinator.invalidateCommunity(); _state.update { it.copy(leaving = false, deleted = true) } }
+                .onFailure { e -> _state.update { it.copy(leaving = false, error = e.message ?: context.getString(R.string.err_delete)) } }
+        }
+    }
+
+    /** Da admin a un miembro (solo admin) y recarga la lista. */
+    fun makeAdmin(userId: String) {
+        viewModelScope.launch {
+            makeGroupAdmin(groupId, userId)
+                .onSuccess { refreshCoordinator.invalidateCommunity(); reloadGroup() }
+                .onFailure { e -> _state.update { it.copy(error = e.message ?: context.getString(R.string.err_generic_action)) } }
+        }
+    }
+
+    /** Expulsa a un miembro (solo admin) y recarga la lista. */
+    fun removeMember(userId: String) {
+        viewModelScope.launch {
+            removeGroupMember(groupId, userId)
+                .onSuccess { refreshCoordinator.invalidateCommunity(); reloadGroup() }
+                .onFailure { e -> _state.update { it.copy(error = e.message ?: context.getString(R.string.err_generic_action)) } }
         }
     }
 }

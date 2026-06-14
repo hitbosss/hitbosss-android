@@ -27,6 +27,8 @@ import com.hitbosss.presentation.designsystem.theme.Gray800
 import com.hitbosss.presentation.designsystem.theme.HitbosssType
 import com.hitbosss.presentation.designsystem.theme.Primary100
 import com.hitbosss.presentation.designsystem.theme.Primary700
+import androidx.compose.ui.res.stringResource
+import com.hitbosss.R
 
 @Composable
 fun DetailCover(url: String?) {
@@ -58,7 +60,7 @@ fun ExerciseChips(exercises: List<String>) {
 
 @Composable
 fun MembersSection(members: List<Member>) {
-    Text("Miembros (${members.size})", style = HitbosssType.titleBody, color = Gray800)
+    Text(stringResource(R.string.community_members_count, members.size), style = HitbosssType.titleBody, color = Gray800)
     members.forEach { member ->
         Row(
             modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
@@ -76,12 +78,12 @@ fun MembersSection(members: List<Member>) {
                 Box(
                     modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Primary100).padding(horizontal = 8.dp, vertical = 2.dp),
                 ) {
-                    Text("Admin", style = HitbosssType.bodySmallEmphasis, color = Primary700)
+                    Text(stringResource(R.string.common_admin), style = HitbosssType.bodySmallEmphasis, color = Primary700)
                 }
             }
         }
     }
     if (members.isEmpty()) {
-        Text("Sin miembros todavía.", style = HitbosssType.bodySmallRegular, color = Gray500)
+        Text(stringResource(R.string.community_no_members), style = HitbosssType.bodySmallRegular, color = Gray500)
     }
 }

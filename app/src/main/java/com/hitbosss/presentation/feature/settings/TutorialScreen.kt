@@ -55,9 +55,12 @@ import com.hitbosss.presentation.designsystem.theme.HitbosssType
 import com.hitbosss.presentation.designsystem.theme.Secondary100
 import com.hitbosss.presentation.designsystem.theme.Secondary500
 import com.hitbosss.presentation.feature.ranking.VideoPlayer
+import androidx.compose.ui.res.stringResource
+import com.hitbosss.R
 
 @Composable
 fun TutorialScreen(initialApiKey: String = "officialPowerlifting", onBack: () -> Unit) {
+    val tutorialData = rememberTutorialData()
     var sport by remember { mutableStateOf(tutorialData.firstOrNull { it.apiKey == initialApiKey }?.sport ?: "powerlifting") }
     var apiKey by remember { mutableStateOf(initialApiKey) }
     val exercises = tutorialData.filter { it.sport == sport }
@@ -65,7 +68,7 @@ fun TutorialScreen(initialApiKey: String = "officialPowerlifting", onBack: () ->
     val sportColor = if (sport == "powerlifting") Secondary500 else Error500
 
     Column(Modifier.fillMaxSize().background(Gray100)) {
-        HitTopBar(title = "Tutorial ejercicios", onBack = onBack)
+        HitTopBar(title = stringResource(R.string.settings_exercise_tutorial), onBack = onBack)
 
         // Selector de deporte
         SportDropdown(sport) { newSport ->

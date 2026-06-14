@@ -39,6 +39,8 @@ import com.hitbosss.presentation.designsystem.theme.Gray800
 import com.hitbosss.presentation.designsystem.theme.HitbosssType
 import com.hitbosss.presentation.feature.ranking.VideoPlayer
 import com.hitbosss.presentation.feature.ranking.levelStyle
+import androidx.compose.ui.res.stringResource
+import com.hitbosss.R
 
 /** Datos mínimos para mostrar el vídeo de un HIT con su tarjeta (perfil/grupo/evento). */
 data class HitVideoData(
@@ -109,7 +111,7 @@ fun HitVideoDialog(
                     .clickable { onDismiss() },
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Filled.Close, contentDescription = "Cerrar", tint = Color.White, modifier = Modifier.size(22.dp))
+                Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.common_close), tint = Color.White, modifier = Modifier.size(22.dp))
             }
 
             if (exporting) ExportingOverlay()
@@ -144,7 +146,7 @@ private fun HitVideoPage(hit: HitVideoData, isActive: Boolean, onShare: () -> Un
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 levelStyle(hit.levelWeight)?.let { lvl ->
                     Text(
-                        lvl.label, style = HitbosssType.bodyDefaultEmphasis, color = lvl.text,
+                        stringResource(lvl.labelRes).uppercase(), style = HitbosssType.bodyDefaultEmphasis, color = lvl.text,
                         modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(lvl.bg)
                             .padding(horizontal = 10.dp, vertical = 5.dp),
                     )
