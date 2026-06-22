@@ -25,3 +25,10 @@ keystore.properties
 
 .DS_Store
 .claude/specs/decisions/003-entornos-buildtypes.md
+# Artefactos de build (no commitear): AAB/APK firmados, baseline profiles, caché del compilador
+/app/release/
+/app/render/
+.kotlin/
+*.aab
+*.apk
+*.dm
