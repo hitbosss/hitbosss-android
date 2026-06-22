@@ -1,5 +1,6 @@
 package com.hitbosss.presentation.feature.profile
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.Image
@@ -31,6 +32,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Leaderboard
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -45,6 +47,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -96,6 +99,8 @@ fun ProfileScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     // HIT seleccionado por long-press (solo perfil propio) → menú Editar/Eliminar.
     var menuHit by remember { mutableStateOf<Participation?>(null) }
+    // HIT pendiente de confirmar borrado (popup de confirmación antes de eliminar).
+    var confirmDeleteHit by remember { mutableStateOf<Participation?>(null) }
 
     LaunchedEffect(Unit) { viewModel.editEvents.collect { onEditHit(it) } }
 
@@ -105,7 +110,7 @@ fun ProfileScreen(
         }
 
         state.error != null -> Box(Modifier.fillMaxSize().background(Gray200), Alignment.Center) {
-            Text(state.error ?: "", style = HitbosssType.bodyDefaultRegular, color = Gray500)
+            com.hitbosss.presentation.designsystem.components.ErrorConnectionView(onRetry = viewModel::load)
         }
 
         state.profile != null -> ProfileContent(
@@ -118,8 +123,23 @@ fun ProfileScreen(
     menuHit?.let { hit ->
         HitActionSheet(
             onEdit = { menuHit = null; viewModel.startEditHit(hit) },
-            onDelete = { menuHit = null; hit.hitId?.let { viewModel.deleteHit(it) } },
+            onDelete = { menuHit = null; confirmDeleteHit = hit },
             onDismiss = { menuHit = null },
+        )
+    }
+
+    // Confirmación antes de eliminar un HIT.
+    confirmDeleteHit?.let { hit ->
+        HitPopup(
+            title = stringResource(R.string.hit_delete_confirm_title),
+            message = stringResource(R.string.hit_delete_confirm_msg),
+            icon = painterResource(R.drawable.im_ico_trash),
+            confirmText = stringResource(R.string.hit_delete),
+            confirmType = com.hitbosss.presentation.designsystem.components.HitButtonType.Destructive,
+            onConfirm = { val id = hit.hitId; confirmDeleteHit = null; id?.let { viewModel.deleteHit(it) } },
+            cancelText = stringResource(R.string.common_cancel),
+            onCancel = { confirmDeleteHit = null },
+            onDismissRequest = { confirmDeleteHit = null },
         )
     }
 
@@ -265,6 +285,7 @@ private fun ProfileContent(
 
 @Composable
 private fun ProfileHeader(p: UserProfile, isOtherUser: Boolean, onOpenSettings: () -> Unit) {
+    var enlarged by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().background(Gray100)) {
         Box(Modifier.fillMaxWidth()) {
             AsyncImage(
@@ -273,26 +294,38 @@ private fun ProfileHeader(p: UserProfile, isOtherUser: Boolean, onOpenSettings: 
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxWidth().height(211.dp).background(Gray400),
             )
-            // Botón ajustes (círculo blanco, arriba-derecha) — solo en perfil propio
+            // Botones compartir + ajustes (círculos blancos, arriba-derecha) — solo en perfil propio
             if (!isOtherUser) {
-                Box(
-                    modifier = Modifier.align(Alignment.TopEnd).padding(top = 48.dp, end = 16.dp)
-                        .size(32.dp).clip(CircleShape).background(Gray100).clickable { onOpenSettings() },
-                    contentAlignment = Alignment.Center,
+                val context = androidx.compose.ui.platform.LocalContext.current
+                Row(
+                    modifier = Modifier.align(Alignment.TopEnd).padding(top = 48.dp, end = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.settings_title), tint = Gray500, modifier = Modifier.size(16.dp))
+                    Box(
+                        modifier = Modifier.size(32.dp).clip(CircleShape).background(Gray100).clickable { shareProfile(context, p.id) },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Filled.IosShare, contentDescription = stringResource(R.string.profile_share), tint = Gray500, modifier = Modifier.size(16.dp))
+                    }
+                    Box(
+                        modifier = Modifier.size(32.dp).clip(CircleShape).background(Gray100).clickable { onOpenSettings() },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.settings_title), tint = Gray500, modifier = Modifier.size(16.dp))
+                    }
                 }
             }
         }
 
-        // Avatar cuadrado redondeado, centrado, solapando la portada
+        // Avatar cuadrado redondeado, centrado, solapando la portada. Al tocarlo se amplía.
         Box(Modifier.fillMaxWidth().offset(y = (-50).dp), contentAlignment = Alignment.TopCenter) {
             AsyncImage(
                 model = p.profilePicUrl,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 placeholder = placeholderPainter(), error = placeholderPainter(), fallback = placeholderPainter(),
-                modifier = Modifier.size(100.dp).clip(RoundedCornerShape(8.dp)).background(Gray200),
+                modifier = Modifier.size(100.dp).clip(RoundedCornerShape(8.dp)).background(Gray200)
+                    .clickable(enabled = !p.profilePicUrl.isNullOrBlank()) { enlarged = true },
             )
         }
 
@@ -356,6 +389,39 @@ private fun ProfileHeader(p: UserProfile, isOtherUser: Boolean, onOpenSettings: 
                 }
             }
             Spacer(Modifier.height(16.dp))
+        }
+    }
+
+    // Visor a pantalla completa de la foto de perfil (cierra al tocar), con un suave zoom de entrada.
+    if (enlarged && !p.profilePicUrl.isNullOrBlank()) {
+        EnlargedPhotoOverlay(p.profilePicUrl, onDismiss = { enlarged = false })
+    }
+}
+
+/** Overlay que muestra la foto de perfil ampliada sobre fondo oscuro; se cierra al tocar. */
+@Composable
+private fun EnlargedPhotoOverlay(url: String?, onDismiss: () -> Unit) {
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        var shown by remember { mutableStateOf(false) }
+        val scale by androidx.compose.animation.core.animateFloatAsState(if (shown) 1f else 0.85f, label = "photoZoom")
+        androidx.compose.runtime.LaunchedEffect(Unit) { shown = true }
+        Box(
+            Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.92f)).clickable(
+                indication = null,
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+            ) { onDismiss() },
+            contentAlignment = Alignment.Center,
+        ) {
+            AsyncImage(
+                model = url, contentDescription = null, contentScale = ContentScale.Fit,
+                placeholder = placeholderPainter(), error = placeholderPainter(), fallback = placeholderPainter(),
+                modifier = Modifier.fillMaxWidth().padding(24.dp)
+                    .graphicsLayer { scaleX = scale; scaleY = scale }
+                    .clip(RoundedCornerShape(16.dp)),
+            )
         }
     }
 }
@@ -891,6 +957,7 @@ private fun Participation.toHitVideo(title: String) = HitVideoData(
     weightText = maxLift?.let { "${formatWeight(it.value)} ${it.unit.uppercase()}" } ?: "",
     levelWeight = levelWeight,
     rankText = position?.let { "#$it" } ?: "",
+    pointsText = com.hitbosss.presentation.feature.hit.formatPointsText(wilksScore),
     hitId = hitId,
 )
 
@@ -903,6 +970,7 @@ private fun com.hitbosss.domain.model.ProfileHit.toHitVideo(title: String, fallb
     weightText = maxLift?.let { "${formatWeight(it.value)} ${it.unit.uppercase()}" } ?: "",
     levelWeight = levelWeight,
     rankText = (position ?: fallbackPosition)?.let { "#$it" } ?: "",
+    pointsText = com.hitbosss.presentation.feature.hit.formatPointsText(wilksScore),
     hitId = hitId,
 )
 
@@ -919,3 +987,13 @@ private fun socialIcon(name: String): Int? = when (name.lowercase()) {
 private fun formatShortDate(unixSeconds: Long): String =
     if (unixSeconds <= 0) "" else java.text.SimpleDateFormat("dd/MM/yy", java.util.Locale.getDefault())
         .format(java.util.Date(unixSeconds * 1000))
+
+/** Comparte el perfil con un deeplink profile/{userId} (1:1 con #637 de iOS). */
+private fun shareProfile(context: Context, userId: String) {
+    val link = com.hitbosss.core.network.Environment.deeplinkBaseUrl + "profile/$userId"
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, context.getString(R.string.profile_share_text, link))
+    }
+    runCatching { context.startActivity(Intent.createChooser(intent, context.getString(R.string.profile_share))) }
+}

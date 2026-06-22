@@ -31,6 +31,10 @@ data class SignUpUiState(
     val isFormValid: Boolean
         get() = email.isNotBlank() && password.isNotBlank() &&
             confirmPassword.isNotBlank() && password == confirmPassword
+
+    // Validaciones en vivo (se muestran solo cuando el campo ya tiene contenido).
+    val passwordTooShort: Boolean get() = password.isNotEmpty() && password.length < 6
+    val passwordsMismatch: Boolean get() = confirmPassword.isNotEmpty() && password != confirmPassword
 }
 
 @HiltViewModel
@@ -52,7 +56,7 @@ class SignUpViewModel @Inject constructor(
     fun onConfirmPasswordChange(v: String) = _state.update { it.copy(confirmPassword = v) }
     fun clearError() = _state.update { it.copy(error = null) }
     fun setLoading() = _state.update { it.copy(isLoading = true, error = null) }
-    fun onGoogleError(message: String?) = _state.update { it.copy(isLoading = false, error = message) }
+    fun onGoogleError(message: String?) = _state.update { it.copy(isLoading = false, error = appContext.getString(R.string.common_unexpected_error_msg)) }
 
     fun signUp() {
         val s = _state.value

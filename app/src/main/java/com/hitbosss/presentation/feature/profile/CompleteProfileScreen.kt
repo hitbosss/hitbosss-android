@@ -27,12 +27,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,6 +49,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hitbosss.R
+import com.hitbosss.presentation.designsystem.components.HitButton
+import com.hitbosss.presentation.designsystem.components.HitButtonType
 import com.hitbosss.presentation.designsystem.components.WheelPicker
 import com.hitbosss.presentation.designsystem.theme.Error500
 import com.hitbosss.presentation.designsystem.theme.Gray100
@@ -60,7 +62,6 @@ import com.hitbosss.presentation.designsystem.theme.HitbosssType
 import com.hitbosss.presentation.designsystem.theme.Primary500
 import com.hitbosss.presentation.designsystem.theme.Secondary100
 import com.hitbosss.presentation.designsystem.theme.Secondary500
-import com.hitbosss.presentation.designsystem.theme.Secondary800
 import com.hitbosss.presentation.designsystem.theme.Success100
 import com.hitbosss.presentation.designsystem.theme.Success500
 import com.hitbosss.presentation.feature.ranking.countryFlag
@@ -115,19 +116,15 @@ fun CompleteProfileScreen(
                 }
             }
 
-            // Continuar
-            val valid = state.validateStep(step)
-            val enabled = valid && !state.isLoading
-            Box(
-                Modifier.fillMaxWidth().padding(bottom = 32.dp, top = 8.dp).clip(RoundedCornerShape(12.dp))
-                    .background(if (enabled) Secondary800 else Gray200)
-                    .clickable(enabled = enabled) { if (step < total) step++ else viewModel.submit() }
-                    .padding(vertical = 18.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (state.isLoading) CircularProgressIndicator(color = Gray100, modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
-                else Text(stringResource(R.string.common_continue), style = HitbosssType.bodyLargeEmphasis, color = if (enabled) Gray100 else Gray500)
-            }
+            // Continuar (1:1 con iOS: RectangleButton tipo .secondary, tamaño large).
+            HitButton(
+                text = stringResource(R.string.common_continue),
+                onClick = { if (step < total) step++ else viewModel.submit() },
+                type = HitButtonType.Secondary,
+                enabled = state.validateStep(step) && !state.isLoading,
+                loading = state.isLoading,
+                modifier = Modifier.padding(bottom = 32.dp, top = 8.dp),
+            )
         }
     }
 
@@ -234,15 +231,18 @@ private fun HeightStep(state: CompleteProfileUiState, vm: CompleteProfileViewMod
         SystemBadge(state)
         Spacer(Modifier.height(16.dp))
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            // key() estable por rueda: en métrico hay 1 rueda y en imperial 2, así que sin clave
+            // Compose reutilizaría posicionalmente el LazyListState y la rueda de unidad quedaba
+            // "atascada" al cambiar de sistema (no dejaba volver de FT/IN a CM).
             if (state.system == MeasurementSystem.Metric) {
                 val cms = (130..230).toList()
-                WheelPicker(cms.map { it.toString() }, cms.indexOf(state.heightCm).coerceAtLeast(0), { vm.onHeightCm(cms[it]) }, Modifier.weight(1f))
+                key("h_cm") { WheelPicker(cms.map { it.toString() }, cms.indexOf(state.heightCm).coerceAtLeast(0), { vm.onHeightCm(cms[it]) }, Modifier.weight(1f)) }
             } else {
                 val feet = (4..7).toList(); val inches = (0..11).toList()
-                WheelPicker(feet.map { it.toString() }, feet.indexOf(state.heightFeet).coerceAtLeast(0), { vm.onHeightFeet(feet[it]) }, Modifier.weight(1f))
-                WheelPicker(inches.map { it.toString() }, inches.indexOf(state.heightInches).coerceAtLeast(0), { vm.onHeightInches(inches[it]) }, Modifier.weight(1f))
+                key("h_feet") { WheelPicker(feet.map { it.toString() }, feet.indexOf(state.heightFeet).coerceAtLeast(0), { vm.onHeightFeet(feet[it]) }, Modifier.weight(1f)) }
+                key("h_inches") { WheelPicker(inches.map { it.toString() }, inches.indexOf(state.heightInches).coerceAtLeast(0), { vm.onHeightInches(inches[it]) }, Modifier.weight(1f)) }
             }
-            UnitWheel(state.system, listOf("CM", "FT/IN"), vm)
+            key("h_unit") { UnitWheel(state.system, listOf("CM", "FT/IN"), vm) }
         }
     }
 }
@@ -256,9 +256,9 @@ private fun WeightStep(state: CompleteProfileUiState, vm: CompleteProfileViewMod
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             val ints = if (state.system == MeasurementSystem.Metric) (45..200).toList() else (100..440).toList()
             val decs = (0..9).toList()
-            WheelPicker(ints.map { it.toString() }, ints.indexOf(state.weightInteger).coerceAtLeast(0), { vm.onWeightInteger(ints[it]) }, Modifier.weight(1f))
-            WheelPicker(decs.map { ".$it" }, decs.indexOf(state.weightDecimal).coerceAtLeast(0), { vm.onWeightDecimal(decs[it]) }, Modifier.weight(1f))
-            UnitWheel(state.system, listOf("KG", "LB"), vm)
+            key("w_int") { WheelPicker(ints.map { it.toString() }, ints.indexOf(state.weightInteger).coerceAtLeast(0), { vm.onWeightInteger(ints[it]) }, Modifier.weight(1f)) }
+            key("w_dec") { WheelPicker(decs.map { ".$it" }, decs.indexOf(state.weightDecimal).coerceAtLeast(0), { vm.onWeightDecimal(decs[it]) }, Modifier.weight(1f)) }
+            key("w_unit") { UnitWheel(state.system, listOf("KG", "LB"), vm) }
         }
     }
 }
@@ -281,9 +281,9 @@ private fun BirthStep(state: CompleteProfileUiState, vm: CompleteProfileViewMode
         StepTitle(stringResource(R.string.onboarding_birth))
         Spacer(Modifier.height(16.dp))
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            WheelPicker(days.map { it.toString() }, days.indexOf(state.birthDay).coerceAtLeast(0), { vm.onBirth(days[it], state.birthMonth, state.birthYear) }, Modifier.weight(0.8f))
-            WheelPicker(stringArrayResource(R.array.months).toList(), state.birthMonth - 1, { vm.onBirth(state.birthDay, it + 1, state.birthYear) }, Modifier.weight(1.4f))
-            WheelPicker(years.map { it.toString() }, years.indexOf(state.birthYear).coerceAtLeast(0), { vm.onBirth(state.birthDay, state.birthMonth, years[it]) }, Modifier.weight(1f))
+            key("b_day") { WheelPicker(days.map { it.toString() }, days.indexOf(state.birthDay).coerceAtLeast(0), { vm.onBirth(days[it], state.birthMonth, state.birthYear) }, Modifier.weight(0.8f)) }
+            key("b_month") { WheelPicker(stringArrayResource(R.array.months).toList(), state.birthMonth - 1, { vm.onBirth(state.birthDay, it + 1, state.birthYear) }, Modifier.weight(1.4f)) }
+            key("b_year") { WheelPicker(years.map { it.toString() }, years.indexOf(state.birthYear).coerceAtLeast(0), { vm.onBirth(state.birthDay, state.birthMonth, years[it]) }, Modifier.weight(1f)) }
         }
     }
 }
@@ -292,14 +292,19 @@ private fun BirthStep(state: CompleteProfileUiState, vm: CompleteProfileViewMode
 private fun UsernameStep(state: CompleteProfileUiState, onUsername: (String) -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(30.dp)) {
         StepTitle(stringResource(R.string.onboarding_username_q))
-        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(Gray200).padding(16.dp)) {
-            if (state.username.isEmpty()) Text(stringResource(R.string.onboarding_username_ph), style = HitbosssType.bodyLargeRegular, color = Gray500)
-            BasicTextField(state.username, onUsername, singleLine = true, textStyle = HitbosssType.bodyLargeRegular.copy(color = Gray800), modifier = Modifier.fillMaxWidth())
-        }
-        if (state.usernameTaken) {
-            Text(stringResource(R.string.onboarding_username_taken), style = HitbosssType.bodySmallRegular, color = Error500)
-        } else if (state.username.isNotEmpty() && !state.isUsernameValid) {
-            Text(stringResource(R.string.onboarding_username_invalid), style = HitbosssType.bodySmallRegular, color = Error500)
+        // Campo + hueco fijo de validación debajo (no desplaza el layout al aparecer el texto rojo).
+        Column(Modifier.fillMaxWidth()) {
+            Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(Gray200).padding(16.dp)) {
+                if (state.username.isEmpty()) Text(stringResource(R.string.onboarding_username_ph), style = HitbosssType.bodyLargeRegular, color = Gray500)
+                BasicTextField(state.username, onUsername, singleLine = true, textStyle = HitbosssType.bodyLargeRegular.copy(color = Gray800), modifier = Modifier.fillMaxWidth())
+            }
+            Box(Modifier.fillMaxWidth().height(18.dp).padding(start = 4.dp, top = 4.dp)) {
+                if (state.usernameTaken) {
+                    Text(stringResource(R.string.onboarding_username_taken), style = HitbosssType.bodySmallRegular, color = Error500, maxLines = 1)
+                } else if (state.username.isNotEmpty() && !state.isUsernameValid) {
+                    Text(stringResource(R.string.onboarding_username_invalid), style = HitbosssType.bodySmallRegular, color = Error500, maxLines = 1)
+                }
+            }
         }
     }
 }

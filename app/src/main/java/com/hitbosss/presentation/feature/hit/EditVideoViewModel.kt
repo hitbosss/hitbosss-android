@@ -213,8 +213,27 @@ class EditVideoViewModel @Inject constructor(
                 refreshCoordinator.onHitUploaded()
                 _state.update { it.copy(isUploading = false, progress = 1f, editSuccess = true) }
             }.onFailure { e ->
-                _state.update { it.copy(isUploading = false, error = e.message ?: context.getString(R.string.err_edit_hit)) }
+                _state.update { it.copy(isUploading = false, error = context.getString(R.string.err_edit_hit)) }
             }
+        }
+    }
+
+    /**
+     * Salir de la edición de un HIT nuevo guardándolo en "HITS guardados": recorta con el
+     * recorte/pin actuales (igual que la subida) y lo deja listo para subir más tarde, en vez de
+     * subirlo. No aplica al editar un HIT ya subido (ese ya existe en el servidor).
+     */
+    fun saveForLater(startSec: Double, endSec: Double, pinSec: Double) {
+        if (editMode || _state.value.isUploading || _state.value.isPreparing) return
+        viewModelScope.launch {
+            _state.update { it.copy(isPreparing = true, error = null) }
+            val original = File(videoPath)
+            val trimmed = trimVideo(original, (startSec * 1000).toLong(), (endSec * 1000).toLong())
+            val toSave = withContext(Dispatchers.IO) { ensureIosCompatible(trimmed) }
+            lastPrepared = toSave
+            lastPerformedAt = (pinSec - startSec).coerceAtLeast(0.0)
+            saveLocally()
+            _state.update { it.copy(isPreparing = false, savedLater = true) }
         }
     }
 

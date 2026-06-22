@@ -55,7 +55,7 @@ class SettingsViewModel @Inject constructor(
                 }
                 .onFailure { e ->
                     _deleting.update { false }
-                    _error.update { e.message ?: context.getString(R.string.err_delete_account) }
+                    _error.update { context.getString(R.string.err_delete_account) }
                 }
         }
     }

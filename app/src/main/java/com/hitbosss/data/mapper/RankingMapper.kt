@@ -33,15 +33,19 @@ private fun RankingEntryDto.toEntry() = RankingEntry(
     userId = id.orEmpty(),
     username = username.orEmpty(),
     gender = gender,
+    isDeleted = isDeleted ?: false,
     score = totalWilks ?: wilksScore ?: 0.0,
     lift = (totalLift ?: maxLift)?.let { m ->
         if (m.value != null && m.unit != null) Measurement(m.value, m.unit) else null
     },
     levelWeight = levelWeight,
     levelWilks = levelWilks,
+    birthDate = birthDate ?: 0L,
     profilePicUrl = profilePic,
     countryCode = countryCode ?: address?.country?.code,
     videoUrl = videoUrl,
     performedAt = performedAt ?: 0.0,
     createdAt = createdAt ?: 0L,
+    latitude = address?.currentLocation?.latitude,
+    longitude = address?.currentLocation?.longitude,
 )

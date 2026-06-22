@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -20,6 +22,23 @@ android {
         versionName = "2.1.0"   // >= MINIMUM_VERSION de la API (evita el force-update en dev)
         vectorDrawables { useSupportLibrary = true }
         // El Web client ID de Google lo aporta google-services.json como R.string.default_web_client_id.
+    }
+
+    // Firma de release: keystore.properties (raíz, fuera de git) si existe; si no, clave debug
+    // para instalar y probar producción (un APK sin firmar da "paquete no válido").
+    val keystorePropsFile = rootProject.file("keystore.properties")
+    val hasReleaseKeystore = keystorePropsFile.exists()
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            val props = Properties()
+            keystorePropsFile.inputStream().use { props.load(it) }
+            create("release") {
+                storeFile = file(props.getProperty("storeFile"))
+                storePassword = props.getProperty("storePassword")
+                keyAlias = props.getProperty("keyAlias")
+                keyPassword = props.getProperty("keyPassword")
+            }
+        }
     }
 
     // Un buildType por entorno/conexión de iOS. Todos comparten applicationId "com.hitbosss"
@@ -57,6 +76,8 @@ android {
             buildConfigField("String", "API_BASE_URL", "API_HOST_PROD")
             buildConfigField("String", "ENV_NAME", "\"production\"")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // keystore real si está disponible; si no, debug (instalable para probar prod en el móvil).
+            signingConfig = signingConfigs.getByName(if (hasReleaseKeystore) "release" else "debug")
         }
     }
 

@@ -43,6 +43,7 @@ data class ProfileHit(
     val performedAt: Double,
     val createdAt: Long,
     val position: Int?,
+    val wilksScore: Double? = null,
 )
 
 data class SocialNetwork(

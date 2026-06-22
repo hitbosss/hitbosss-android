@@ -56,6 +56,13 @@ class CommunityViewModel @Inject constructor(
 
     fun load() = reload(showRefreshing = false, firstLoad = true)
 
+    // Refresco por antigüedad (al cambiar a esta pestaña tras mucho tiempo), silencioso.
+    private var lastLoadedAt = 0L
+    private val staleMs = 5 * 60 * 1000L
+    fun refreshIfStale() {
+        if (System.currentTimeMillis() - lastLoadedAt > staleMs) reload(showRefreshing = false)
+    }
+
     private fun reload(showRefreshing: Boolean, firstLoad: Boolean = false) {
         if (reloading) return
         val uid = getCurrentUser()?.uid
@@ -64,6 +71,7 @@ class CommunityViewModel @Inject constructor(
             return
         }
         reloading = true
+        lastLoadedAt = System.currentTimeMillis()
         viewModelScope.launch {
             if (firstLoad) _state.update { it.copy(isLoading = true, error = null) }
             if (showRefreshing) _state.update { it.copy(isRefreshing = true) }

@@ -25,6 +25,7 @@ data class CreateGroupUiState(
     val motto: String = "",
     val description: String = "",
     val coverUri: Uri? = null,
+    val isPublic: Boolean = true,
     val exercises: Set<Exercise> = emptySet(),
     val isLoading: Boolean = false,
     val error: String? = null,
@@ -51,6 +52,7 @@ class CreateGroupViewModel @Inject constructor(
     fun onMotto(v: String) { if (v.length <= maxMotto) _state.update { it.copy(motto = v) } }
     fun onDescription(v: String) { if (v.length <= maxDescription) _state.update { it.copy(description = v) } }
     fun onCoverPicked(uri: Uri) = _state.update { it.copy(coverUri = uri) }
+    fun onVisibility(public: Boolean) = _state.update { it.copy(isPublic = public) }
     fun clearError() = _state.update { it.copy(error = null) }
 
     fun toggleExercise(e: Exercise) = _state.update {
@@ -68,13 +70,13 @@ class CreateGroupViewModel @Inject constructor(
                     name = s.name.trim(),
                     motto = s.motto.trim(),
                     description = s.description.trim(),
-                    isPublic = true,
+                    isPublic = s.isPublic,
                     exercises = s.exercises.map { it.apiValue },
                     officialSports = officialSportsFor(s.exercises),
                     coverPic = cover,
                 ),
             ).onSuccess { refreshCoordinator.invalidateCommunity(); _state.update { it.copy(isLoading = false, success = true) } }
-                .onFailure { e -> _state.update { it.copy(isLoading = false, error = e.message ?: context.getString(R.string.err_create_group)) } }
+                .onFailure { e -> _state.update { it.copy(isLoading = false, error = context.getString(R.string.err_create_group)) } }
         }
     }
 

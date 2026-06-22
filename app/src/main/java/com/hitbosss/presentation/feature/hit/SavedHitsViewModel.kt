@@ -18,13 +18,24 @@ import kotlinx.coroutines.flow.asStateFlow
 
 data class SavedHitsUiState(
     val hits: List<SavedHit> = emptyList(),
+    val selectedFilter: SavedHitsFilter = SavedHitsFilter.Ranking,
     val selectedId: String? = null,
     val isUploading: Boolean = false,
     val progress: Float = 0f,
     val success: Boolean = false,
     val error: Boolean = false,
     val deleteTarget: SavedHit? = null,
-)
+) {
+    /** HITs del contexto seleccionado (1:1 con filteredHits de iOS). */
+    val filteredHits: List<SavedHit> get() = hits.filter { it.contextType == selectedFilter.contextType }
+}
+
+/** Filtro por contexto de los HITs guardados (1:1 con RankingTypeFilter de iOS). */
+enum class SavedHitsFilter(@androidx.annotation.StringRes val label: Int, val contextType: String) {
+    Ranking(com.hitbosss.R.string.tab_ranking, "global"),
+    Grupos(com.hitbosss.R.string.community_tab_groups, "group"),
+    Eventos(com.hitbosss.R.string.community_tab_events, "event"),
+}
 
 /** Pantalla "HITS guardados": lista, borra y reintenta la subida de los HITs guardados localmente. */
 @HiltViewModel
@@ -46,6 +57,15 @@ class SavedHitsViewModel @Inject constructor(
     }
 
     fun select(id: String) = _state.update { it.copy(selectedId = if (it.selectedId == id) null else id) }
+
+    /** Cambia el filtro de contexto y deselecciona (igual que iOS). */
+    fun setFilter(filter: SavedHitsFilter) = _state.update { it.copy(selectedFilter = filter, selectedId = null) }
+
+    /** URI del vídeo local guardado (para "Ver HIT"), o null si no existe el fichero. */
+    fun videoUri(hit: SavedHit): String? =
+        store.videoFile(hit).takeIf { it.exists() }?.let { android.net.Uri.fromFile(it).toString() }
+
+    fun showError() = _state.update { it.copy(error = true) }
 
     fun askDelete(hit: SavedHit) = _state.update { it.copy(deleteTarget = hit) }
     fun dismissDelete() = _state.update { it.copy(deleteTarget = null) }

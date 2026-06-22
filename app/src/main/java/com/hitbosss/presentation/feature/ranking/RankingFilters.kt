@@ -21,7 +21,15 @@ enum class AgeCategory(@StringRes val label: Int) {
     SubJunior(R.string.age_subjunior),
     Junior(R.string.age_junior),
     Open(R.string.age_open),
-    Masters(R.string.age_masters),
+    Masters(R.string.age_masters);
+
+    /** Mismos rangos que FilterRankingUseCase de iOS. */
+    fun matches(age: Int): Boolean = when (this) {
+        SubJunior -> age <= 18
+        Junior -> age in 19..23
+        Open -> age >= 24
+        Masters -> age >= 40
+    }
 }
 
 /** Género — igual que GenderOption de iOS. */

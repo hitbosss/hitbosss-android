@@ -27,6 +27,7 @@ data class EventListDto(
     val hasOfficial: Boolean? = null,
     val startTime: Long? = null,
     val endTime: Long? = null,
+    val exercises: List<String> = emptyList(),
     val stats: CommunityStatsDto? = null,
 )
 

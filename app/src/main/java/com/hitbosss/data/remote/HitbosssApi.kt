@@ -76,6 +76,18 @@ interface HitbosssApi {
     @DELETE("event/{id}")
     suspend fun deleteEvent(@Path("id") eventId: Int): MessageResponseDto
 
+    /** POST /group/{id}/report — denunciar un grupo (body opcional {comment}). */
+    @POST("group/{id}/report")
+    suspend fun reportGroup(@Path("id") groupId: Int, @Body body: ReportRequestDto): MessageResponseDto
+
+    /** POST /event/{id}/report — denunciar un evento (body opcional {comment}). */
+    @POST("event/{id}/report")
+    suspend fun reportEvent(@Path("id") eventId: Int, @Body body: ReportRequestDto): MessageResponseDto
+
+    /** DELETE /event/{id}/reset/{hitId} — resetear (anular) el hit de un participante (solo admin). */
+    @DELETE("event/{id}/reset/{hitId}")
+    suspend fun resetEventHit(@Path("id") eventId: Int, @Path("hitId") hitId: Int): MessageResponseDto
+
     /** PATCH /group/{id}/make-admin/{userId} — dar admin a un miembro (solo admin). */
     @PATCH("group/{id}/make-admin/{userId}")
     suspend fun makeGroupAdmin(@Path("id") groupId: Int, @Path("userId") userId: String): MessageResponseDto

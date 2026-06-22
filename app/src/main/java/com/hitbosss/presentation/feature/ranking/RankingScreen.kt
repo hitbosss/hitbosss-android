@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -44,11 +45,16 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import com.hitbosss.presentation.designsystem.components.HitPopup
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -93,6 +99,7 @@ import com.hitbosss.presentation.feature.ranking.titleRes
 fun RankingScreen(
     onRecordHit: (String, Double) -> Unit = { _, _ -> },
     onSavedHits: () -> Unit = {},
+    onTutorial: (String) -> Unit = {},
     onOpenUserProfile: (String) -> Unit = {},
     viewModel: RankingViewModel = hiltViewModel(),
 ) {
@@ -101,6 +108,31 @@ fun RankingScreen(
     var selectedUserId by remember { mutableStateOf<String?>(null) }
     var showSortSheet by remember { mutableStateOf(false) }
     var showFilterSheet by remember { mutableStateOf(false) }
+
+    // Filtro "Current": pide permiso de ubicación y obtiene el GPS (igual que iOS).
+    val scope = rememberCoroutineScope()
+    val fetchCurrentLocation = {
+        scope.launch {
+            val loc = getCurrentLocation(context)
+            if (loc != null) viewModel.onCurrentLocationGranted(loc.latitude, loc.longitude)
+            else viewModel.onCurrentLocationDenied()
+        }
+        Unit
+    }
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted -> if (granted) fetchCurrentLocation() else viewModel.onCurrentLocationDenied() }
+    val onLocationSelected: (RankingLocation) -> Unit = { loc ->
+        if (loc == RankingLocation.Current) {
+            val granted = androidx.core.content.ContextCompat.checkSelfPermission(
+                context, android.Manifest.permission.ACCESS_FINE_LOCATION,
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            if (granted) fetchCurrentLocation()
+            else locationPermissionLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
+        } else {
+            viewModel.setLocation(loc)
+        }
+    }
 
     // Tutorial coach-marks (1:1 iOS): se muestra una vez en la primera visita al ranking.
     var showOnboarding by remember { mutableStateOf(!TutorialTracker.hasSeenRankingOnboarding(context)) }
@@ -168,6 +200,7 @@ fun RankingScreen(
             exerciseKey = state.selectedCategory.uploadExerciseKey,
             onRecordHit = onRecordHit,
             onSavedHits = onSavedHits,
+            onTutorial = onTutorial,
             modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 88.dp)
                 .onGloballyPositioned { fabFrame = it.boundsInRoot() },
         )
@@ -215,12 +248,22 @@ fun RankingScreen(
             selectedLevels = state.selectedLevels,
             selectedAges = state.selectedAges,
             gender = state.selectedGender,
-            onLocation = viewModel::setLocation,
+            onLocation = onLocationSelected,
             onToggleLevel = viewModel::toggleLevel,
             onToggleAge = viewModel::toggleAge,
             onGender = viewModel::setGender,
             onSave = { /* filtros aplicados en vivo vía estado */ },
             onDismiss = { showFilterSheet = false },
+        )
+    }
+    // Popup si el usuario deniega el permiso de ubicación (1:1 con iOS).
+    if (state.showLocationPermissionPopup) {
+        HitPopup(
+            title = stringResource(R.string.loc_perm_title),
+            message = stringResource(R.string.loc_perm_msg),
+            confirmText = stringResource(R.string.common_accept),
+            onConfirm = viewModel::dismissLocationPopup,
+            onDismissRequest = viewModel::dismissLocationPopup,
         )
     }
 
@@ -336,11 +379,35 @@ private fun CircleIconButton(
     }
 }
 
+/** Desplaza la lista para que el item quede centrado en el viewport (animado). */
+internal suspend fun androidx.compose.foundation.lazy.LazyListState.centerItem(index: Int) {
+    fun targetFor(): Float? {
+        val viewport = layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset
+        val info = layoutInfo.visibleItemsInfo.firstOrNull { it.index == index } ?: return null
+        return (info.offset - (viewport - info.size) / 2).toFloat()
+    }
+    // Si el item ya es visible, centra directo; si no, primero lo trae a la vista y luego centra.
+    val direct = targetFor()
+    if (direct != null) {
+        animateScrollBy(direct)
+    } else {
+        scrollToItem(index)
+        targetFor()?.let { animateScrollBy(it) }
+    }
+}
+
 @Composable
 private fun ExerciseTabs(categories: List<RankingCategory>, selected: RankingCategory, onSelect: (RankingCategory) -> Unit) {
     // Color del indicador según deporte: Powerlifting=Secondary500 (azul), CrossHIT=Error500 (rojo).
     val indicator = if (selected.sport == Sport.Crossfit) Error500 else Secondary500
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    // Al seleccionar una categoría, la centra en el viewport para descubrir las de ambos lados (igual que iOS).
+    androidx.compose.runtime.LaunchedEffect(selected, categories) {
+        val index = categories.indexOf(selected)
+        if (index >= 0) listState.centerItem(index)
+    }
     LazyRow(
+        state = listState,
         modifier = Modifier.padding(top = 8.dp),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -399,9 +466,11 @@ internal fun LevelFilters(count: Int, selected: Set<String>, onToggle: (String) 
 @Composable
 internal fun RankingRow(entry: RankingEntry, usePoints: Boolean, onClick: () -> Unit) {
     // Sin padding uniforme: el badge de posición va pegado a la esquina (como PowerLiftingRowView).
+    // Usuario eliminado (fix iOS #639): fila no tocable, sin avatar/nombre/país reales.
     Column(
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Gray100)
-            .border(1.dp, Gray300, RoundedCornerShape(10.dp)).clickable { onClick() }.padding(bottom = 8.dp),
+            .border(1.dp, Gray300, RoundedCornerShape(10.dp))
+            .let { if (entry.isDeleted) it else it.clickable { onClick() } }.padding(bottom = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
@@ -412,15 +481,27 @@ internal fun RankingRow(entry: RankingEntry, usePoints: Boolean, onClick: () -> 
             }
         }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            AsyncImage(
-                model = entry.profilePicUrl, contentDescription = null, contentScale = ContentScale.Crop,
-                placeholder = placeholderPainter(), error = placeholderPainter(), fallback = placeholderPainter(),
-                modifier = Modifier.padding(horizontal = 8.dp).size(45.dp).clip(RoundedCornerShape(10.dp)).background(Gray200),
-            )
-            Spacer(Modifier.width(8.dp))
-            Column(Modifier.weight(1f)) {
-                Text(entry.username, style = HitbosssType.bodyDefaultRegular, color = Gray800)
-                Text("${countryFlag(entry.countryCode)} ${entry.countryCode ?: ""}", style = HitbosssType.bodySmallRegular, color = Gray800)
+            if (entry.isDeleted) {
+                Box(Modifier.padding(horizontal = 8.dp).size(45.dp).clip(RoundedCornerShape(10.dp)).background(Gray200))
+                Spacer(Modifier.width(8.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(stringResource(R.string.ranking_deleted_user), style = HitbosssType.bodyDefaultRegular, color = Gray500)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Box(Modifier.size(16.dp).clip(CircleShape).background(Gray300))
+                        Text("--", style = HitbosssType.bodySmallRegular, color = Gray500)
+                    }
+                }
+            } else {
+                AsyncImage(
+                    model = entry.profilePicUrl, contentDescription = null, contentScale = ContentScale.Crop,
+                    placeholder = placeholderPainter(), error = placeholderPainter(), fallback = placeholderPainter(),
+                    modifier = Modifier.padding(horizontal = 8.dp).size(45.dp).clip(RoundedCornerShape(10.dp)).background(Gray200),
+                )
+                Spacer(Modifier.width(8.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(entry.username, style = HitbosssType.bodyDefaultRegular, color = Gray800)
+                    Text("${countryFlag(entry.countryCode)} ${entry.countryCode ?: ""}", style = HitbosssType.bodySmallRegular, color = Gray800)
+                }
             }
             Column(
                 horizontalAlignment = Alignment.End,
@@ -494,12 +575,12 @@ internal fun PositionBadge(position: Int) {
 }
 
 @Composable
-internal fun CurrentUserRow(entry: RankingEntry?, country: String?, usePoints: Boolean = false, picUrl: String? = null) {
+internal fun CurrentUserRow(entry: RankingEntry?, country: String?, usePoints: Boolean = false, picUrl: String? = null, modifier: Modifier = Modifier) {
     val code = entry?.countryCode ?: country
     // La entrada del ranking no siempre trae profilePic; usamos la del perfil como fallback fiable.
     val photo = entry?.profilePicUrl ?: picUrl
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
             .clip(RoundedCornerShape(8.dp)).background(Secondary800).padding(8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),

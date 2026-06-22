@@ -25,7 +25,8 @@ fun Throwable.toAuthMessage(context: Context): String = when ((this as? Firebase
     "ERROR_INVALID_EMAIL" -> context.getString(R.string.err_invalid_email)
     "ERROR_EMAIL_ALREADY_IN_USE" -> context.getString(R.string.err_email_in_use)
     "ERROR_WEAK_PASSWORD" -> context.getString(R.string.err_weak_password)
-    else -> context.getString(R.string.err_unknown_with_msg, localizedMessage.orEmpty()).trimEnd(' ', ':')
+    // Cualquier otro error (incl. errores de Firebase no mapeados): mensaje amigable, sin el texto crudo.
+    else -> context.getString(R.string.common_unexpected_error_msg)
 }
 
 /**

@@ -68,6 +68,8 @@
     <string name="auth_email">Correo electrónico</string>
     <string name="auth_password">Contraseña</string>
     <string name="auth_confirm_password">Confirma tu contraseña</string>
+    <string name="auth_password_min">La contraseña debe tener al menos 6 caracteres</string>
+    <string name="auth_passwords_no_match">Las contraseñas no coinciden</string>
     <string name="auth_forgot_password">¿Has olvidado tu contraseña?</string>
     <string name="auth_continue_google">Continuar con Google</string>
     <string name="legal_accept_prefix">Al iniciar sesión aceptas la</string>
@@ -96,6 +98,7 @@
 
     <!-- Ranking -->
     <string name="ranking_search">Buscar</string>
+    <string name="ranking_deleted_user">Usuario eliminado</string>
     <string name="ranking_no_users">No se ha encontrado ningún usuario</string>
     <string name="ranking_change_sport">Cambiar deporte</string>
     <string name="ranking_configure">Configurar ranking</string>
@@ -117,6 +120,8 @@
     <string name="loc_world">Mundial</string>
     <string name="loc_national">Nacional</string>
     <string name="loc_current">Actual</string>
+    <string name="loc_perm_title">Permiso de ubicación necesario</string>
+    <string name="loc_perm_msg">Para ver usuarios cercanos, ve a Ajustes y concede el permiso de ubicación.</string>
     <string name="gender_both">Ambos</string>
     <string name="age_subjunior">SubJunior (14 a 18 años)</string>
     <string name="age_junior">Junior (19 a 23 años)</string>
@@ -144,6 +149,9 @@
     <string name="common_exercises">Ejercicios</string>
     <string name="common_exercise">Ejercicio</string>
     <string name="common_members">Miembros</string>
+    <string name="community_administrators">ADMINISTRADORES</string>
+    <string name="community_see_all_members">Ver todos los participantes</string>
+    <string name="common_creator">Creador</string>
     <string name="common_admin">Admin</string>
     <string name="common_create">Crear</string>
 
@@ -197,6 +205,32 @@
     <string name="create_group_motto">Lema</string>
     <string name="create_group_exercises_desc">Selecciona los ejercicios para la competencia de este grupo. Más adelante, podrás agregar otros si lo necesitas.</string>
     <string name="create_group_button">Crear grupo</string>
+    <string name="visibility_title">Visibilidad</string>
+    <string name="visibility_public">Público</string>
+    <string name="visibility_private">Privado</string>
+    <string name="visibility_desc_group">Define si el grupo será visible para toda la comunidad o accesible solo por invitación.</string>
+    <string name="visibility_desc_event">Define si el evento será visible para toda la comunidad o accesible solo por invitación.</string>
+    <string name="comm_tab_ranking">Ranking</string>
+    <string name="comm_tab_information">Información</string>
+    <string name="group_details">Detalles del grupo</string>
+    <string name="event_details">Detalles del evento</string>
+    <string name="detail_creation_date">Fecha de creación</string>
+    <string name="detail_admission_date">Fecha de admisión</string>
+    <string name="detail_start_date">Fecha de inicio</string>
+    <string name="detail_end_date">Fecha de fin</string>
+    <!-- Rediseño tutoriales (#630) -->
+    <string name="tutorials_title">Tutoriales</string>
+    <string name="tutorial_section_info">Información del ejercicio</string>
+    <string name="tutorial_section_technique">Técnica del ejercicio (1RM)</string>
+    <string name="tutorial_section_recording">Cómo grabar el ejercicio</string>
+    <string name="tutorial_section_thresholds">Umbrales</string>
+    <string name="tutorial_video_label">VÍDEO TUTORIAL</string>
+    <string name="tutorial_thresholds_power">Umbrales de PowerHIT</string>
+    <string name="tutorial_thresholds_cross">Umbrales de CrossHIT</string>
+    <string name="threshold_male">MASCULINO</string>
+    <string name="threshold_female">FEMENINO</string>
+    <string name="threshold_col_levels">Niveles</string>
+    <string name="threshold_col_points">POINTS</string>
     <string name="create_event_title">Nuevo evento</string>
     <string name="create_event_name">Nombre del evento</string>
     <string name="create_event_duration">Duración</string>
@@ -217,7 +251,7 @@
     <string name="group_admin_block_msg">Eres el administrador. Si quieres salir del grupo, primero debes pasar el rol de administrador a otro miembro.</string>
     <string name="group_delete_confirm_title">¿Seguro que quieres eliminar este grupo?</string>
     <string name="group_delete_confirm_msg">Eliminar este grupo es una acción permanente: los miembros perderán el acceso y no podrás deshacerlo.</string>
-    <string name="group_share_text">Únete al grupo \"%1$s\" en HitBoss.</string>
+    <string name="group_share_text">Toca el siguiente enlace para unirte al grupo:\n%1$s</string>
 
     <!-- Detalle de evento -->
     <string name="event_info_title">Información del evento</string>
@@ -226,7 +260,7 @@
     <string name="event_leave">Dejar el evento</string>
     <string name="event_leave_confirm_title">¿Seguro que quieres dejar el evento?</string>
     <string name="event_leave_confirm_msg">Si dejas el evento, no podrás deshacerlo.</string>
-    <string name="event_share_text">Únete al evento \"%1$s\" en HitBoss.</string>
+    <string name="event_share_text">Toca el siguiente enlace para unirte al evento:\n%1$s</string>
     <string name="event_delete">Eliminar evento</string>
     <string name="event_delete_confirm_title">¿Seguro que quieres eliminar este evento?</string>
     <string name="event_delete_confirm_msg">Eliminar este evento es una acción permanente: los miembros perderán el acceso y no podrás deshacerlo.</string>
@@ -236,7 +270,18 @@
     <!-- Administración (admin de grupo/evento) -->
     <string name="group_edit">Editar grupo</string>
     <string name="event_edit">Editar evento</string>
+    <string name="group_report">Denunciar grupo</string>
+    <string name="event_report">Denunciar evento</string>
+    <string name="event_check_hit">Comprobar hit</string>
+    <string name="event_reset_hit">Resetear hit</string>
+    <string name="event_remove_member">Expulsar del evento</string>
+    <string name="group_report_title">¿Quieres denunciar este grupo?</string>
+    <string name="group_report_msg">Si este grupo infringe las normas de la comunidad, puedes enviarnos una denuncia. Revisaremos el contenido y tomaremos las medidas necesarias. Las denuncias son confidenciales.</string>
+    <string name="event_report_title">¿Quieres denunciar este evento?</string>
+    <string name="event_report_msg">Si este evento infringe las normas de la comunidad, puedes enviarnos una denuncia. Revisaremos el contenido y tomaremos las medidas necesarias. Las denuncias son confidenciales.</string>
     <string name="common_save_changes">Guardar cambios</string>
+    <string name="common_search">Buscar</string>
+    <string name="event_members_screen_title">Participantes del evento</string>
     <string name="edit_event_started_note">El evento ya ha comenzado y los ejercicios no se pueden modificar.</string>
     <string name="member_options_title">Opciones para %1$s</string>
     <string name="member_view_profile">Visitar perfil</string>
@@ -258,6 +303,8 @@
     <string name="common_all">Todos</string>
     <string name="common_unexpected_error">Error inesperado</string>
     <string name="common_unexpected_error_msg">Ha ocurrido un problema al procesar tu solicitud. Por favor, vuelve a intentarlo más tarde.</string>
+    <string name="report_sent_title">Denuncia enviada</string>
+    <string name="report_sent_msg">Gracias. Revisaremos el contenido y tomaremos las medidas necesarias.</string>
 
     <!-- Acciones de HIT -->
     <string name="hit_edit">Editar HIT</string>
@@ -354,7 +401,8 @@
     <string name="hit_important">Importante</string>
     <string name="hit_important_desc">Incluye el peso de la barra más el de los discos. Revisa las normas para evitar penalizaciones.</string>
     <string name="hit_saved_list">HITS guardados</string>
-    <string name="hit_none_pending">Ninguno pendiente de subir</string>
+    <string name="saved_hit_view">Ver HIT</string>
+    <string name="hit_none_pending">Vídeos sin subir</string>
     <string name="hit_see_tutorial">Ver tutorial</string>
     <string name="hit_how_record">Cómo grabar tu HIT</string>
     <string name="hit_record">Grabar hit</string>
@@ -362,6 +410,13 @@
     <string name="saved_hits_empty">Aún no tienes HITS guardados</string>
     <string name="hit_delete_confirm_title">¿Borrar HIT?</string>
     <string name="hit_delete_confirm_msg">Si eliminas este HIT, no podrás recuperarlo jamás.</string>
+    <string name="common_exit">Salir</string>
+    <string name="common_discard">Descartar</string>
+    <string name="hit_exit_edit_title">¿Salir de la edición?</string>
+    <string name="hit_exit_edit_msg">Si sales ahora, se perderán los cambios.</string>
+    <string name="hit_exit_edit_msg_save">Si sales ahora, el HIT se guardará en HITS guardados para que lo subas cuando quieras.</string>
+    <string name="create_discard_title">¿Descartar los cambios?</string>
+    <string name="create_discard_msg">Si sales ahora, perderás lo que has introducido.</string>
     <string name="record_switch_camera">Cambiar cámara</string>
     <string name="record_stop">Parar</string>
     <string name="record_exercise">Grabar ejercicio</string>
@@ -397,4 +452,20 @@
     <string name="error_conn_ranking">Ups, algo salió mal al intentar cargar el ranking.</string>
     <string name="error_conn_refresh">Refrescar ranking</string>
     <string name="err_generic_action">No se pudo completar la acción</string>
+    <string name="profile_share">Compartir perfil</string>
+    <string name="profile_share_text">Comparte este perfil para que tus amigos los vean competir en los rankings.\n%1$s</string>
+    <string name="level_badge_beginner">PRN</string>
+    <string name="level_badge_noob">NOV</string>
+    <string name="level_badge_intermediate">INT</string>
+    <string name="level_badge_advanced">AVZ</string>
+    <string name="level_badge_elite">ÉLT</string>
+    <string name="community_share_subtitle">Invita a tus amigos a unirse</string>
+    <string name="event_exercise">Ejercicio</string>
+    <string name="event_rules">Normas del evento</string>
+    <string name="community_motto_title">Nuestro lema</string>
+    <string name="community_exercises">Ejercicios</string>
+    <plurals name="event_participants">
+        <item quantity="one">1 participante</item>
+        <item quantity="other">%d participantes</item>
+    </plurals>
 </resources>

@@ -22,6 +22,7 @@ data class EventSummary(
     val hasOfficial: Boolean,
     val startTime: Long,
     val endTime: Long,
+    val exercises: List<String> = emptyList(),
     val stats: CommunityStats,
 )
 
@@ -60,6 +61,8 @@ data class GroupDetail(
     val officialSports: List<String>,
     val members: List<Member>,
     val createdBy: Creator?,
+    val createdAt: Long? = null,   // fecha de creación del grupo (pestaña Información)
+    val joinedAt: Long? = null,    // fecha de admisión del usuario actual
     val ranking: Map<String, SportRanking> = emptyMap(),
 )
 
@@ -70,11 +73,13 @@ data class EventDetail(
     val sport: String,
     val hasOfficial: Boolean,
     val coverImageUrl: String?,
+    val isPublic: Boolean = false,
     val stats: CommunityStats,
     val exercises: List<String>,
     val members: List<Member>,
     val startTime: Long,
     val endTime: Long,
+    val joinedAt: Long? = null,    // fecha de admisión del usuario actual
     val createdBy: Creator?,
     val ranking: Map<String, SportRanking> = emptyMap(),
 )

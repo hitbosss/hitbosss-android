@@ -39,6 +39,7 @@ private fun EventListDto.toDomain() = EventSummary(
     hasOfficial = hasOfficial ?: false,
     startTime = startTime ?: 0L,
     endTime = endTime ?: 0L,
+    exercises = exercises,
     stats = stats.toDomain(),
 )
 
@@ -67,6 +68,8 @@ fun GroupDetailDto.toDomain() = GroupDetail(
     officialSports = officialSports,
     members = members.map { it.toDomain() },
     createdBy = createdBy?.toDomain(),
+    createdAt = createdAt,
+    joinedAt = joinedAt,
     ranking = buildMap {
         powerlifting?.let { put("powerlifting", mapOf("powerlifting" to it).toDomain("powerlifting")) }
         crossfit?.let { put("crossfit", mapOf("crossfit" to it).toDomain("crossfit")) }
@@ -80,11 +83,13 @@ fun EventDetailDto.toDomain() = EventDetail(
     sport = sport.orEmpty(),
     hasOfficial = hasOfficial ?: false,
     coverImageUrl = coverImageUrl,
+    isPublic = isPublic ?: false,
     stats = stats.toDomain(),
     exercises = exercises,
     members = members.map { it.toDomain() },
     startTime = startTime ?: 0L,
     endTime = endTime ?: 0L,
+    joinedAt = joinedAt,
     createdBy = createdBy?.toDomain(),
     ranking = buildMap {
         powerlifting?.let { put("powerlifting", mapOf("powerlifting" to it).toDomain("powerlifting")) }

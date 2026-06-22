@@ -84,12 +84,20 @@ class ProfileViewModel @Inject constructor(
     /** Pull-to-refresh manual. */
     fun refresh() = reloadAll(showRefreshing = true)
 
+    // Refresco por antigüedad (al cambiar a la pestaña tras mucho tiempo), silencioso. Solo perfil propio.
+    private var lastLoadedAt = 0L
+    private val staleMs = 5 * 60 * 1000L
+    fun refreshIfStale() {
+        if (otherUserId == null && System.currentTimeMillis() - lastLoadedAt > staleMs) reloadAll(showRefreshing = false)
+    }
+
     /** Recarga perfil + rankings sin el spinner de pantalla completa. Guarda de concurrencia. */
     private fun reloadAll(showRefreshing: Boolean) {
         if (reloading) return
         val uid = otherUserId ?: getCurrentUser()?.uid
         if (uid.isNullOrBlank()) return
         reloading = true
+        lastLoadedAt = System.currentTimeMillis()
         viewModelScope.launch {
             if (showRefreshing) _state.update { it.copy(isRefreshing = true) }
             val profileD = async { getUserProfile(uid) }
@@ -111,11 +119,12 @@ class ProfileViewModel @Inject constructor(
             _state.update { it.copy(error = appContext.getString(R.string.err_no_session)) }
             return
         }
+        lastLoadedAt = System.currentTimeMillis()
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
             getUserProfile(uid)
                 .onSuccess { profile -> _state.update { it.copy(isLoading = false, profile = profile) } }
-                .onFailure { e -> _state.update { it.copy(isLoading = false, error = e.message ?: "Error") } }
+                .onFailure { e -> _state.update { it.copy(isLoading = false, error = appContext.getString(R.string.common_unexpected_error_msg)) } }
         }
     }
 

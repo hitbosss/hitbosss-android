@@ -1,5 +1,6 @@
 package com.hitbosss.presentation.feature.settings
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -7,25 +8,21 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,140 +33,122 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.hitbosss.R
 import com.hitbosss.presentation.designsystem.components.HitTopBar
 import com.hitbosss.presentation.designsystem.theme.Error500
 import com.hitbosss.presentation.designsystem.theme.Gray100
-import com.hitbosss.presentation.designsystem.theme.Gray400
-import com.hitbosss.presentation.designsystem.theme.Gray500
+import com.hitbosss.presentation.designsystem.theme.Gray200
+import com.hitbosss.presentation.designsystem.theme.Gray300
 import com.hitbosss.presentation.designsystem.theme.Gray600
 import com.hitbosss.presentation.designsystem.theme.Gray800
 import com.hitbosss.presentation.designsystem.theme.HitbosssType
-import com.hitbosss.presentation.designsystem.theme.Secondary100
 import com.hitbosss.presentation.designsystem.theme.Secondary500
-import com.hitbosss.presentation.feature.ranking.VideoPlayer
-import androidx.compose.ui.res.stringResource
-import com.hitbosss.R
+import com.hitbosss.presentation.designsystem.theme.Secondary800
+import com.hitbosss.presentation.designsystem.theme.Warning100
 
+/** Lista de tutoriales agrupada por deporte (1:1 con SettingsTutorialsView.swift). */
 @Composable
-fun TutorialScreen(initialApiKey: String = "officialPowerlifting", onBack: () -> Unit) {
-    val tutorialData = rememberTutorialData()
-    var sport by remember { mutableStateOf(tutorialData.firstOrNull { it.apiKey == initialApiKey }?.sport ?: "powerlifting") }
-    var apiKey by remember { mutableStateOf(initialApiKey) }
-    val exercises = tutorialData.filter { it.sport == sport }
-    val current = tutorialData.firstOrNull { it.apiKey == apiKey } ?: exercises.first()
-    val sportColor = if (sport == "powerlifting") Secondary500 else Error500
+fun TutorialScreen(
+    onBack: () -> Unit,
+    onOpenExercise: (String) -> Unit,
+    viewModel: TutorialViewModel = hiltViewModel(),
+) {
+    val data = rememberTutorialData()
+    val isMetric by viewModel.isMetric.collectAsStateWithLifecycle()
 
     Column(Modifier.fillMaxSize().background(Gray100)) {
-        HitTopBar(title = stringResource(R.string.settings_exercise_tutorial), onBack = onBack)
-
-        // Selector de deporte
-        SportDropdown(sport) { newSport ->
-            sport = newSport
-            apiKey = tutorialData.first { it.sport == newSport }.apiKey
-        }
-
-        // Tabs de ejercicio
-        LazyRow(
-            Modifier.fillMaxWidth().padding(top = 8.dp),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(20.dp),
-        ) {
-            items(exercises) { ex ->
-                val sel = ex.apiKey == apiKey
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { apiKey = ex.apiKey }) {
-                    Text(
-                        ex.title, style = HitbosssType.titleBody,
-                        color = if (sel) Gray800 else Gray500,
-                        fontWeight = if (sel) FontWeight.SemiBold else FontWeight.Normal,
-                        modifier = Modifier.padding(vertical = 8.dp),
-                    )
-                    Box(Modifier.height(2.dp).width(if (sel) 40.dp else 0.dp).background(sportColor))
-                }
-            }
-        }
-
+        HitTopBar(title = stringResource(R.string.tutorials_title), onBack = onBack)
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            Modifier.fillMaxSize().background(Gray200).verticalScroll(rememberScrollState()).padding(vertical = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(32.dp),
         ) {
-            // Info box
-            Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(Secondary100).padding(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Icon(Icons.Filled.Info, contentDescription = null, tint = Secondary500, modifier = Modifier.size(20.dp))
-                Text(boldMarkdown(current.info), style = HitbosssType.bodyDefaultRegular, color = Gray800)
+            listOf("powerlifting", "crossfit").forEach { sport ->
+                val exercises = data.filter { it.sport == sport && !it.isOfficial }
+                SportSection(sport, exercises, isMetric, onOpenExercise)
             }
+        }
+    }
+}
 
-            // Vídeo del tutorial
-            current.videoUrl?.let { url ->
-                Box(Modifier.fillMaxWidth().aspectRatio(9f / 16f).clip(RoundedCornerShape(8.dp)).background(Color.Black)) {
-                    VideoPlayer(url = url, seekSeconds = 0.0, isActive = true)
+@Composable
+private fun SportSection(sport: String, exercises: List<TutorialExercise>, isMetric: Boolean, onOpenExercise: (String) -> Unit) {
+    val isPl = sport == "powerlifting"
+    val sportColor = if (isPl) Secondary500 else Error500
+    val sportIcon = if (isPl) R.drawable.ic_sport_powerlifting else R.drawable.ic_sport_crossfit
+    val sportTitle = if (isPl) "PowerHIT" else "CrossHIT"
+    var showThresholds by remember { mutableStateOf(false) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
+        // Cabecera del deporte
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Image(painterResource(sportIcon), contentDescription = null, modifier = Modifier.size(24.dp))
+            Text(sportTitle.uppercase(), style = HitbosssType.bodyDefaultRegular, color = sportColor, modifier = Modifier.weight(1f))
+            Icon(Icons.Outlined.Info, contentDescription = stringResource(R.string.tutorial_section_thresholds), tint = Gray800, modifier = Modifier.size(24.dp).clickable { showThresholds = true })
+        }
+        // Tarjetas de ejercicio
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            exercises.forEach { ex -> ExerciseTutorialCard(ex, sportColor) { onOpenExercise(ex.apiKey) } }
+        }
+    }
+
+    // Popup de umbrales oficiales del deporte (fullScreenCover en iOS)
+    if (showThresholds) {
+        val officialKey = if (isPl) "officialPowerlifting" else "officialCrossfit"
+        val table = tutorialThresholds[officialKey]
+        Dialog(onDismissRequest = { showThresholds = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+            Box(
+                Modifier.fillMaxSize().background(Secondary800.copy(alpha = 0.8f)).clickable { showThresholds = false },
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp), horizontalAlignment = Alignment.End) {
+                    Box(
+                        Modifier.size(32.dp).clip(CircleShape).background(Gray100).border(1.dp, Gray300, CircleShape).clickable { showThresholds = false },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.common_close), tint = Gray600, modifier = Modifier.size(18.dp))
+                    }
+                    if (table != null) {
+                        val title = if (isPl) stringResource(R.string.tutorial_thresholds_power) else stringResource(R.string.tutorial_thresholds_cross)
+                        TutorialSectionView(R.drawable.ic_tutorial_thresholds, Warning100, title) {
+                            TutorialThresholdTable(table, isMetric)
+                        }
+                    }
                 }
             }
-
-            // Secciones (acordeón)
-            current.sections.forEach { TutorialAccordion(it) }
-            Spacer(Modifier.height(16.dp))
         }
     }
 }
 
+/** Tarjeta de ejercicio: imagen a la derecha + nombre a la izquierda (1:1 con ExerciseTutorialCardView). */
 @Composable
-private fun SportDropdown(sport: String, onSelect: (String) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
-    Box(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Row(
-            Modifier.fillMaxWidth().height(52.dp).clip(RoundedCornerShape(8.dp)).background(Gray100)
-                .border(1.dp, Gray400, RoundedCornerShape(8.dp)).clickable { expanded = true }.padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(if (sport == "powerlifting") "Powerlifting" else "CrossHIT", style = HitbosssType.bodyLargeRegular, color = Gray800, modifier = Modifier.weight(1f))
-            Icon(Icons.Filled.KeyboardArrowDown, contentDescription = null, tint = Gray800)
+private fun ExerciseTutorialCard(exercise: TutorialExercise, sportColor: Color, onClick: () -> Unit) {
+    Box(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(120.dp).clip(RoundedCornerShape(16.dp))
+            .background(Gray100).clickable { onClick() },
+    ) {
+        tutorialCardDrawable(exercise.apiKey)?.let { img ->
+            // La imagen (3:1, atleta a la derecha) se muestra completa anclada a la derecha sin recortar.
+            Image(
+                painterResource(img), contentDescription = null,
+                contentScale = ContentScale.Fit, alignment = Alignment.CenterEnd,
+                modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+            )
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            listOf("powerlifting" to "Powerlifting", "crossfit" to "CrossHIT").forEach { (key, label) ->
-                DropdownMenuItem(text = { Text(label, style = HitbosssType.bodyLargeRegular) }, onClick = { onSelect(key); expanded = false })
-            }
-        }
+        Text(
+            exercise.title.uppercase(), style = HitbosssType.bodyLargeEmphasis, color = sportColor,
+            modifier = Modifier.align(Alignment.CenterStart).padding(start = 16.dp).widthIn(max = 150.dp),
+        )
     }
-}
-
-@Composable
-private fun TutorialAccordion(section: TutorialSection) {
-    var expanded by remember { mutableStateOf(false) }
-    Column {
-        Row(
-            Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(section.title, style = HitbosssType.bodyLargeEmphasis, color = Gray600, modifier = Modifier.weight(1f))
-            Icon(Icons.Filled.KeyboardArrowUp, contentDescription = null, tint = Gray600, modifier = Modifier.rotate(if (expanded) 0f else 180f))
-        }
-        Spacer(Modifier.height(8.dp))
-        Box(Modifier.fillMaxWidth().height(1.dp).background(Gray400))
-        if (expanded) {
-            Text(boldMarkdown(section.body), style = HitbosssType.bodyDefaultRegular, color = Gray500, modifier = Modifier.padding(top = 8.dp))
-        }
-    }
-}
-
-/** Convierte **negrita** de markdown a texto con estilo. */
-private fun boldMarkdown(text: String): AnnotatedString = buildAnnotatedString {
-    val regex = Regex("""\*\*(.+?)\*\*""")
-    var last = 0
-    regex.findAll(text).forEach { m ->
-        append(text.substring(last, m.range.first))
-        withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(m.groupValues[1]) }
-        last = m.range.last + 1
-    }
-    if (last < text.length) append(text.substring(last))
 }

@@ -13,6 +13,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,6 +48,13 @@ fun WheelPicker(
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = selectedIndex.coerceIn(0, items.lastIndex))
     val fling = rememberSnapFlingBehavior(lazyListState = listState)
 
+    // El colector de abajo se lanza una sola vez (clave = listState, estable), por lo que debe leer
+    // SIEMPRE los valores actuales y no los capturados en la primera composición. Sin esto, al mover
+    // una rueda se reportaba con la lambda/estado iniciales (p. ej. la fecha reseteaba mes/año).
+    val currentOnSelected by rememberUpdatedState(onSelected)
+    val currentSelectedIndex by rememberUpdatedState(selectedIndex)
+    val currentLastIndex by rememberUpdatedState(items.lastIndex)
+
     // Índice central = primer visible (con padding = half ítems arriba y abajo).
     val centerIndex by remember { derivedStateOf { listState.firstVisibleItemIndex } }
 
@@ -54,8 +62,8 @@ fun WheelPicker(
     LaunchedEffect(listState) {
         snapshotFlow { listState.isScrollInProgress }.collect { scrolling ->
             if (!scrolling) {
-                val i = listState.firstVisibleItemIndex.coerceIn(0, items.lastIndex)
-                if (i != selectedIndex) onSelected(i)
+                val i = listState.firstVisibleItemIndex.coerceIn(0, currentLastIndex)
+                if (i != currentSelectedIndex) currentOnSelected(i)
             }
         }
     }

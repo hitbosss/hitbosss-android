@@ -83,8 +83,15 @@ fun CreateEventScreen(
     var pickerFor by remember { mutableStateOf<String?>(null) } // "start" | "end"
     LaunchedEffect(state.success) { if (state.success) onCreated() }
 
+    // Confirmar descartar si hay datos introducidos.
+    var showDiscard by remember { mutableStateOf(false) }
+    val hasChanges = state.name.isNotBlank() || state.description.isNotBlank() || state.coverUri != null ||
+        state.exercises.isNotEmpty() || state.startMillis != null || state.endMillis != null
+    fun back() { if (hasChanges) showDiscard = true else onBack() }
+    androidx.activity.compose.BackHandler(enabled = hasChanges) { showDiscard = true }
+
     Column(Modifier.fillMaxSize().background(Gray100)) {
-        HitTopBar(title = stringResource(R.string.create_event_title), onBack = onBack)
+        HitTopBar(title = stringResource(R.string.create_event_title), onBack = ::back)
 
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
             Box(Modifier.fillMaxWidth().padding(top = 30.dp), contentAlignment = Alignment.TopCenter) {
@@ -108,6 +115,12 @@ fun CreateEventScreen(
             Text(stringResource(R.string.common_description), style = HitbosssType.bodySmallEmphasis, color = Gray800, modifier = Modifier.padding(bottom = 8.dp))
             FormField(state.description, viewModel::onDescription, 152.dp, single = false)
             Counter(state.description.length, viewModel.maxDescription)
+            Spacer(Modifier.height(16.dp))
+
+            // Visibilidad (público / privado), igual que iOS.
+            Text(stringResource(R.string.visibility_title), style = HitbosssType.bodySmallEmphasis, color = Gray800, modifier = Modifier.padding(bottom = 8.dp))
+            Text(stringResource(R.string.visibility_desc_event), style = HitbosssType.bodySmallRegular, color = Gray500, modifier = Modifier.padding(bottom = 8.dp))
+            VisibilitySegment(state.isPublic, viewModel::onVisibility)
             Spacer(Modifier.height(16.dp))
 
             Text(stringResource(R.string.create_event_duration), style = HitbosssType.bodySmallEmphasis, color = Gray800)
@@ -166,6 +179,19 @@ fun CreateEventScreen(
             confirmText = stringResource(R.string.common_accept),
             onConfirm = viewModel::clearError,
             onDismissRequest = viewModel::clearError,
+        )
+    }
+
+    if (showDiscard) {
+        HitPopup(
+            title = stringResource(R.string.create_discard_title),
+            message = stringResource(R.string.create_discard_msg),
+            confirmText = stringResource(R.string.common_discard),
+            confirmType = com.hitbosss.presentation.designsystem.components.HitButtonType.Destructive,
+            onConfirm = { showDiscard = false; onBack() },
+            cancelText = stringResource(R.string.common_cancel),
+            onCancel = { showDiscard = false },
+            onDismissRequest = { showDiscard = false },
         )
     }
 }

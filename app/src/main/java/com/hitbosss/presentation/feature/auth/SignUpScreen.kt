@@ -2,7 +2,9 @@ package com.hitbosss.presentation.feature.auth
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -71,18 +73,26 @@ fun SignUpScreen(
     Column(Modifier.fillMaxSize().background(Gray100)) {
         HitTopBar(title = stringResource(R.string.auth_create_account), onBack = onBack)
 
+        // Cada campo reserva un hueco fijo para su validación, de modo que el texto rojo no desplaza
+        // los demás campos y el conjunto queda uniforme.
         Column(
             modifier = Modifier.padding(top = 32.dp, start = 16.dp, end = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            HitTextField(state.email, viewModel::onEmailChange, stringResource(R.string.auth_email), keyboardType = KeyboardType.Email)
-            HitTextField(state.password, viewModel::onPasswordChange, stringResource(R.string.auth_password), isSecure = true)
-            HitTextField(state.confirmPassword, viewModel::onConfirmPasswordChange, stringResource(R.string.auth_confirm_password), isSecure = true)
+            FieldSlot(error = null) {
+                HitTextField(state.email, viewModel::onEmailChange, stringResource(R.string.auth_email), keyboardType = KeyboardType.Email)
+            }
+            FieldSlot(error = if (state.passwordTooShort) stringResource(R.string.auth_password_min) else null) {
+                HitTextField(state.password, viewModel::onPasswordChange, stringResource(R.string.auth_password), isSecure = true)
+            }
+            FieldSlot(error = if (state.passwordsMismatch) stringResource(R.string.auth_passwords_no_match) else null) {
+                HitTextField(state.confirmPassword, viewModel::onConfirmPasswordChange, stringResource(R.string.auth_confirm_password), isSecure = true)
+            }
         }
 
-        // Error inline (1:1 con iOS: línea roja a la izquierda bajo los campos).
+        // Error global (Firebase): aparece bajo los campos, no los desplaza (está antes del Spacer).
         state.error?.let { error ->
-            Row(Modifier.fillMaxWidth().padding(top = 16.dp, start = 16.dp, end = 16.dp)) {
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp, start = 16.dp, end = 16.dp)) {
                 Text(error, style = HitbosssType.bodySmallRegular, color = Error700)
             }
         }
@@ -138,5 +148,16 @@ fun SignUpScreen(
                 .padding(top = 16.dp, start = 16.dp, end = 16.dp, bottom = 32.dp)
                 .fillMaxWidth(),
         )
+    }
+}
+
+/** Campo + hueco fijo debajo para su validación: el texto rojo aparece sin desplazar el layout. */
+@Composable
+private fun FieldSlot(error: String?, field: @Composable () -> Unit) {
+    Column {
+        field()
+        Box(Modifier.fillMaxWidth().height(18.dp).padding(start = 4.dp, top = 2.dp)) {
+            error?.let { Text(it, style = HitbosssType.bodySmallRegular, color = Error700, maxLines = 1) }
+        }
     }
 }

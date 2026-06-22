@@ -35,6 +35,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -75,8 +78,15 @@ fun CreateGroupScreen(
     val pickCover = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { it?.let(viewModel::onCoverPicked) }
     LaunchedEffect(state.success) { if (state.success) onCreated() }
 
+    // Confirmar descartar si hay datos introducidos.
+    var showDiscard by remember { mutableStateOf(false) }
+    val hasChanges = state.name.isNotBlank() || state.motto.isNotBlank() || state.description.isNotBlank() ||
+        state.coverUri != null || state.exercises.isNotEmpty()
+    fun back() { if (hasChanges) showDiscard = true else onBack() }
+    androidx.activity.compose.BackHandler(enabled = hasChanges) { showDiscard = true }
+
     Column(Modifier.fillMaxSize().background(Gray100)) {
-        HitTopBar(title = stringResource(R.string.create_group_title), onBack = onBack)
+        HitTopBar(title = stringResource(R.string.create_group_title), onBack = ::back)
 
         Column(
             Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
@@ -114,6 +124,12 @@ fun CreateGroupScreen(
             Text(stringResource(R.string.common_description), style = HitbosssType.bodySmallEmphasis, color = Gray800, modifier = Modifier.padding(bottom = 8.dp))
             FormField(state.description, viewModel::onDescription, 152.dp, single = false)
             Counter(state.description.length, viewModel.maxDescription)
+            Spacer(Modifier.height(16.dp))
+
+            // Visibilidad (público / privado), igual que iOS.
+            Text(stringResource(R.string.visibility_title), style = HitbosssType.bodySmallEmphasis, color = Gray800, modifier = Modifier.padding(bottom = 8.dp))
+            Text(stringResource(R.string.visibility_desc_group), style = HitbosssType.bodySmallRegular, color = Gray500, modifier = Modifier.padding(bottom = 8.dp))
+            VisibilitySegment(state.isPublic, viewModel::onVisibility)
             Spacer(Modifier.height(16.dp))
 
             Text(stringResource(R.string.common_exercises), style = HitbosssType.bodySmallEmphasis, color = Gray800)
@@ -161,6 +177,19 @@ fun CreateGroupScreen(
             confirmText = stringResource(R.string.common_accept),
             onConfirm = viewModel::clearError,
             onDismissRequest = viewModel::clearError,
+        )
+    }
+
+    if (showDiscard) {
+        HitPopup(
+            title = stringResource(R.string.create_discard_title),
+            message = stringResource(R.string.create_discard_msg),
+            confirmText = stringResource(R.string.common_discard),
+            confirmType = com.hitbosss.presentation.designsystem.components.HitButtonType.Destructive,
+            onConfirm = { showDiscard = false; onBack() },
+            cancelText = stringResource(R.string.common_cancel),
+            onCancel = { showDiscard = false },
+            onDismissRequest = { showDiscard = false },
         )
     }
 }

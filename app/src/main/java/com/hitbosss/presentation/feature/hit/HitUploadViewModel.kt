@@ -17,6 +17,7 @@ import javax.inject.Inject
 data class HitSheetUiState(
     val lift: String = "",
     val personalInfo: PersonalInfo? = null,
+    val pendingCount: Int = 0,   // HITs guardados sin subir (badge "Saved HITS")
 ) {
     /** "KG" si métrico, "LB" si imperial. */
     val unitLabel: String
@@ -35,12 +36,14 @@ data class HitSheetUiState(
 class HitUploadViewModel @Inject constructor(
     private val getCurrentUser: GetCurrentUserUseCase,
     private val getPersonalInfo: GetPersonalInfoUseCase,
+    private val savedHitStore: com.hitbosss.data.local.SavedHitStore,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(HitSheetUiState())
     val state: StateFlow<HitSheetUiState> = _state.asStateFlow()
 
     init {
+        _state.update { it.copy(pendingCount = savedHitStore.getAll().size) }
         getCurrentUser()?.uid?.let { uid ->
             viewModelScope.launch {
                 getPersonalInfo(uid).onSuccess { info -> _state.update { it.copy(personalInfo = info) } }

@@ -15,6 +15,26 @@ fun rememberTutorialData(): List<TutorialExercise> {
     return if (isEnglish) tutorialDataEn else tutorialDataEs
 }
 
+// --- Rediseño tutoriales (iOS #630): secciones estructuradas derivadas de los datos existentes ---
+// Se identifican por emoji (independiente del idioma): ✅ = técnica (1RM), 🎥 = cómo grabar.
+// La sección 💪🏻 de umbrales markdown se ignora: el detalle usa la tabla estructurada [tutorialThresholds].
+
+/** Texto de "Técnica del ejercicio (1RM)" (sección ✅). */
+val TutorialExercise.techniqueText: String?
+    get() = sections.firstOrNull { it.title.trimStart().startsWith("✅") }?.body
+
+/** Texto de "Cómo grabar el ejercicio" (sección 🎥). */
+val TutorialExercise.recordingText: String?
+    get() = sections.firstOrNull { it.title.trimStart().startsWith("🎥") }?.body
+
+/** Tabla estructurada de umbrales (male/female) por apiKey. */
+val TutorialExercise.thresholds: ThresholdTable?
+    get() = tutorialThresholds[apiKey]
+
+/** ¿Es la entrada oficial del deporte (PowerHIT/CrossHIT), sin técnica/grabación? */
+val TutorialExercise.isOfficial: Boolean
+    get() = apiKey == "officialPowerlifting" || apiKey == "officialCrossfit"
+
 val tutorialDataEs: List<TutorialExercise> = listOf(
     TutorialExercise(
         apiKey = "officialPowerlifting", title = "Powerlifting", sport = "powerlifting",

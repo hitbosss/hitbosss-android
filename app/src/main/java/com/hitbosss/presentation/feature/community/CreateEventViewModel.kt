@@ -25,6 +25,7 @@ data class CreateEventUiState(
     val name: String = "",
     val description: String = "",
     val coverUri: Uri? = null,
+    val isPublic: Boolean = true,
     val exercises: Set<Exercise> = emptySet(),
     val startMillis: Long? = null,
     val endMillis: Long? = null,
@@ -53,6 +54,7 @@ class CreateEventViewModel @Inject constructor(
     fun onName(v: String) { if (v.length <= maxName) _state.update { it.copy(name = v) } }
     fun onDescription(v: String) { if (v.length <= maxDescription) _state.update { it.copy(description = v) } }
     fun onCoverPicked(uri: Uri) = _state.update { it.copy(coverUri = uri) }
+    fun onVisibility(public: Boolean) = _state.update { it.copy(isPublic = public) }
     fun onStart(millis: Long?) = _state.update { it.copy(startMillis = millis) }
     fun onEnd(millis: Long?) = _state.update { it.copy(endMillis = millis) }
     fun clearError() = _state.update { it.copy(error = null) }
@@ -74,7 +76,7 @@ class CreateEventViewModel @Inject constructor(
                 CreateEventParams(
                     name = s.name.trim(),
                     description = s.description.trim(),
-                    isPublic = true,
+                    isPublic = s.isPublic,
                     sport = sport.apiValue,
                     exercises = s.exercises.map { it.apiValue },
                     hasOfficial = hasOfficial,
@@ -83,7 +85,7 @@ class CreateEventViewModel @Inject constructor(
                     coverPic = cover,
                 ),
             ).onSuccess { refreshCoordinator.invalidateCommunity(); _state.update { it.copy(isLoading = false, success = true) } }
-                .onFailure { e -> _state.update { it.copy(isLoading = false, error = e.message ?: context.getString(R.string.err_create_event)) } }
+                .onFailure { e -> _state.update { it.copy(isLoading = false, error = context.getString(R.string.err_create_event)) } }
         }
     }
 

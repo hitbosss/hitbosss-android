@@ -120,7 +120,7 @@ class CompleteProfileViewModel @Inject constructor(
             ).onSuccess { _state.update { it.copy(isLoading = false, success = true) } }
                 .onFailure { e ->
                     val taken = e.message?.contains("username", true) == true || e.message?.contains("taken", true) == true
-                    _state.update { it.copy(isLoading = false, usernameTaken = taken, error = if (taken) null else (e.message ?: context.getString(R.string.err_create_profile))) }
+                    _state.update { it.copy(isLoading = false, usernameTaken = taken, error = if (taken) null else (context.getString(R.string.err_create_profile))) }
                 }
         }
     }

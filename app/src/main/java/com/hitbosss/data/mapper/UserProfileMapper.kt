@@ -24,7 +24,9 @@ fun UserProfileDto.toDomain() = UserProfile(
     countryCode = countryCode,
     measurementSystem = measurementSystem,
     socialNetworks = socialNetworks.mapNotNull { it.toDomain() },
-    participations = participations.map { it.toDomain() },
+    // Orden cronológico (más reciente primero) como iOS; el backend los devuelve por performed_at
+    // (el segundo del vídeo), que no es una fecha.
+    participations = participations.map { it.toDomain() }.sortedByDescending { it.createdAt },
     groups = groups.map { it.toDomain() },
     events = events.map { it.toDomain() },
 )
@@ -57,6 +59,7 @@ private fun ProfileHitDto.toDomain() = com.hitbosss.domain.model.ProfileHit(
     performedAt = performedAt ?: 0.0,
     createdAt = createdAt ?: 0L,
     position = position,
+    wilksScore = wilksScore,
 )
 
 fun PersonalInfoDto.toDomain() = PersonalInfo(

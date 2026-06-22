@@ -28,6 +28,8 @@ data class EditGroupUiState(
     val description: String = "",
     val coverUri: Uri? = null,
     val existingCoverUrl: String? = null,
+    val isPublic: Boolean = true,
+    val originalIsPublic: Boolean = true,
     val exercises: Set<Exercise> = emptySet(),
     val loaded: Boolean = false,
     val isLoading: Boolean = false,
@@ -64,6 +66,8 @@ class EditGroupViewModel @Inject constructor(
                         motto = g.motto.orEmpty(),
                         description = g.description.orEmpty(),
                         existingCoverUrl = g.coverImageUrl,
+                        isPublic = g.isPublic,
+                        originalIsPublic = g.isPublic,
                         exercises = g.exercises.mapNotNull { api -> Exercise.entries.firstOrNull { e -> e.apiValue == api } }.toSet(),
                         loaded = true,
                     )
@@ -76,6 +80,7 @@ class EditGroupViewModel @Inject constructor(
     fun onMotto(v: String) { if (v.length <= maxMotto) _state.update { it.copy(motto = v) } }
     fun onDescription(v: String) { if (v.length <= maxDescription) _state.update { it.copy(description = v) } }
     fun onCoverPicked(uri: Uri) = _state.update { it.copy(coverUri = uri) }
+    fun onVisibility(public: Boolean) = _state.update { it.copy(isPublic = public) }
     fun clearError() = _state.update { it.copy(error = null) }
 
     fun toggleExercise(e: Exercise) = _state.update {
@@ -94,13 +99,13 @@ class EditGroupViewModel @Inject constructor(
                     name = s.name.trim(),
                     motto = s.motto.trim(),
                     description = s.description.trim(),
-                    isPublic = true,
+                    isPublic = s.isPublic,
                     exercises = s.exercises.map { it.apiValue },
                     officialSports = officialSportsFor(s.exercises),
                     coverPic = cover,
                 ),
             ).onSuccess { refreshCoordinator.invalidateCommunity(); _state.update { it.copy(isLoading = false, success = true) } }
-                .onFailure { e -> _state.update { it.copy(isLoading = false, error = e.message ?: context.getString(R.string.err_create_group)) } }
+                .onFailure { e -> _state.update { it.copy(isLoading = false, error = context.getString(R.string.err_create_group)) } }
         }
     }
 

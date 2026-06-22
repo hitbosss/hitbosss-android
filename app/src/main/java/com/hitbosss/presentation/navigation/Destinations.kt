@@ -48,6 +48,10 @@ object Routes {
     fun editGroup(id: Int) = "edit_group/$id"
     fun editEvent(id: Int) = "edit_event/$id"
 
+    // type: "group" | "event"
+    const val COMMUNITY_MEMBERS = "community_members/{type}/{id}"
+    fun communityMembers(type: String, id: Int) = "community_members/$type/$id"
+
     const val SAVED_HITS = "saved_hits"
     const val CREATE_GROUP = "create_group"
     const val CREATE_EVENT = "create_event"
@@ -55,5 +59,8 @@ object Routes {
     const val EDIT_PROFILE = "edit_profile"
     const val COMMUNITY_RULES = "community_rules"
     const val TUTORIALS = "tutorials"
+    // Tutorial enfocado a un ejercicio (desde "Cómo grabar tu HIT" del modal de subir).
+    const val TUTORIALS_EXERCISE = "tutorials/{apiKey}"
+    fun tutorialsExercise(apiKey: String) = "tutorials/$apiKey"
     const val PRIVACY_POLICY = "privacy_policy"
 }

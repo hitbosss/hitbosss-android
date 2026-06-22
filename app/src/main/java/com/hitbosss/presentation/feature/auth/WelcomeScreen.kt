@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -20,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -68,7 +70,9 @@ fun WelcomeScreen(
     val pagerState = rememberPagerState(pageCount = { onboardingData.size })
     val density = LocalDensity.current
     // Igual que en iOS (imageFrame.maxY): la banda navy llega justo hasta el fondo de la imagen.
-    var navyHeightPx by remember { mutableIntStateOf(0) }
+    // Se mide UNA sola vez y se congela (rememberSaveable) para que la animación de navegación no
+    // la recalcule frame a frame (eso hacía "vibrar" el borde azul/blanco al ir a login/registro).
+    var navyHeightPx by rememberSaveable { mutableIntStateOf(0) }
     var rootTopPx by remember { mutableIntStateOf(0) }
     val navyHeight = if (navyHeightPx > 0) with(density) { navyHeightPx.toDp() } else 360.dp
 
@@ -81,33 +85,42 @@ fun WelcomeScreen(
         // Banda superior coloreada que queda detrás del logo y de la imagen del carrusel.
         Box(Modifier.fillMaxWidth().height(navyHeight).background(Secondary800).align(Alignment.TopCenter))
 
-        Column(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().statusBarsPadding()) {
             Image(
                 painter = painterResource(R.drawable.im_logo_white_horizontal),
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 90.dp, vertical = 12.dp),
+                // Logo un poco más pequeño (más padding lateral) y un poco más abajo (más padding top).
+                modifier = Modifier.fillMaxWidth().padding(start = 120.dp, end = 120.dp, top = 28.dp, bottom = 8.dp),
             )
 
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxWidth().weight(1f),
-                verticalAlignment = Alignment.Top,
             ) { page ->
                 val item = onboardingData[page]
+                // 1:1 con iOS: imagen pegada bajo el logo (la banda navy llega justo a su base, sin
+                // navy vacío encima) y textos debajo. heightIn acota la imagen (el asset es
+                // drawable-nodpi, si no se dibujaría a tamaño nativo ~59% del ancho).
                 Column(
                     Modifier.fillMaxSize(),
                     horizontalAlignment = Alignment.CenterHorizontally,
+                    // Carrusel + textos a media altura del área (entre arriba del todo y pegado a los puntitos).
+                    verticalArrangement = Arrangement.Center,
                 ) {
                     Image(
                         painter = painterResource(item.image),
                         contentDescription = null,
-                        contentScale = ContentScale.Fit,
+                        // FillWidth: la imagen ocupa todo el ancho (llena la banda azul) de forma
+                        // independiente de la densidad; el asset es ~cuadrado, así que crece en alto.
+                        contentScale = ContentScale.FillWidth,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 15.dp)
                             .onGloballyPositioned { coords ->
-                                if (page == pagerState.currentPage) {
+                                // Solo la primera vez (navyHeightPx == 0): congelar evita el "vibrado"
+                                // del borde durante la animación de navegación.
+                                if (page == pagerState.currentPage && navyHeightPx == 0) {
                                     val bottom = coords.positionInRoot().y + coords.size.height - rootTopPx
                                     navyHeightPx = (bottom - coords.size.height * 0.01f).toInt()
                                 }
@@ -123,7 +136,6 @@ fun WelcomeScreen(
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(horizontal = 16.dp),
                     )
-                    Spacer(Modifier.height(18.dp))
                 }
             }
 

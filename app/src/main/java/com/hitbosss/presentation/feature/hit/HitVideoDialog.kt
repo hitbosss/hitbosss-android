@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,11 +36,14 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.hitbosss.presentation.designsystem.theme.Gray100
 import com.hitbosss.presentation.designsystem.theme.Gray500
+import androidx.compose.foundation.border
+import com.hitbosss.presentation.designsystem.theme.Gray300
 import com.hitbosss.presentation.designsystem.theme.Gray800
 import com.hitbosss.presentation.designsystem.theme.HitbosssType
 import com.hitbosss.presentation.feature.ranking.VideoPlayer
 import com.hitbosss.presentation.feature.ranking.levelStyle
 import androidx.compose.ui.res.stringResource
+import com.hitbosss.presentation.designsystem.components.HitPopup
 import com.hitbosss.R
 
 /** Datos mínimos para mostrar el vídeo de un HIT con su tarjeta (perfil/grupo/evento). */
@@ -51,8 +55,13 @@ data class HitVideoData(
     val weightText: String,
     val levelWeight: String?,
     val rankText: String,
+    val pointsText: String = "",   // "X.XX POINTS" (wilks); vacío si no hay score
     val hitId: Int? = null,
 )
+
+/** Formatea el wilks como "X.XX POINTS" (punto decimal, 1:1 con iOS), o "" si es null. */
+fun formatPointsText(score: Double?): String =
+    score?.let { String.format(java.util.Locale.US, "%.2f POINTS", it) } ?: ""
 
 /**
  * Visor a pantalla completa de los HITs (equivale al overlay con TabView de iOS):
@@ -72,8 +81,16 @@ fun HitVideoDialog(
     val context = androidx.compose.ui.platform.LocalContext.current
     val exporting by actions.exporting.collectAsStateWithLifecycle()
     var showReport by remember { mutableStateOf(false) }
+    // null = sin resultado; true = enviada; false = error. Muestra el popup de confirmación tras denunciar.
+    var reportResult by remember { mutableStateOf<Boolean?>(null) }
     val pager = rememberPagerState(initialPage = initialPage.coerceIn(0, hits.lastIndex), pageCount = { hits.size })
     val current = hits[pager.currentPage]
+
+    // Prefetch de todos los vídeos del set al abrir el visor (como el preload-all de iOS): se cachean
+    // en segundo plano para que deslizar entre hits sea instantáneo.
+    LaunchedEffect(Unit) {
+        hits.forEach { VideoCache.prefetch(context, it.videoUrl) }
+    }
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Box(
@@ -81,11 +98,13 @@ fun HitVideoDialog(
             contentAlignment = Alignment.Center,
         ) {
             Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) {
-                HorizontalPager(state = pager, modifier = Modifier.weight(1f, fill = false)) { page ->
+                // Prepara también el hit adyacente (su player buffea/decodifica el 1er frame) para
+                // que al deslizar arranque sin spinner.
+                HorizontalPager(state = pager, beyondViewportPageCount = 1, modifier = Modifier.weight(1f, fill = false)) { page ->
                     HitVideoPage(
                         hit = hits[page],
                         isActive = pager.currentPage == page,
-                        onShare = { actions.shareVideo(context, hits[page].videoUrl) {} },
+                        onShare = { actions.shareVideo(context, hits[page]) {} },
                         onReport = { showReport = true },
                     )
                 }
@@ -121,11 +140,28 @@ fun HitVideoDialog(
     if (showReport) {
         ReportHitDialog(
             onConfirm = { comment ->
-                current.hitId?.let { id -> actions.report(id, comment) {} }
+                current.hitId?.let { id -> actions.report(id, comment) { ok -> reportResult = ok } }
                 showReport = false
             },
             onDismiss = { showReport = false },
         )
+    }
+    when (reportResult) {
+        true -> HitPopup(
+            title = stringResource(R.string.report_sent_title),
+            message = stringResource(R.string.report_sent_msg),
+            confirmText = stringResource(R.string.common_accept),
+            onConfirm = { reportResult = null },
+            onDismissRequest = { reportResult = null },
+        )
+        false -> HitPopup(
+            title = stringResource(R.string.common_unexpected_error),
+            message = stringResource(R.string.common_unexpected_error_msg),
+            confirmText = stringResource(R.string.common_accept),
+            onConfirm = { reportResult = null },
+            onDismissRequest = { reportResult = null },
+        )
+        null -> Unit
     }
 }
 
@@ -138,32 +174,34 @@ private fun HitVideoPage(hit: HitVideoData, isActive: Boolean, onShare: () -> Un
     ) {
         VideoPlayer(url = hit.videoUrl, seekSeconds = hit.seekSeconds, isActive = isActive)
 
-        // Tarjeta superior con los datos del hit
+        // Tarjeta superior con los datos del hit (HitVideoHeaderView de iOS): textos pequeños/repartidos.
         Column(
             modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth().padding(8.dp)
-                .clip(RoundedCornerShape(12.dp)).background(Gray100.copy(alpha = 0.95f)).padding(12.dp),
+                .clip(RoundedCornerShape(8.dp)).background(Gray100.copy(alpha = 0.8f))
+                .border(1.dp, Gray300, RoundedCornerShape(8.dp)),
         ) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 levelStyle(hit.levelWeight)?.let { lvl ->
                     Text(
                         stringResource(lvl.labelRes).uppercase(), style = HitbosssType.bodyDefaultEmphasis, color = lvl.text,
                         modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(lvl.bg)
-                            .padding(horizontal = 10.dp, vertical = 5.dp),
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
                     )
                 }
                 Spacer(Modifier.weight(1f))
                 if (hit.rankText.isNotEmpty()) {
-                    Text(hit.rankText, style = HitbosssType.titleBody, color = Gray800)
+                    Text(hit.rankText, style = HitbosssType.bodyDefaultEmphasis, color = Gray800)
                 }
             }
-            Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(hit.exerciseTitle, style = HitbosssType.titleBody, color = Gray800)
-                    if (hit.dateText.isNotEmpty()) {
-                        Text(hit.dateText, style = HitbosssType.bodyDefaultRegular, color = Gray500)
-                    }
+            Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp).padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(hit.exerciseTitle, style = HitbosssType.bodyDefaultEmphasis, color = Gray800, modifier = Modifier.weight(1f))
+                Text(hit.weightText, style = HitbosssType.bodyDefaultEmphasis, color = Gray800)
+            }
+            Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp).padding(top = 2.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(hit.dateText, style = HitbosssType.bodySmallRegular, color = Gray800, modifier = Modifier.weight(1f))
+                if (hit.pointsText.isNotEmpty()) {
+                    Text(hit.pointsText, style = HitbosssType.bodyDefaultEmphasis, color = Gray500)
                 }
-                Text(hit.weightText, style = HitbosssType.titleSubsection, color = Gray800)
             }
         }
 

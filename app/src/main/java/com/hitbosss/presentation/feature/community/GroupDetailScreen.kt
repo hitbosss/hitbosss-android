@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
@@ -70,7 +71,7 @@ import com.hitbosss.presentation.designsystem.components.HitPopup
 @Composable
 fun GroupDetailScreen(
     onBack: () -> Unit,
-    onOpenUserProfile: (String) -> Unit = {},
+    onOpenMembers: () -> Unit = {},
     onEditGroup: () -> Unit = {},
     viewModel: GroupDetailViewModel = hiltViewModel(),
 ) {
@@ -80,7 +81,7 @@ fun GroupDetailScreen(
     var showAdminBlock by remember { mutableStateOf(false) }
     var showDelete by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
-    var showMembers by remember { mutableStateOf(false) }
+    var showReport by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.left, state.deleted) { if (state.left || state.deleted) onBack() }
 
@@ -103,13 +104,17 @@ fun GroupDetailScreen(
                     DropdownMenuItem(text = { Text(stringResource(R.string.group_share)) }, onClick = {
                         showMenu = false
                         g?.let { gr ->
+                            // Enlace de deeplink (equivalente al universal link de iOS): abre el grupo
+                            // en la app si está instalada, o lleva a la tienda si no.
+                            val link = com.hitbosss.core.network.Environment.deeplinkBaseUrl + "group/${gr.id}"
                             val intent = Intent(Intent.ACTION_SEND).apply {
                                 type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, context.getString(R.string.group_share_text, gr.name))
+                                putExtra(Intent.EXTRA_TEXT, context.getString(R.string.group_share_text, link))
                             }
                             runCatching { context.startActivity(Intent.createChooser(intent, context.getString(R.string.group_share))) }
                         }
                     })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.group_report), color = Error500) }, onClick = { showMenu = false; showReport = true })
                 }
             }
         }
@@ -118,7 +123,7 @@ fun GroupDetailScreen(
         when {
             state.isLoading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = Primary500) }
             g == null -> Box(Modifier.fillMaxSize(), Alignment.Center) {
-                Text(state.error ?: stringResource(R.string.community_load_failed), style = HitbosssType.bodyDefaultRegular, color = Gray500)
+                com.hitbosss.presentation.designsystem.components.ErrorConnectionView(onRetry = viewModel::retry)
             }
             else -> {
                 Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
@@ -136,7 +141,7 @@ fun GroupDetailScreen(
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(stringResource(R.string.common_members), style = HitbosssType.titleBody, color = Gray800, modifier = Modifier.weight(1f))
-                                Text(stringResource(R.string.community_see_list), style = HitbosssType.bodySmallEmphasis, color = Primary500, modifier = Modifier.clickable { showMembers = true })
+                                Text(stringResource(R.string.community_see_list), style = HitbosssType.bodySmallEmphasis, color = Primary500, modifier = Modifier.clickable { onOpenMembers() })
                             }
                             Value("${g.stats.memberCount}")
                         }
@@ -155,7 +160,7 @@ fun GroupDetailScreen(
                         Spacer(Modifier.height(8.dp))
                     }
                 }
-                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     // Salir: bloquea solo si es el único admin con otros miembros (igual que iOS).
                     // Si es admin, estilo secundario (oscuro); si no, destructivo (rojo).
                     Box(
@@ -211,14 +216,26 @@ fun GroupDetailScreen(
             onDismissRequest = { showDelete = false },
         )
     }
-    if (showMembers) MembersManageDialog(
-        members = g?.members.orEmpty(),
-        titleRes = R.string.group_members_title,
-        isCurrentUserAdmin = state.isAdmin,
-        onOpenProfile = onOpenUserProfile,
-        onMakeAdmin = viewModel::makeAdmin,
-        onRemove = viewModel::removeMember,
-        onDismiss = { showMembers = false },
+    if (showReport) com.hitbosss.presentation.feature.hit.ReportDialog(
+        title = stringResource(R.string.group_report_title),
+        message = stringResource(R.string.group_report_msg),
+        onConfirm = { comment -> showReport = false; viewModel.report(comment) },
+        onDismiss = { showReport = false },
+    )
+    // Confirmación tras enviar la denuncia (éxito) / error si falla.
+    if (state.reportSent) HitPopup(
+        title = stringResource(R.string.report_sent_title),
+        message = stringResource(R.string.report_sent_msg),
+        confirmText = stringResource(R.string.common_accept),
+        onConfirm = viewModel::clearReportResult,
+        onDismissRequest = viewModel::clearReportResult,
+    )
+    if (state.reportFailed) HitPopup(
+        title = stringResource(R.string.common_unexpected_error),
+        message = stringResource(R.string.common_unexpected_error_msg),
+        confirmText = stringResource(R.string.common_accept),
+        onConfirm = viewModel::clearReportResult,
+        onDismissRequest = viewModel::clearReportResult,
     )
 }
 

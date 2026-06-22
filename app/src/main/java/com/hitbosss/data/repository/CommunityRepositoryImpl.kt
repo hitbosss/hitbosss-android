@@ -42,6 +42,15 @@ class CommunityRepositoryImpl @Inject constructor(
     override suspend fun deleteEvent(eventId: Int): Result<Unit> =
         withContext(Dispatchers.IO) { runCatching { api.deleteEvent(eventId); Unit } }
 
+    override suspend fun reportGroup(groupId: Int, comment: String?): Result<Unit> =
+        withContext(Dispatchers.IO) { runCatching { api.reportGroup(groupId, com.hitbosss.data.remote.dto.ReportRequestDto(comment?.ifBlank { null })); Unit } }
+
+    override suspend fun reportEvent(eventId: Int, comment: String?): Result<Unit> =
+        withContext(Dispatchers.IO) { runCatching { api.reportEvent(eventId, com.hitbosss.data.remote.dto.ReportRequestDto(comment?.ifBlank { null })); Unit } }
+
+    override suspend fun resetEventHit(eventId: Int, hitId: Int): Result<Unit> =
+        withContext(Dispatchers.IO) { runCatching { api.resetEventHit(eventId, hitId); Unit } }
+
     override suspend fun makeGroupAdmin(groupId: Int, userId: String): Result<Unit> =
         withContext(Dispatchers.IO) { runCatching { api.makeGroupAdmin(groupId, userId); Unit } }
 

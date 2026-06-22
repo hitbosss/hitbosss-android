@@ -97,24 +97,6 @@ com.hitbosss
 
 ---
 
-## Roadmap de features (por orden sugerido)
-
-Cada feature replica su equivalente de `Hitbosss_iOS/.../Presentation/Features/`.
-
-- [x] **Ranking** (slice de prueba: ranking oficial wilks)
-- [x] **ForceUpdate** (`GET /config` + chequeo de versión + pantalla)
-- [x] **Auth** (login Firebase + Google Sign-In vía Credentials Manager + check-user-exists)
-- [x] **Navigation root** (Launch → ForceUpdate/Welcome/CompleteProfile/Main) con Navigation Compose
-- [ ] **CompleteProfile** (registro: username, altura, peso, género, país) — actualmente stub
-- [ ] **MainTab** (Ranking, Community, Hit, Profile, Settings)
-- [ ] **Ranking** completo (filtros, por ejercicio, ranking del usuario, detalle de hit)
-- [ ] **Profile** (perfil, info personal, fotos, social networks)
-- [ ] **Hit** (grabación/selección de vídeo + subida multipart con progreso)
-- [ ] **Community** (grupos y eventos: listado, detalle, miembros, crear/editar)
-- [ ] **Settings**
-- [ ] **Design system components** (botones, textfields, segmented, dropdowns, popups… ~26 de iOS)
-- [ ] **i18n** (portar `Localizable.xcstrings` en/es a `strings.xml`)
-- [ ] **Tests** (equivalentes a los de iOS: mappers, repos, use cases, viewmodels)
 
 ---
 

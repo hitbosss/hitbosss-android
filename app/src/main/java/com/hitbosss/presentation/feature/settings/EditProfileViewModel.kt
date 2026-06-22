@@ -10,6 +10,8 @@ import com.hitbosss.domain.usecase.GetPersonalInfoUseCase
 import com.hitbosss.domain.usecase.UpdateProfileUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import com.hitbosss.R
+import coil.imageLoader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -124,7 +126,7 @@ class EditProfileViewModel @Inject constructor(
                         profilePicUrl = p.profilePicUrl, coverPicUrl = p.coverPicUrl,
                     )
                 }
-            }.onFailure { e -> _state.update { it.copy(isLoading = false, error = e.message) } }
+            }.onFailure { e -> _state.update { it.copy(isLoading = false, error = context.getString(R.string.common_unexpected_error_msg)) } }
         }
     }
 
@@ -181,10 +183,19 @@ class EditProfileViewModel @Inject constructor(
 
             updateProfile(uid, fields, profileFile, coverFile)
                 .onSuccess {
+                    // Inmediatez en TU perfil: si cambiaste foto/portada, invalida su caché (disco + memoria)
+                    // para que se vea la nueva al instante aunque el servidor reutilice la misma URL.
+                    // Las fotos del resto NO se tocan: siguen cacheadas (ahorro de peticiones).
+                    if (s.profilePicUri != null || s.coverPicUri != null) {
+                        val loader = context.imageLoader
+                        if (s.profilePicUri != null) s.profilePicUrl?.let { loader.diskCache?.remove(it) }
+                        if (s.coverPicUri != null) s.coverPicUrl?.let { loader.diskCache?.remove(it) }
+                        loader.memoryCache?.clear()
+                    }
                     refreshCoordinator.invalidateProfile()  // refleja los cambios al volver al perfil
                     _state.update { it.copy(saving = false, saved = true) }
                 }
-                .onFailure { e -> _state.update { it.copy(saving = false, error = e.message ?: "Error") } }
+                .onFailure { e -> _state.update { it.copy(saving = false, error = context.getString(R.string.common_unexpected_error_msg)) } }
         }
     }
 

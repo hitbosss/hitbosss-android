@@ -38,7 +38,9 @@ object NetworkModule {
     @Singleton
     fun provideOkHttpClient(authInterceptor: AuthInterceptor): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply {
-            level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY
+            // HEADERS (no BODY): loguear el cuerpo lee el RequestBody entero, lo que en la subida del
+            // vídeo provocaba que se "escribiera" dos veces (log + envío real) → el % saltaba 100→0→sube.
+            level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.HEADERS
             else HttpLoggingInterceptor.Level.NONE
         }
         return OkHttpClient.Builder()

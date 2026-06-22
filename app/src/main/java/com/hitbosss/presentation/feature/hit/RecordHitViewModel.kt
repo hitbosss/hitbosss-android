@@ -64,7 +64,7 @@ class RecordHitViewModel @Inject constructor(
             viewModelScope.launch {
                 getPersonalInfo(uid)
                     .onSuccess { personalInfo = it; pendingFile?.let(::doUpload) }
-                    .onFailure { e -> if (pendingFile != null) _state.update { it.copy(isUploading = false, error = e.message ?: context.getString(R.string.err_load_data)) } }
+                    .onFailure { e -> if (pendingFile != null) _state.update { it.copy(isUploading = false, error = context.getString(R.string.err_load_data)) } }
             }
         }
     }
@@ -98,7 +98,7 @@ class RecordHitViewModel @Inject constructor(
                     performedAt = videoMidpointSeconds(compatible),
                 ),
             ).onSuccess { _state.update { it.copy(isUploading = false, success = true) } }
-                .onFailure { e -> _state.update { it.copy(isUploading = false, error = e.message ?: context.getString(R.string.err_upload_hit)) } }
+                .onFailure { e -> _state.update { it.copy(isUploading = false, error = context.getString(R.string.err_upload_hit)) } }
         }
     }
 

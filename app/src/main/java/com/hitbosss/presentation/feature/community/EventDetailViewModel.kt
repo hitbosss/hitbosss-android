@@ -11,6 +11,8 @@ import com.hitbosss.domain.usecase.LeaveEventUseCase
 import com.hitbosss.domain.usecase.DeleteEventUseCase
 import com.hitbosss.domain.usecase.MakeEventAdminUseCase
 import com.hitbosss.domain.usecase.RemoveEventMemberUseCase
+import com.hitbosss.domain.usecase.ReportEventUseCase
+import com.hitbosss.domain.usecase.ResetEventHitUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -32,10 +34,13 @@ data class EventDetailUiState(
     val leaving: Boolean = false,
     val left: Boolean = false,
     val deleted: Boolean = false,
+    val reportSent: Boolean = false,
+    val reportFailed: Boolean = false,
 ) {
-    /** ¿El usuario actual es admin del evento? */
+    /** ¿El usuario actual es admin del evento? (el creador siempre cuenta, fix iOS #645) */
     val isAdmin: Boolean
-        get() = event?.members?.firstOrNull { it.userId == currentUserId }?.isAdmin == true
+        get() = event?.members?.firstOrNull { it.userId == currentUserId }?.isAdmin == true ||
+            (currentUserId != null && event?.createdBy?.id == currentUserId)
 
     /** Igual que el grupo: solo se bloquea salir si es el único admin con otros miembros. */
     val canLeaveDirectly: Boolean
@@ -58,6 +63,8 @@ class EventDetailViewModel @Inject constructor(
     private val deleteEvent: DeleteEventUseCase,
     private val makeEventAdmin: MakeEventAdminUseCase,
     private val removeEventMember: RemoveEventMemberUseCase,
+    private val reportEvent: ReportEventUseCase,
+    private val resetEventHit: ResetEventHitUseCase,
     private val getCurrentUser: GetCurrentUserUseCase,
     private val getUserProfile: GetUserProfileUseCase,
     private val refreshCoordinator: com.hitbosss.core.RefreshCoordinator,
@@ -78,7 +85,7 @@ class EventDetailViewModel @Inject constructor(
                     refreshCoordinator.invalidateCommunity()
                     _state.update { it.copy(isLoading = false, event = e) }
                 }
-                .onFailure { e -> _state.update { it.copy(isLoading = false, error = e.message ?: "Error") } }
+                .onFailure { e -> _state.update { it.copy(isLoading = false, error = context.getString(R.string.common_unexpected_error_msg)) } }
         }
         getCurrentUser()?.uid?.let { uid ->
             viewModelScope.launch {
@@ -97,12 +104,22 @@ class EventDetailViewModel @Inject constructor(
         }
     }
 
+    /** Reintento desde la pantalla de error no controlado. */
+    fun retry() {
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true, error = null) }
+            getEvent(eventId)
+                .onSuccess { e -> refreshCoordinator.invalidateCommunity(); _state.update { it.copy(isLoading = false, event = e) } }
+                .onFailure { e -> _state.update { it.copy(isLoading = false, error = context.getString(R.string.common_unexpected_error_msg)) } }
+        }
+    }
+
     fun leave() {
         viewModelScope.launch {
             _state.update { it.copy(leaving = true) }
             leaveEvent(eventId)
                 .onSuccess { refreshCoordinator.invalidateCommunity(); _state.update { it.copy(leaving = false, left = true) } }
-                .onFailure { e -> _state.update { it.copy(leaving = false, error = e.message ?: context.getString(R.string.err_leave)) } }
+                .onFailure { e -> _state.update { it.copy(leaving = false, error = context.getString(R.string.err_leave)) } }
         }
     }
 
@@ -111,7 +128,27 @@ class EventDetailViewModel @Inject constructor(
             _state.update { it.copy(leaving = true) }
             deleteEvent(eventId)
                 .onSuccess { refreshCoordinator.invalidateCommunity(); _state.update { it.copy(leaving = false, deleted = true) } }
-                .onFailure { e -> _state.update { it.copy(leaving = false, error = e.message ?: context.getString(R.string.err_delete)) } }
+                .onFailure { e -> _state.update { it.copy(leaving = false, error = context.getString(R.string.err_delete)) } }
+        }
+    }
+
+    /** Denuncia el evento (comentario opcional). Silencioso, igual que el report de HIT. */
+    fun report(comment: String) {
+        viewModelScope.launch {
+            reportEvent(eventId, comment.ifBlank { null })
+                .onSuccess { _state.update { it.copy(reportSent = true) } }
+                .onFailure { _state.update { it.copy(reportFailed = true) } }
+        }
+    }
+
+    fun clearReportResult() = _state.update { it.copy(reportSent = false, reportFailed = false) }
+
+    /** Resetea (anula) el hit de un participante (solo admin) y recarga el ranking. */
+    fun resetHit(hitId: Int) {
+        viewModelScope.launch {
+            resetEventHit(eventId, hitId)
+                .onSuccess { refreshCoordinator.invalidateCommunity(); reloadEvent() }
+                .onFailure { e -> _state.update { it.copy(error = context.getString(R.string.err_generic_action)) } }
         }
     }
 
@@ -119,7 +156,7 @@ class EventDetailViewModel @Inject constructor(
         viewModelScope.launch {
             makeEventAdmin(eventId, userId)
                 .onSuccess { refreshCoordinator.invalidateCommunity(); reloadEvent() }
-                .onFailure { e -> _state.update { it.copy(error = e.message ?: context.getString(R.string.err_generic_action)) } }
+                .onFailure { e -> _state.update { it.copy(error = context.getString(R.string.err_generic_action)) } }
         }
     }
 
@@ -127,7 +164,7 @@ class EventDetailViewModel @Inject constructor(
         viewModelScope.launch {
             removeEventMember(eventId, userId)
                 .onSuccess { refreshCoordinator.invalidateCommunity(); reloadEvent() }
-                .onFailure { e -> _state.update { it.copy(error = e.message ?: context.getString(R.string.err_generic_action)) } }
+                .onFailure { e -> _state.update { it.copy(error = context.getString(R.string.err_generic_action)) } }
         }
     }
 }

@@ -11,6 +11,7 @@ import com.hitbosss.domain.usecase.GetUserProfileUseCase
 import com.hitbosss.domain.usecase.LeaveGroupUseCase
 import com.hitbosss.domain.usecase.MakeGroupAdminUseCase
 import com.hitbosss.domain.usecase.RemoveGroupMemberUseCase
+import com.hitbosss.domain.usecase.ReportGroupUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,10 +34,14 @@ data class GroupDetailUiState(
     val leaving: Boolean = false,
     val left: Boolean = false,
     val deleted: Boolean = false,
+    val reportSent: Boolean = false,
+    val reportFailed: Boolean = false,
 ) {
     /** ¿El usuario actual es admin del grupo? (muestra "Eliminar grupo" y estilo del botón salir). */
+    // El creador siempre cuenta como admin aunque no figure como tal en members (fix iOS #645).
     val isAdmin: Boolean
-        get() = group?.members?.firstOrNull { it.userId == currentUserId }?.isAdmin == true
+        get() = group?.members?.firstOrNull { it.userId == currentUserId }?.isAdmin == true ||
+            (currentUserId != null && group?.createdBy?.id == currentUserId)
 
     /**
      * Igual que iOS canLeaveGroupDirectly(): puede salir directo si no es admin, o hay más de un
@@ -58,6 +63,7 @@ class GroupDetailViewModel @Inject constructor(
     private val deleteGroup: DeleteGroupUseCase,
     private val makeGroupAdmin: MakeGroupAdminUseCase,
     private val removeGroupMember: RemoveGroupMemberUseCase,
+    private val reportGroup: ReportGroupUseCase,
     private val getCurrentUser: GetCurrentUserUseCase,
     private val getUserProfile: GetUserProfileUseCase,
     private val refreshCoordinator: com.hitbosss.core.RefreshCoordinator,
@@ -78,7 +84,7 @@ class GroupDetailViewModel @Inject constructor(
                     refreshCoordinator.invalidateCommunity()
                     _state.update { it.copy(isLoading = false, group = g) }
                 }
-                .onFailure { e -> _state.update { it.copy(isLoading = false, error = e.message ?: "Error") } }
+                .onFailure { e -> _state.update { it.copy(isLoading = false, error = context.getString(R.string.common_unexpected_error_msg)) } }
         }
         getCurrentUser()?.uid?.let { uid ->
             viewModelScope.launch {
@@ -97,12 +103,22 @@ class GroupDetailViewModel @Inject constructor(
         }
     }
 
+    /** Reintento desde la pantalla de error no controlado. */
+    fun retry() {
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true, error = null) }
+            getGroup(groupId)
+                .onSuccess { g -> refreshCoordinator.invalidateCommunity(); _state.update { it.copy(isLoading = false, group = g) } }
+                .onFailure { e -> _state.update { it.copy(isLoading = false, error = context.getString(R.string.common_unexpected_error_msg)) } }
+        }
+    }
+
     fun leave() {
         viewModelScope.launch {
             _state.update { it.copy(leaving = true) }
             leaveGroup(groupId)
                 .onSuccess { refreshCoordinator.invalidateCommunity(); _state.update { it.copy(leaving = false, left = true) } }
-                .onFailure { e -> _state.update { it.copy(leaving = false, error = e.message ?: context.getString(R.string.err_leave)) } }
+                .onFailure { e -> _state.update { it.copy(leaving = false, error = context.getString(R.string.err_leave)) } }
         }
     }
 
@@ -111,16 +127,27 @@ class GroupDetailViewModel @Inject constructor(
             _state.update { it.copy(leaving = true) }
             deleteGroup(groupId)
                 .onSuccess { refreshCoordinator.invalidateCommunity(); _state.update { it.copy(leaving = false, deleted = true) } }
-                .onFailure { e -> _state.update { it.copy(leaving = false, error = e.message ?: context.getString(R.string.err_delete)) } }
+                .onFailure { e -> _state.update { it.copy(leaving = false, error = context.getString(R.string.err_delete)) } }
         }
     }
+
+    /** Denuncia el grupo (comentario opcional). Silencioso, igual que el report de HIT. */
+    fun report(comment: String) {
+        viewModelScope.launch {
+            reportGroup(groupId, comment.ifBlank { null })
+                .onSuccess { _state.update { it.copy(reportSent = true) } }
+                .onFailure { _state.update { it.copy(reportFailed = true) } }
+        }
+    }
+
+    fun clearReportResult() = _state.update { it.copy(reportSent = false, reportFailed = false) }
 
     /** Da admin a un miembro (solo admin) y recarga la lista. */
     fun makeAdmin(userId: String) {
         viewModelScope.launch {
             makeGroupAdmin(groupId, userId)
                 .onSuccess { refreshCoordinator.invalidateCommunity(); reloadGroup() }
-                .onFailure { e -> _state.update { it.copy(error = e.message ?: context.getString(R.string.err_generic_action)) } }
+                .onFailure { e -> _state.update { it.copy(error = context.getString(R.string.err_generic_action)) } }
         }
     }
 
@@ -129,7 +156,7 @@ class GroupDetailViewModel @Inject constructor(
         viewModelScope.launch {
             removeGroupMember(groupId, userId)
                 .onSuccess { refreshCoordinator.invalidateCommunity(); reloadGroup() }
-                .onFailure { e -> _state.update { it.copy(error = e.message ?: context.getString(R.string.err_generic_action)) } }
+                .onFailure { e -> _state.update { it.copy(error = context.getString(R.string.err_generic_action)) } }
         }
     }
 }

@@ -14,6 +14,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -49,6 +53,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -99,6 +105,14 @@ object TutorialTracker {
     fun markRankingOnboardingSeen(context: Context) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_RANKING, true).apply()
     }
+
+    /** Tutorial "Cómo grabar tu HIT" visto por ejercicio (1:1 con iOS hasSeenTutorial(for:)). */
+    fun hasSeenExerciseTutorial(context: Context, apiKey: String): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("tutorial_seen_$apiKey", false)
+
+    fun markExerciseTutorialSeen(context: Context, apiKey: String) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean("tutorial_seen_$apiKey", true).apply()
+    }
 }
 
 /**
@@ -113,9 +127,14 @@ fun RankingOnboardingOverlay(
     onBack: () -> Unit,
     onSkip: () -> Unit,
 ) {
+    // Los frames vienen en coordenadas del root (boundsInRoot). El Canvas de abajo dibuja en su
+    // espacio local (su origen está desplazado del root por el padding superior, Scaffold, etc.), así
+    // que restamos la posición del overlay en el root para que el recorte caiga sobre el elemento.
+    var overlayOrigin by remember { mutableStateOf(Offset.Zero) }
     Box(
         Modifier
             .fillMaxSize()
+            .onGloballyPositioned { overlayOrigin = it.positionInRoot() }
             .pointerInput(step) {
                 var dragX = 0f
                 detectHorizontalDragGestures(
@@ -126,7 +145,7 @@ fun RankingOnboardingOverlay(
                 ) { _, dragAmount -> dragX += dragAmount }
             },
     ) {
-        OnboardingDimmedOverlay(highlightFrame, step.shape)
+        OnboardingDimmedOverlay(highlightFrame.translate(-overlayOrigin.x, -overlayOrigin.y), step.shape)
 
         Box(Modifier.fillMaxSize().padding(horizontal = 47.dp), contentAlignment = Alignment.Center) {
             OnboardingCard(

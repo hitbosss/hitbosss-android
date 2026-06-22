@@ -15,6 +15,7 @@ data class RankingEntryDto(
     val hitId: Int? = null,
     val username: String? = null,
     val gender: String? = null,
+    val isDeleted: Boolean? = null,   // usuario eliminado (fix iOS #639)
     // Oficial:
     val totalWilks: Double? = null,
     val totalLift: MeasurementDto? = null,
@@ -23,6 +24,8 @@ data class RankingEntryDto(
     val wilksScore: Double? = null,
     val levelWeight: String? = null,
     val levelWilks: String? = null,
+    // birthDate = timestamp unix (segundos) para calcular la categoría de edad del filtro.
+    val birthDate: Long? = null,
     val profilePic: String? = null,
     val countryCode: String? = null,
     val address: AddressDto? = null,
@@ -34,10 +37,17 @@ data class RankingEntryDto(
 )
 
 @Serializable
-data class AddressDto(val country: CountryDto? = null)
+data class AddressDto(
+    val country: CountryDto? = null,
+    // Ubicación actual del usuario (si la compartió) — para el filtro de ranking "Current".
+    val currentLocation: LatLngDto? = null,
+)
 
 @Serializable
 data class CountryDto(val code: String? = null)
+
+@Serializable
+data class LatLngDto(val latitude: Double? = null, val longitude: Double? = null)
 
 /** Cada deporte trae el ranking oficial + uno por ejercicio (mapas uid -> entry). */
 @Serializable

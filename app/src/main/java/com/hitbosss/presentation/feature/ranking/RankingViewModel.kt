@@ -33,6 +33,10 @@ data class RankingUiState(
     val currentUserCountry: String? = null,
     val currentUserPicUrl: String? = null,
     val error: String? = null,
+    // Ubicación GPS del usuario para el filtro "Current" + popup si deniega el permiso (igual que iOS).
+    val userLat: Double? = null,
+    val userLng: Double? = null,
+    val showLocationPermissionPopup: Boolean = false,
 ) {
     private val sportEnum get() = Sport.entries.firstOrNull { it.apiValue == sport } ?: Sport.Powerlifting
 
@@ -44,6 +48,22 @@ data class RankingUiState(
     /** Por puntos se usa levelWilks; por peso, levelWeight (igual que iOS). */
     val orderByPoints: Boolean get() = orderBy == RankingOrder.Points
     private fun RankingEntry.level() = if (orderByPoints) levelWilks else levelWeight
+
+    /** Edad en años a partir del timestamp unix (segundos), igual que calculateAge de iOS. */
+    private fun ageFrom(birthDateSeconds: Long): Int {
+        val birth = java.util.Calendar.getInstance().apply { timeInMillis = birthDateSeconds * 1000 }
+        val now = java.util.Calendar.getInstance()
+        var age = now.get(java.util.Calendar.YEAR) - birth.get(java.util.Calendar.YEAR)
+        if (now.get(java.util.Calendar.DAY_OF_YEAR) < birth.get(java.util.Calendar.DAY_OF_YEAR)) age--
+        return age
+    }
+
+    /** Distancia en km entre dos coordenadas (Haversine vía android.location.Location). */
+    private fun distanceKm(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double {
+        val res = FloatArray(1)
+        android.location.Location.distanceBetween(lat1, lng1, lat2, lng2, res)
+        return res[0] / 1000.0
+    }
 
     private val allEntries: List<RankingEntry> get() = ranking?.byCategory?.get(selectedCategory).orEmpty()
 
@@ -58,12 +78,18 @@ data class RankingUiState(
                 (searchText.isBlank() || e.username.contains(searchText, ignoreCase = true)) &&
                     (selectedLevels.isEmpty() || (e.level() ?: "") in selectedLevels) &&
                     (selectedGender.apiValue == null || e.gender?.equals(selectedGender.apiValue, true) == true) &&
+                    (selectedAges.isEmpty() || (e.birthDate > 0 && selectedAges.any { it.matches(ageFrom(e.birthDate)) })) &&
                     (selectedLocation != RankingLocation.National || currentUserCountry == null ||
-                        e.countryCode.equals(currentUserCountry, true))
+                        e.countryCode.equals(currentUserCountry, true)) &&
+                    // "Current" (igual que iOS): entradas con ubicación dentro de 10 km del GPS del usuario.
+                    (selectedLocation != RankingLocation.Current ||
+                        (userLat != null && userLng != null && e.latitude != null && e.longitude != null &&
+                            distanceKm(userLat, userLng, e.latitude, e.longitude) <= 10.0))
             }
-            // Orden: por peso levantado o por puntos (wilks). Re-numera la posición mostrada.
+            // Orden: por peso levantado o por puntos (wilks), con desempate (igual que iOS).
+            // Re-numera la posición mostrada.
             .sortedWith(
-                if (orderByPoints) compareByDescending { it.score }
+                if (orderByPoints) compareByDescending<RankingEntry> { it.score }.thenByDescending { it.lift?.value ?: 0.0 }
                 else compareByDescending<RankingEntry> { it.lift?.value ?: 0.0 }.thenByDescending { it.score },
             )
             .mapIndexed { i, e -> e.copy(rank = i + 1) }
@@ -105,6 +131,7 @@ class RankingViewModel @Inject constructor(
     private val getRanking: GetRankingUseCase,
     private val getCurrentUser: GetCurrentUserUseCase,
     private val getUserProfile: GetUserProfileUseCase,
+    private val updateProfile: com.hitbosss.domain.usecase.UpdateProfileUseCase,
     private val refreshCoordinator: com.hitbosss.core.RefreshCoordinator,
 ) : ViewModel() {
 
@@ -134,10 +161,20 @@ class RankingViewModel @Inject constructor(
     /** Pull-to-refresh manual. */
     fun refresh() = reloadData(showRefreshing = true)
 
+    // Marca de tiempo de la última carga; para el refresco por antigüedad (refreshIfStale).
+    private var lastLoadedAt = 0L
+    private val staleMs = 5 * 60 * 1000L
+
+    /** Recarga en segundo plano (sin spinner) solo si los datos llevan mucho tiempo sin refrescarse. */
+    fun refreshIfStale() {
+        if (System.currentTimeMillis() - lastLoadedAt > staleMs) reloadData(showRefreshing = false)
+    }
+
     /** Recarga el ranking del deporte actual (sin tocar la pestaña/filtros). Guarda de concurrencia. */
     private fun reloadData(showRefreshing: Boolean) {
         if (reloading) return
         reloading = true
+        lastLoadedAt = System.currentTimeMillis()
         viewModelScope.launch {
             if (showRefreshing) _state.update { it.copy(isRefreshing = true) }
             getRanking(_state.value.sport)
@@ -157,6 +194,7 @@ class RankingViewModel @Inject constructor(
         val official = RankingCategory.forSport(
             Sport.entries.firstOrNull { it.apiValue == sport } ?: Sport.Powerlifting,
         ).first()
+        lastLoadedAt = System.currentTimeMillis()
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null, sport = sport, selectedCategory = official) }
             getRanking(sport)
@@ -174,7 +212,23 @@ class RankingViewModel @Inject constructor(
 
     fun setOrder(order: RankingOrder) = _state.update { it.copy(orderBy = order) }
 
+    /** World/National se aplican directos (filtrado cliente). "Current" pasa por onCurrentLocation*. */
     fun setLocation(location: RankingLocation) = _state.update { it.copy(selectedLocation = location) }
+
+    /** GPS concedido: guarda la ubicación, activa el filtro "Current" y la sube al backend (igual que iOS). */
+    fun onCurrentLocationGranted(lat: Double, lng: Double) {
+        _state.update { it.copy(selectedLocation = RankingLocation.Current, userLat = lat, userLng = lng) }
+        getCurrentUser()?.uid?.let { uid ->
+            viewModelScope.launch {
+                updateProfile(uid, mapOf("latitude" to lat.toString(), "longitude" to lng.toString()), null, null)
+            }
+        }
+    }
+
+    /** Permiso denegado o sin ubicación: se mantiene la opción previa y se avisa con un popup. */
+    fun onCurrentLocationDenied() = _state.update { it.copy(showLocationPermissionPopup = true) }
+
+    fun dismissLocationPopup() = _state.update { it.copy(showLocationPermissionPopup = false) }
 
     fun toggleAge(age: AgeCategory) = _state.update {
         it.copy(selectedAges = if (age in it.selectedAges) it.selectedAges - age else it.selectedAges + age)

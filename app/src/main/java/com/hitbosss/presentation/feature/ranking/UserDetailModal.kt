@@ -60,6 +60,8 @@ import com.hitbosss.presentation.designsystem.theme.Gray100
 import com.hitbosss.presentation.designsystem.theme.Gray200
 import com.hitbosss.presentation.designsystem.theme.Gray400
 import com.hitbosss.presentation.designsystem.theme.Gray500
+import androidx.compose.foundation.border
+import com.hitbosss.presentation.designsystem.theme.Gray300
 import com.hitbosss.presentation.designsystem.theme.Gray800
 import com.hitbosss.presentation.designsystem.theme.HitbosssType
 import com.hitbosss.presentation.designsystem.theme.Primary500
@@ -157,6 +159,8 @@ private fun HitPage(
     val context = LocalContext.current
     val exporting by actions.exporting.collectAsStateWithLifecycle()
     var showReport by remember { mutableStateOf(false) }
+    // null = sin resultado; true = enviada; false = error. Popup de confirmación tras denunciar.
+    var reportResult by remember { mutableStateOf<Boolean?>(null) }
 
     Box(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp), contentAlignment = Alignment.TopCenter) {
         Box(
@@ -167,10 +171,11 @@ private fun HitPage(
                 VideoPlayer(url = url, seekSeconds = entry.performedAt, isActive = isActive)
             }
 
-            // Cabecera del hit superpuesta (HitVideoHeaderView de iOS)
+            // Cabecera del hit superpuesta (HitVideoHeaderView de iOS): textos pequeños y repartidos.
             Column(
                 modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth().padding(8.dp)
-                    .clip(RoundedCornerShape(12.dp)).background(Gray100.copy(alpha = 0.95f)).padding(12.dp),
+                    .clip(RoundedCornerShape(8.dp)).background(Gray100.copy(alpha = 0.8f))
+                    .border(1.dp, Gray300, RoundedCornerShape(8.dp)),
             ) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
                     PositionBadge(entry.rank)
@@ -178,26 +183,41 @@ private fun HitPage(
                     levelStyle(entry.levelWeight)?.let { lvl ->
                         Text(
                             stringResource(lvl.labelRes).uppercase(), style = HitbosssType.bodyDefaultEmphasis, color = lvl.text,
-                            modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(lvl.bg).padding(horizontal = 10.dp, vertical = 5.dp),
+                            modifier = Modifier.padding(end = 8.dp, top = 4.dp).clip(RoundedCornerShape(6.dp)).background(lvl.bg).padding(horizontal = 8.dp, vertical = 4.dp),
                         )
                     }
                 }
-                Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(category.title, style = HitbosssType.titleBody, color = Gray800)
-                        Text(formatHitDate(entry.createdAt), style = HitbosssType.bodyDefaultRegular, color = Gray500)
-                    }
-                    Column(horizontalAlignment = Alignment.End) {
-                        entry.lift?.let { Text("${it.value.toInt()} ${it.unit.uppercase()}", style = HitbosssType.titleSubsection, color = Gray800) }
-                        Text("${formatPointsModal(entry.score)} POINTS", style = HitbosssType.bodyDefaultRegular, color = Gray500)
-                    }
+                // Fila ejercicio | peso (bodyDefaultEmphasis, igual que iOS)
+                Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp).padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(category.title, style = HitbosssType.bodyDefaultEmphasis, color = Gray800, modifier = Modifier.weight(1f))
+                    entry.lift?.let { Text("${it.value.toInt()} ${it.unit.uppercase()}", style = HitbosssType.bodyDefaultEmphasis, color = Gray800) }
+                }
+                // Fila fecha | points (bodySmallRegular)
+                Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp).padding(top = 2.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(formatHitDate(entry.createdAt), style = HitbosssType.bodySmallRegular, color = Gray800, modifier = Modifier.weight(1f))
+                    Text("${formatPointsModal(entry.score)} POINTS", style = HitbosssType.bodySmallRegular, color = Gray500)
                 }
             }
 
             // Botones compartir / denunciar (abajo-derecha)
             entry.videoUrl?.takeIf { it.isNotBlank() }?.let { url ->
                 com.hitbosss.presentation.feature.hit.HitActionButtons(
-                    onShare = { actions.shareVideo(context, url) {} },
+                    onShare = {
+                        actions.shareVideo(
+                            context,
+                            com.hitbosss.presentation.feature.hit.HitVideoData(
+                                videoUrl = url,
+                                seekSeconds = entry.performedAt,
+                                exerciseTitle = category.title,
+                                dateText = formatHitDate(entry.createdAt),
+                                weightText = entry.lift?.let { "${it.value.toInt()} ${it.unit.uppercase()}" } ?: "",
+                                levelWeight = entry.levelWeight,
+                                rankText = "#${entry.rank}",
+                                pointsText = com.hitbosss.presentation.feature.hit.formatPointsText(entry.score),
+                                hitId = entry.hitId,
+                            ),
+                        ) {}
+                    },
                     onReport = { showReport = true },
                     modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
                 )
@@ -210,11 +230,28 @@ private fun HitPage(
     if (showReport) {
         com.hitbosss.presentation.feature.hit.ReportHitDialog(
             onConfirm = { comment ->
-                entry.hitId?.let { id -> actions.report(id, comment) {} }
+                entry.hitId?.let { id -> actions.report(id, comment) { ok -> reportResult = ok } }
                 showReport = false
             },
             onDismiss = { showReport = false },
         )
+    }
+    when (reportResult) {
+        true -> com.hitbosss.presentation.designsystem.components.HitPopup(
+            title = stringResource(R.string.report_sent_title),
+            message = stringResource(R.string.report_sent_msg),
+            confirmText = stringResource(R.string.common_accept),
+            onConfirm = { reportResult = null },
+            onDismissRequest = { reportResult = null },
+        )
+        false -> com.hitbosss.presentation.designsystem.components.HitPopup(
+            title = stringResource(R.string.common_unexpected_error),
+            message = stringResource(R.string.common_unexpected_error_msg),
+            confirmText = stringResource(R.string.common_accept),
+            onConfirm = { reportResult = null },
+            onDismissRequest = { reportResult = null },
+        )
+        null -> Unit
     }
 }
 
@@ -223,25 +260,34 @@ private fun HitPage(
 @Composable
 internal fun VideoPlayer(url: String, seekSeconds: Double, isActive: Boolean) {
     val context = LocalContext.current
-    var isReady by remember { mutableStateOf(false) }
+    // Solo se considera "listo" cuando el PRIMER FOTOGRAMA está renderizado (no solo STATE_READY).
+    // Así no se reproduce de forma invisible mientras decodifica (sobre todo HEVC de iPhone), que
+    // hacía que el vídeo apareciera "ya empezado". Mirroring de iOS: seek al lift y mostrar/reproducir
+    // cuando hay imagen real.
+    var firstFrame by remember(url) { mutableStateOf(false) }
 
     val player = remember(url) {
-        ExoPlayer.Builder(context).build().apply {
+        // Renderers con fallback de decodificador: si el decodificador (p. ej. HEVC de iPhone) falla
+        // al inicializarse, intenta otro en vez de romper la reproducción ("a veces no cargan").
+        val renderers = androidx.media3.exoplayer.DefaultRenderersFactory(context)
+            .setEnableDecoderFallback(true)
+        // MediaSource con caché en disco compartida → reapertura instantánea y arranque más rápido.
+        ExoPlayer.Builder(context, renderers)
+            .setMediaSourceFactory(com.hitbosss.presentation.feature.hit.VideoCache.mediaSourceFactory(context))
+            .build().apply {
             setMediaItem(MediaItem.fromUri(url))
             repeatMode = Player.REPEAT_MODE_OFF // iOS no hace loop
             playWhenReady = false
-            // Seek al mejor instante del lift, igual que iOS (CMTime(performedAt))
-            if (seekSeconds > 0) seekTo((seekSeconds * 1000).toLong())
+            // Se reproduce el clip COMPLETO desde el principio (no se hace seek a performedAt: en
+            // algunos hits performedAt cae al final del recorte y el vídeo se mostraba "ya acabado").
             prepare()
         }
     }
 
-    // Marca "listo" cuando el buffer aguanta (iOS: isPlaybackLikelyToKeepUp)
     DisposableEffect(player) {
         val listener = object : Player.Listener {
-            override fun onPlaybackStateChanged(state: Int) {
-                if (state == Player.STATE_READY) isReady = true
-            }
+            // El primer fotograma decodificado y mostrado en la superficie (también en pausa tras el seek).
+            override fun onRenderedFirstFrame() { firstFrame = true }
         }
         player.addListener(listener)
         onDispose {
@@ -250,27 +296,30 @@ internal fun VideoPlayer(url: String, seekSeconds: Double, isActive: Boolean) {
         }
     }
 
-    // Reproduce solo la página activa (iOS: play()/pause() según isActive)
-    LaunchedEffect(isActive) {
-        player.playWhenReady = isActive
+    // Reproduce solo cuando hay imagen y la página está activa (iOS: play() tras isPlaybackLikelyToKeepUp).
+    LaunchedEffect(isActive, firstFrame) {
+        player.playWhenReady = isActive && firstFrame
         if (!isActive) player.pause()
     }
 
-    // Crossfade del vídeo cuando está listo (iOS: opacity 0->1 easeIn 0.2s)
-    val videoAlpha by animateFloatAsState(targetValue = if (isReady) 1f else 0f, animationSpec = tween(200), label = "videoAlpha")
+    // Crossfade del vídeo cuando aparece el primer fotograma (iOS: opacity 0->1 easeIn 0.2s)
+    val videoAlpha by animateFloatAsState(targetValue = if (firstFrame) 1f else 0f, animationSpec = tween(200), label = "videoAlpha")
 
     AndroidView(
         factory = { ctx ->
             // PlayerView con TextureView (layout XML) para que el alpha/crossfade funcione.
             (android.view.LayoutInflater.from(ctx).inflate(R.layout.view_hit_player, null) as PlayerView).apply {
                 this.player = player
+                // Controles ocultos durante la reproducción; aparecen al tocar el vídeo (no auto-show).
+                controllerAutoShow = false
+                hideController()
             }
         },
         modifier = Modifier.fillMaxSize().alpha(videoAlpha),
     )
 
     // Placeholder mientras carga (iOS: rect gris + ProgressView)
-    if (!isReady) {
+    if (!firstFrame) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator(color = Color.White)
         }

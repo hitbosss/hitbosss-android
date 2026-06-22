@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,6 +19,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.SaveAlt
@@ -30,12 +32,18 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.hitbosss.presentation.feature.ranking.VideoPlayer
+import com.hitbosss.presentation.feature.settings.rememberTutorialData
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -70,6 +78,7 @@ import com.hitbosss.presentation.designsystem.theme.Secondary500
 import androidx.compose.ui.res.stringResource
 import com.hitbosss.R
 import com.hitbosss.presentation.designsystem.components.HitPopup
+import com.hitbosss.presentation.feature.ranking.TutorialTracker
 import com.hitbosss.presentation.feature.ranking.titleRes
 
 /**
@@ -83,11 +92,17 @@ fun UploadHitFab(
     exerciseKey: String,
     onRecordHit: (exercise: String, weight: Double) -> Unit,
     modifier: Modifier = Modifier,
-    onTutorial: () -> Unit = {},
+    onTutorial: (apiKey: String) -> Unit = {},
     onSavedHits: () -> Unit = {},
 ) {
-    var showSheet by remember { mutableStateOf(false) }
+    var showSheet by rememberSaveable { mutableStateOf(false) }
     var showAlert by remember { mutableStateOf(false) }
+    // Al pulsar "Ver tutorial" se cierra la hoja y se navega; esta bandera (persistida) hace que al
+    // VOLVER de la página de tutoriales se reabra la hoja sola, sin tener que pulsar "subir hit" otra vez.
+    var reopenSheetOnReturn by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (reopenSheetOnReturn) { reopenSheetOnReturn = false; showSheet = true }
+    }
 
     FloatingActionButton(
         onClick = { if (isOfficial) showAlert = true else showSheet = true },
@@ -104,7 +119,8 @@ fun UploadHitFab(
             exercise = exercise,
             onDismiss = { showSheet = false },
             onRecord = { weight -> showSheet = false; onRecordHit(exerciseKey, weight) },
-            onTutorial = onTutorial,
+            // "Ver tutorial": cierra la hoja y navega; marca para reabrirla al volver.
+            onTutorial = { apiKey -> reopenSheetOnReturn = true; showSheet = false; onTutorial(apiKey) },
             onSavedHits = { showSheet = false; onSavedHits() },
         )
     }
@@ -116,12 +132,16 @@ private fun UploadHitSheet(
     exercise: Exercise,
     onDismiss: () -> Unit,
     onRecord: (Double) -> Unit,
-    onTutorial: () -> Unit,
+    onTutorial: (apiKey: String) -> Unit,
     onSavedHits: () -> Unit,
     viewModel: HitUploadViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    // Modal de vídeo del tutorial (se muestra la PRIMERA vez que se va a grabar este ejercicio).
+    var showVideoModal by remember { mutableStateOf(false) }
+    val tutorialVideoUrl = rememberTutorialData().firstOrNull { it.apiKey == exercise.apiValue }?.videoUrl
 
     val isPl = exercise.sport == Sport.Powerlifting
     val sportColor = if (isPl) Secondary500 else Error500
@@ -215,6 +235,7 @@ private fun UploadHitSheet(
                 title = stringResource(R.string.hit_saved_list),
                 subtitle = stringResource(R.string.hit_none_pending),
                 onClick = onSavedHits,
+                badgeCount = state.pendingCount,
             )
             ActionRow(
                 icon = { Icon(Icons.Filled.PlayCircle, contentDescription = null, tint = Purple400, modifier = Modifier.size(18.dp)) },
@@ -222,15 +243,55 @@ private fun UploadHitSheet(
                 iconBorder = Purple200,
                 title = stringResource(R.string.hit_see_tutorial),
                 subtitle = stringResource(R.string.hit_how_record),
-                onClick = onTutorial,
+                onClick = { onTutorial(exercise.apiValue) },
             )
 
             HitButton(
                 text = stringResource(R.string.hit_record),
-                onClick = { state.lift.toDoubleOrNull()?.let(onRecord) },
+                onClick = {
+                    val w = state.lift.toDoubleOrNull() ?: return@HitButton
+                    // La PRIMERA vez que se va a grabar este ejercicio se muestra el vídeo en una modal
+                    // (no se navega a la página de tutoriales). Las siguientes veces graba directo.
+                    if (!TutorialTracker.hasSeenExerciseTutorial(context, exercise.apiValue) && tutorialVideoUrl != null) {
+                        TutorialTracker.markExerciseTutorialSeen(context, exercise.apiValue)
+                        showVideoModal = true
+                    } else {
+                        onRecord(w)
+                    }
+                },
                 enabled = state.canRecord,
                 modifier = Modifier.padding(top = 16.dp, start = 16.dp, end = 16.dp),
             )
+        }
+    }
+
+    // Modal con el vídeo del tutorial (primera vez): sobre la hoja; al cerrarlo, la hoja sigue abierta.
+    if (showVideoModal && tutorialVideoUrl != null) {
+        TutorialVideoDialog(url = tutorialVideoUrl, onDismiss = { showVideoModal = false })
+    }
+}
+
+/** Modal que reproduce el vídeo del tutorial del ejercicio (9:16, igual que la página de tutoriales). */
+@Composable
+private fun TutorialVideoDialog(url: String, onDismiss: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Box(
+            Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
+                Modifier.fillMaxWidth().aspectRatio(9f / 16f).clip(RoundedCornerShape(12.dp)).background(Color.Black),
+            ) {
+                VideoPlayer(url = url, seekSeconds = 0.0, isActive = true)
+                Box(
+                    Modifier.align(Alignment.TopEnd).padding(8.dp).size(36.dp)
+                        .clip(RoundedCornerShape(18.dp)).background(Color.Black.copy(alpha = 0.4f))
+                        .clickable { onDismiss() },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.common_close), tint = Color.White, modifier = Modifier.size(22.dp))
+                }
+            }
         }
     }
 }
@@ -243,6 +304,7 @@ private fun ActionRow(
     title: String,
     subtitle: String,
     onClick: () -> Unit,
+    badgeCount: Int = 0,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().clickable { onClick() }.padding(16.dp),
@@ -257,6 +319,15 @@ private fun ActionRow(
         Column(Modifier.weight(1f)) {
             Text(title, style = HitbosssType.bodyLargeEmphasis, color = Gray500)
             Text(subtitle, style = HitbosssType.bodySmallRegular, color = Gray500)
+        }
+        // Badge con el nº de HITs sin subir (igual que iOS).
+        if (badgeCount > 0) {
+            Box(
+                Modifier.size(24.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Primary500),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("$badgeCount", style = HitbosssType.bodySmallEmphasis, color = Gray100)
+            }
         }
         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = Gray500)
     }

@@ -55,6 +55,18 @@ class DeleteEventUseCase @Inject constructor(
     suspend operator fun invoke(eventId: Int): Result<Unit> = repository.deleteEvent(eventId)
 }
 
+class ReportGroupUseCase @Inject constructor(private val repository: CommunityRepository) {
+    suspend operator fun invoke(groupId: Int, comment: String?): Result<Unit> = repository.reportGroup(groupId, comment)
+}
+
+class ReportEventUseCase @Inject constructor(private val repository: CommunityRepository) {
+    suspend operator fun invoke(eventId: Int, comment: String?): Result<Unit> = repository.reportEvent(eventId, comment)
+}
+
+class ResetEventHitUseCase @Inject constructor(private val repository: CommunityRepository) {
+    suspend operator fun invoke(eventId: Int, hitId: Int): Result<Unit> = repository.resetEventHit(eventId, hitId)
+}
+
 // --- Gestión de miembros (solo admin) ---
 
 class MakeGroupAdminUseCase @Inject constructor(private val repository: CommunityRepository) {

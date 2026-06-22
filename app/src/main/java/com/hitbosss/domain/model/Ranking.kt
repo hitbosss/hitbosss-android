@@ -39,15 +39,20 @@ data class RankingEntry(
     val userId: String,
     val username: String,
     val gender: String?,
+    val isDeleted: Boolean = false,   // usuario eliminado: fila no tocable, sin datos (fix iOS #639)
     val score: Double,           // wilks (oficial = totalWilks; ejercicio = wilksScore)
     val lift: Measurement?,      // totalLift (oficial) o maxLift (ejercicio)
     val levelWeight: String?,
     val levelWilks: String?,
+    val birthDate: Long = 0,       // unix seg; para el filtro por categoría de edad
     val profilePicUrl: String?,
     val countryCode: String?,
     val videoUrl: String?,
     val performedAt: Double = 0.0, // segundo del vídeo a buscar (seek), igual que iOS
     val createdAt: Long = 0,       // timestamp unix del hit -> fecha mostrada
+    // Ubicación actual del usuario (lat/lng) si la compartió — para el filtro "Current" (≤10 km).
+    val latitude: Double? = null,
+    val longitude: Double? = null,
 )
 
 data class SportRanking(

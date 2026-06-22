@@ -14,6 +14,11 @@ google-services.json
 app/google-services.json
 app/build.gradle.kts
 
+# Firma de release (no commitear nunca)
+keystore.properties
+*.jks
+*.keystore
+
 # Gradle
 **/build/
 

@@ -27,6 +27,8 @@ data class GroupDetailDto(
     val createdBy: CreatorDto? = null,
     val isPublic: Boolean? = null,
     val coverImageUrl: String? = null,
+    val createdAt: Long? = null,
+    val joinedAt: Long? = null,
     val stats: CommunityStatsDto? = null,
     val exercises: List<String> = emptyList(),
     val officialSports: List<String> = emptyList(),
@@ -50,6 +52,7 @@ data class EventDetailDto(
     val members: List<MemberDto> = emptyList(),
     val startTime: Long? = null,
     val endTime: Long? = null,
+    val joinedAt: Long? = null,
     val powerlifting: SportRankingDto? = null,
     val crossfit: SportRankingDto? = null,
 )

@@ -78,7 +78,7 @@ import com.hitbosss.presentation.designsystem.components.HitPopup
 import kotlinx.coroutines.launch
 
 @Composable
-fun EditProfileScreen(onBack: () -> Unit, viewModel: EditProfileViewModel = hiltViewModel()) {
+fun EditProfileScreen(onBack: () -> Unit, onSaved: () -> Unit = onBack, viewModel: EditProfileViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val pickProfile = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { it?.let(viewModel::onProfilePicked) }
     val pickCover = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { it?.let(viewModel::onCoverPicked) }
@@ -86,7 +86,8 @@ fun EditProfileScreen(onBack: () -> Unit, viewModel: EditProfileViewModel = hilt
     var showDate by remember { mutableStateOf(false) }
     var showCountry by remember { mutableStateOf(false) }
 
-    LaunchedEffect(state.saved) { if (state.saved) onBack() }
+    // Al guardar se vuelve al perfil (recargado); el botón atrás vuelve a Ajustes.
+    LaunchedEffect(state.saved) { if (state.saved) onSaved() }
 
     Column(Modifier.fillMaxSize().background(Gray100)) {
         HitTopBar(title = stringResource(R.string.settings_edit_profile), onBack = onBack)

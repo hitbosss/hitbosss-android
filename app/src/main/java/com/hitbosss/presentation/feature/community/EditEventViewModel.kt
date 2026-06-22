@@ -97,7 +97,7 @@ class EditEventViewModel @Inject constructor(
                 endTime = s.endMillis!! / 1000,
                 coverPic = cover,
             ).onSuccess { refreshCoordinator.invalidateCommunity(); _state.update { it.copy(isLoading = false, success = true) } }
-                .onFailure { e -> _state.update { it.copy(isLoading = false, error = e.message ?: context.getString(R.string.err_create_event)) } }
+                .onFailure { e -> _state.update { it.copy(isLoading = false, error = context.getString(R.string.err_create_event)) } }
         }
     }
 

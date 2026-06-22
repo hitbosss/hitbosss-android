@@ -46,7 +46,7 @@ class SignInViewModel @Inject constructor(
     fun onEmailChange(value: String) = _state.update { it.copy(email = value) }
     fun onPasswordChange(value: String) = _state.update { it.copy(password = value) }
     fun clearError() = _state.update { it.copy(error = null) }
-    fun onGoogleError(message: String?) = _state.update { it.copy(isLoading = false, error = message) }
+    fun onGoogleError(message: String?) = _state.update { it.copy(isLoading = false, error = appContext.getString(R.string.common_unexpected_error_msg)) }
 
     fun signIn() {
         val s = _state.value

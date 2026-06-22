@@ -66,7 +66,17 @@ private fun CircleAction(icon: androidx.compose.ui.graphics.vector.ImageVector, 
 
 /** Diálogo de denuncia (igual que el Popup de iOS: triángulo + texto + campo 0/1000 + Cancelar/Aceptar). */
 @Composable
-fun ReportHitDialog(onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
+fun ReportHitDialog(onConfirm: (String) -> Unit, onDismiss: () -> Unit) = ReportDialog(
+    title = "¿Quieres denunciar este hit?",
+    message = "Si este hit infringe las normas de la comunidad, puedes enviarnos una denuncia. " +
+        "Revisaremos el contenido y tomaremos las medidas necesarias. Las denuncias son confidenciales.",
+    onConfirm = onConfirm,
+    onDismiss = onDismiss,
+)
+
+/** Diálogo de denuncia genérico (hit/grupo/evento): icono + título + mensaje + campo 0/1000. */
+@Composable
+fun ReportDialog(title: String, message: String, onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
     var text by remember { mutableStateOf("") }
     Dialog(onDismissRequest = onDismiss) {
         Column(
@@ -75,10 +85,9 @@ fun ReportHitDialog(onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Icon(Icons.Filled.WarningAmber, contentDescription = null, tint = Gray800, modifier = Modifier.size(48.dp))
-            Text("¿Quieres denunciar este hit?", style = HitbosssType.titleSubsection, color = Gray800, textAlign = TextAlign.Center)
+            Text(title, style = HitbosssType.titleSubsection, color = Gray800, textAlign = TextAlign.Center)
             Text(
-                "Si este hit infringe las normas de la comunidad, puedes enviarnos una denuncia. " +
-                    "Revisaremos el contenido y tomaremos las medidas necesarias. Las denuncias son confidenciales.",
+                message,
                 style = HitbosssType.bodyDefaultRegular, color = Gray500, textAlign = TextAlign.Center,
             )
             // Campo de texto con contador 0/1000

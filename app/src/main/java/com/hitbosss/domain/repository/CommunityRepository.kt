@@ -16,6 +16,10 @@ interface CommunityRepository {
     suspend fun leaveEvent(eventId: Int): Result<Unit>
     suspend fun deleteEvent(eventId: Int): Result<Unit>
 
+    suspend fun reportGroup(groupId: Int, comment: String?): Result<Unit>
+    suspend fun reportEvent(eventId: Int, comment: String?): Result<Unit>
+    suspend fun resetEventHit(eventId: Int, hitId: Int): Result<Unit>
+
     suspend fun makeGroupAdmin(groupId: Int, userId: String): Result<Unit>
     suspend fun removeGroupMember(groupId: Int, userId: String): Result<Unit>
     suspend fun makeEventAdmin(eventId: Int, userId: String): Result<Unit>

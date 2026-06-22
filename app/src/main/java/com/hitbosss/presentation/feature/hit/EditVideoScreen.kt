@@ -20,6 +20,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -140,6 +143,9 @@ fun EditVideoScreen(
     }
 
     var reviewMode by remember { mutableStateOf(false) }
+    // Confirmación al salir de la edición (se perdería el recorte/edición del HIT).
+    var showExitConfirm by remember { mutableStateOf(false) }
+    androidx.activity.compose.BackHandler(enabled = !reviewMode) { showExitConfirm = true }
     // Recorte [start, end] + pin (división Peso/Ejercicio), en segundos.
     var startSec by remember(durationSec) { mutableStateOf(0.0) }
     var endSec by remember(durationSec) { mutableStateOf(durationSec) }
@@ -160,7 +166,7 @@ fun EditVideoScreen(
             } else {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = Gray800,
-                    modifier = Modifier.size(24.dp).clickable { onClose() },
+                    modifier = Modifier.size(24.dp).clickable { showExitConfirm = true },
                 )
                 Spacer(Modifier.weight(1f))
             }
@@ -363,6 +369,26 @@ fun EditVideoScreen(
             onDismissRequest = viewModel::clearError,
         )
     }
+
+    if (showExitConfirm) {
+        // HIT nuevo: al salir se guarda en "HITS guardados" (recortado, listo para subir).
+        // Editar un HIT ya subido: solo se descartan los cambios.
+        val isEdit = viewModel.editMode
+        HitPopup(
+            title = stringResource(R.string.hit_exit_edit_title),
+            message = stringResource(if (isEdit) R.string.hit_exit_edit_msg else R.string.hit_exit_edit_msg_save),
+            confirmText = stringResource(R.string.common_exit),
+            confirmType = if (isEdit) com.hitbosss.presentation.designsystem.components.HitButtonType.Destructive
+            else com.hitbosss.presentation.designsystem.components.HitButtonType.Secondary,
+            onConfirm = {
+                showExitConfirm = false
+                if (isEdit) onClose() else viewModel.saveForLater(startSec, endSec, pinSec)
+            },
+            cancelText = stringResource(R.string.common_cancel),
+            onCancel = { showExitConfirm = false },
+            onDismissRequest = { showExitConfirm = false },
+        )
+    }
 }
 
 @Composable
@@ -380,6 +406,13 @@ private fun PartRow(icon: Int, label: String, range: String) {
 
 @Composable
 private fun UploadingOverlay(progress: Float, onCancel: () -> Unit) {
+    // El % refleja los bytes enviados; se mapea a 0–90% para reservar el final al procesado del
+    // servidor (S3 + crear el hit), así no se queda "clavado" en 100%. Animado 0.2s como iOS.
+    val shown by animateFloatAsState(
+        targetValue = (progress * 0.9f).coerceIn(0f, 1f),
+        animationSpec = tween(durationMillis = 200, easing = LinearEasing),
+        label = "uploadProgress",
+    )
     Box(
         Modifier.fillMaxSize().background(Secondary800.copy(alpha = 0.9f)).padding(horizontal = 60.dp),
         contentAlignment = Alignment.Center,
@@ -402,11 +435,11 @@ private fun UploadingOverlay(progress: Float, onCancel: () -> Unit) {
                     val arcSize = Size(size.width - s, size.height - s)
                     drawArc(Gray400, 0f, 360f, false, topLeft = Offset(inset, inset), size = arcSize, style = Stroke(s))
                     drawArc(
-                        Primary500, -90f, 360f * progress.coerceIn(0f, 1f), false,
+                        Primary500, -90f, 360f * shown, false,
                         topLeft = Offset(inset, inset), size = arcSize, style = Stroke(s, cap = StrokeCap.Round),
                     )
                 }
-                Text("${(progress * 100).toInt()}%", style = HitbosssType.titleSection, color = Gray800)
+                Text("${(shown * 100).toInt()}%", style = HitbosssType.titleSection, color = Gray800)
             }
             Spacer(Modifier.height(32.dp))
             Box(
@@ -483,9 +516,9 @@ private fun ThumbnailsSlider(
             val h = size.height
             drawRect(Gray600.copy(alpha = 0.75f), size = Size(startX, h))
             drawRect(Gray600.copy(alpha = 0.75f), topLeft = Offset(endX, 0f), size = Size((size.width - endX).coerceAtLeast(0f), h))
-            drawRect(Yellow300.copy(alpha = 0.3f), topLeft = Offset(startX, 0f), size = Size((pinX - startX).coerceAtLeast(0f), h))
+            drawRect(Yellow300.copy(alpha = 0.2f), topLeft = Offset(startX, 0f), size = Size((pinX - startX).coerceAtLeast(0f), h))
             drawRect(Yellow300, topLeft = Offset(startX, 0f), size = Size((pinX - startX).coerceAtLeast(0f), h), style = Stroke(3.dp.toPx()))
-            drawRect(Blue300.copy(alpha = 0.3f), topLeft = Offset(pinX, 0f), size = Size((endX - pinX).coerceAtLeast(0f), h))
+            drawRect(Blue300.copy(alpha = 0.2f), topLeft = Offset(pinX, 0f), size = Size((endX - pinX).coerceAtLeast(0f), h))
             drawRect(Blue300, topLeft = Offset(pinX, 0f), size = Size((endX - pinX).coerceAtLeast(0f), h), style = Stroke(3.dp.toPx()))
         }
 

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -24,6 +25,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -59,6 +62,7 @@ import com.hitbosss.presentation.designsystem.theme.Primary500
 import com.hitbosss.presentation.designsystem.theme.Primary600
 import com.hitbosss.presentation.designsystem.theme.Purple300
 import com.hitbosss.presentation.designsystem.theme.Secondary500
+import com.hitbosss.presentation.designsystem.theme.Error500
 import com.hitbosss.presentation.designsystem.theme.Secondary800
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.Image
@@ -92,6 +96,10 @@ fun CommunityScreen(
             when {
                 state.isLoading -> Box(Modifier.fillMaxSize(), Alignment.Center) {
                     CircularProgressIndicator(color = Primary500)
+                }
+
+                state.error != null -> Box(Modifier.fillMaxSize(), Alignment.Center) {
+                    com.hitbosss.presentation.designsystem.components.ErrorConnectionView(onRetry = viewModel::load)
                 }
 
                 state.selected == CommunityTab.Groups -> GroupsTab(
@@ -232,46 +240,61 @@ private fun EventsTab(
 /** Card de evento (portada + badge deporte + estado + nombre + descripción + footer). */
 @Composable
 private fun EventCardBig(e: EventSummary, isPast: Boolean, onClick: () -> Unit) {
+    val sport = com.hitbosss.domain.model.Sport.entries.firstOrNull { it.apiValue == e.sport }
+    val sportColor = if (sport == com.hitbosss.domain.model.Sport.Crossfit) Error500 else Secondary500
+    val isLastDay = !isPast && ((e.endTime * 1000 - System.currentTimeMillis()) / 86_400_000L).toInt() <= 0
     Column(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(Gray100).clickable { onClick() },
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Gray100).clickable { onClick() },
     ) {
-        Box(Modifier.fillMaxWidth().height(170.dp)) {
+        // Portada con badge de cuenta atrás/estado (arriba-izq).
+        Box(Modifier.fillMaxWidth().padding(horizontal = 8.dp).padding(top = 8.dp, bottom = 16.dp).height(160.dp)) {
             AsyncImage(
                 model = e.coverImageUrl, contentDescription = null, contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxWidth().height(170.dp).clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)).background(Gray400),
+                placeholder = placeholderPainter(), error = placeholderPainter(), fallback = placeholderPainter(),
+                modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)).background(Gray400),
             )
-            // Badge deporte (arriba-izq)
-            Text(
-                e.sport.uppercase(), style = HitbosssType.bodySmallEmphasis, color = Gray100,
-                modifier = Modifier.align(Alignment.TopStart).padding(12.dp).clip(RoundedCornerShape(8.dp))
-                    .background(Gray800.copy(alpha = 0.6f)).padding(horizontal = 8.dp, vertical = 4.dp),
-            )
-            // Estado / cuenta atrás (arriba-der)
-            Text(
-                eventStatusText(e, isPast, androidx.compose.ui.platform.LocalContext.current), style = HitbosssType.bodySmallEmphasis, color = Gray100,
-                modifier = Modifier.align(Alignment.TopEnd).padding(12.dp).clip(RoundedCornerShape(8.dp))
-                    .background(if (isPast) Gray600 else Primary600).padding(horizontal = 10.dp, vertical = 6.dp),
-            )
+            Row(
+                Modifier.align(Alignment.TopStart).padding(8.dp).clip(RoundedCornerShape(8.dp))
+                    .background(if (isLastDay) Error500 else Secondary800).padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Icon(
+                    if (isLastDay) Icons.Filled.ErrorOutline else Icons.Filled.CalendarToday,
+                    contentDescription = null, tint = Gray100, modifier = Modifier.size(14.dp),
+                )
+                Text(eventStatusText(e, isPast, androidx.compose.ui.platform.LocalContext.current), style = HitbosssType.bodySmallRegular, color = Gray100)
+            }
         }
-        Text(e.name, style = HitbosssType.titleSubsection, color = Gray800, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
-        e.description?.takeIf { it.isNotBlank() }?.let {
-            Text(it, style = HitbosssType.bodySmallRegular, color = Gray500, maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 16.dp))
+        Column(Modifier.padding(horizontal = 16.dp)) {
+            Text(e.name, style = HitbosssType.titleBody, color = Gray800, modifier = Modifier.padding(bottom = 4.dp))
+            // Ejercicio · deporte (azul); solo deporte si es oficial.
+            val exerciseName = e.exercises.firstOrNull()?.let { com.hitbosss.presentation.feature.ranking.exerciseTitleResByApi(it)?.let { r -> stringResource(r) } }
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(bottom = 12.dp)) {
+                if (e.hasOfficial || exerciseName == null) {
+                    Text((sport?.brandTitle ?: e.sport).uppercase(), style = HitbosssType.bodySmallEmphasis, color = sportColor)
+                } else {
+                    Text(exerciseName.uppercase(), style = HitbosssType.bodySmallEmphasis, color = sportColor)
+                    Text("·", style = HitbosssType.bodySmallEmphasis, color = sportColor)
+                    Text((sport?.brandTitle ?: e.sport).uppercase(), style = HitbosssType.bodySmallRegular, color = sportColor)
+                }
+            }
+            e.description?.takeIf { it.isNotBlank() }?.let {
+                Text(it, style = HitbosssType.bodyDefaultRegular, color = Gray500, maxLines = 3, overflow = TextOverflow.Ellipsis)
+            }
         }
-        Box(Modifier.fillMaxWidth().padding(top = 16.dp, start = 16.dp, end = 16.dp).height(1.dp).background(Gray200))
+        Box(Modifier.fillMaxWidth().padding(top = 12.dp, start = 16.dp, end = 16.dp).height(1.dp).background(Gray200))
         Row(
             Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Icon(Icons.Filled.Group, contentDescription = null, tint = Secondary800, modifier = Modifier.size(14.dp))
-                Text("${e.stats.memberCount}", style = HitbosssType.bodyDefaultRegular, color = Gray800)
-            }
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Icon(Icons.Filled.EmojiEvents, contentDescription = null, tint = Purple300, modifier = Modifier.size(14.dp))
-                Text(stringResource(R.string.community_rank_none), style = HitbosssType.bodyDefaultRegular, color = Secondary800)
-            }
+            Icon(Icons.Filled.Group, contentDescription = null, tint = Gray500, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(
+                androidx.compose.ui.res.pluralStringResource(R.plurals.event_participants, e.stats.memberCount, e.stats.memberCount),
+                style = HitbosssType.bodySmallRegular, color = Gray800,
+            )
             Spacer(Modifier.weight(1f))
-            Box(Modifier.size(34.dp).clip(CircleShape).background(Gray800), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(32.dp).clip(CircleShape).background(Gray800), contentAlignment = Alignment.Center) {
                 Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = stringResource(R.string.common_open), tint = Gray100, modifier = Modifier.size(16.dp))
             }
         }
@@ -403,7 +426,7 @@ private fun GroupCard(g: GroupSummary, onClick: () -> Unit) {
 private fun EventCard(e: EventSummary, onClick: () -> Unit) {
     CommunityCard(e.coverImageUrl, e.name, e.description, onClick) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(e.sport.replaceFirstChar { it.uppercase() }, style = HitbosssType.bodySmallRegular, color = Secondary500)
+            Text(com.hitbosss.domain.model.Sport.entries.firstOrNull { it.apiValue == e.sport }?.brandTitle ?: e.sport.replaceFirstChar { it.uppercase() }, style = HitbosssType.bodySmallRegular, color = Secondary500)
             CardStats(e.stats.memberCount, e.stats.exerciseCount)
         }
     }

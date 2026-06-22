@@ -106,6 +106,12 @@ fun EditGroupScreen(
             Counter(state.description.length, viewModel.maxDescription)
             Spacer(Modifier.height(16.dp))
 
+            // Visibilidad (público / privado), igual que iOS.
+            Text(stringResource(R.string.visibility_title), style = HitbosssType.bodySmallEmphasis, color = Gray800, modifier = Modifier.padding(bottom = 8.dp))
+            Text(stringResource(R.string.visibility_desc_group), style = HitbosssType.bodySmallRegular, color = Gray500, modifier = Modifier.padding(bottom = 8.dp))
+            VisibilitySegment(state.isPublic, viewModel::onVisibility)
+            Spacer(Modifier.height(16.dp))
+
             Text(stringResource(R.string.common_exercises), style = HitbosssType.bodySmallEmphasis, color = Gray800)
             Spacer(Modifier.height(8.dp))
             Text(stringResource(R.string.create_group_exercises_desc), style = HitbosssType.bodySmallRegular, color = Gray500)
