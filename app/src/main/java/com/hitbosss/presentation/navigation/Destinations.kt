@@ -63,4 +63,8 @@ object Routes {
     const val TUTORIALS_EXERCISE = "tutorials/{apiKey}"
     fun tutorialsExercise(apiKey: String) = "tutorials/$apiKey"
     const val PRIVACY_POLICY = "privacy_policy"
+
+    // Detalle de evolución de Métricas. type: "weight" | "fat" | "muscle"
+    const val METRIC_DETAIL = "metric_detail/{type}"
+    fun metricDetail(type: String) = "metric_detail/$type"
 }

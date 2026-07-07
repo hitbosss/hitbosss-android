@@ -179,7 +179,15 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
                 onEditHit = { e ->
                     navController.navigate(Routes.editUploadedHit(e.exercise, e.weight, e.hitId, e.performedAt, e.localPath))
                 },
+                onOpenMetricDetail = { type -> navController.navigate(Routes.metricDetail(type)) },
             )
+        }
+
+        composable(
+            Routes.METRIC_DETAIL,
+            arguments = listOf(navArgument("type") { type = NavType.StringType }),
+        ) {
+            com.hitbosss.presentation.feature.metrics.MetricDetailScreen(onBack = { navController.popBackStack() })
         }
 
         composable(

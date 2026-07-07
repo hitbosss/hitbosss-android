@@ -21,6 +21,9 @@ class RefreshCoordinator @Inject constructor() {
     private val _community = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val community: SharedFlow<Unit> = _community
 
+    private val _metrics = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val metrics: SharedFlow<Unit> = _metrics
+
     // Ranking de un grupo/evento concreto (emite su id) tras subir un HIT en ese contexto.
     private val _group = MutableSharedFlow<Int>(extraBufferCapacity = 1)
     val group: SharedFlow<Int> = _group
@@ -30,6 +33,7 @@ class RefreshCoordinator @Inject constructor() {
     fun invalidateRanking() { _ranking.tryEmit(Unit) }
     fun invalidateProfile() { _profile.tryEmit(Unit) }
     fun invalidateCommunity() { _community.tryEmit(Unit) }
+    fun invalidateMetrics() { _metrics.tryEmit(Unit) }
     fun invalidateGroup(id: Int) { _group.tryEmit(id) }
     fun invalidateEvent(id: Int) { _event.tryEmit(id) }
 

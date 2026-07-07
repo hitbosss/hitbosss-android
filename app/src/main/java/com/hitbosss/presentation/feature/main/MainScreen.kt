@@ -34,6 +34,7 @@ import androidx.compose.ui.res.stringResource
 private enum class MainTab(@androidx.annotation.StringRes val label: Int, @DrawableRes val icon: Int) {
     Ranking(R.string.tab_ranking, R.drawable.im_tab_ranking),
     Community(R.string.tab_community, R.drawable.im_tab_community),
+    Metrics(R.string.tab_metrics, R.drawable.im_tab_metrics),
     Profile(R.string.tab_profile, R.drawable.im_tab_profile),
 }
 
@@ -53,6 +54,7 @@ fun MainScreen(
     onCreateEvent: () -> Unit = {},
     onOpenUserProfile: (String) -> Unit = {},
     onEditHit: (com.hitbosss.presentation.feature.profile.EditHitNav) -> Unit = {},
+    onOpenMetricDetail: (String) -> Unit = {},
 ) {
     // rememberSaveable para conservar la pestaña al volver de pantallas que sacan a MainScreen de composición.
     var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
@@ -64,6 +66,7 @@ fun MainScreen(
     // (solo por acción/RefreshCoordinator, pull-to-refresh o antigüedad).
     val rankingVM: com.hitbosss.presentation.feature.ranking.RankingViewModel = androidx.hilt.navigation.compose.hiltViewModel()
     val communityVM: com.hitbosss.presentation.feature.community.CommunityViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+    val metricsVM: com.hitbosss.presentation.feature.metrics.MetricsViewModel = androidx.hilt.navigation.compose.hiltViewModel()
     val profileVM: com.hitbosss.presentation.feature.profile.ProfileViewModel = androidx.hilt.navigation.compose.hiltViewModel()
 
     // Refresco por antigüedad: al cambiar de pestaña, si los datos llevan mucho tiempo sin
@@ -72,6 +75,7 @@ fun MainScreen(
         when (MainTab.entries[selectedIndex]) {
             MainTab.Ranking -> rankingVM.refreshIfStale()
             MainTab.Community -> communityVM.refreshIfStale()
+            MainTab.Metrics -> metricsVM.refreshIfStale()
             MainTab.Profile -> profileVM.refreshIfStale()
         }
     }
@@ -128,6 +132,10 @@ fun MainScreen(
                         onCreateGroup = onCreateGroup,
                         onCreateEvent = onCreateEvent,
                         viewModel = communityVM,
+                    )
+                    MainTab.Metrics -> com.hitbosss.presentation.feature.metrics.MetricsScreen(
+                        onOpenDetail = onOpenMetricDetail,
+                        viewModel = metricsVM,
                     )
                     MainTab.Profile -> ProfileScreen(onOpenSettings = onOpenSettings, onEditHit = onEditHit, viewModel = profileVM)
                 }

@@ -1,7 +1,16 @@
 package com.hitbosss.data.remote
 
 import com.hitbosss.data.remote.dto.AppConfigDto
+import com.hitbosss.data.remote.dto.BodyLogDto
+import com.hitbosss.data.remote.dto.CreateBodyLogRequestDto
+import com.hitbosss.data.remote.dto.CreateGoalRequestDto
+import com.hitbosss.data.remote.dto.CreateStrengthLogRequestDto
 import com.hitbosss.data.remote.dto.CreateUserRequestDto
+import com.hitbosss.data.remote.dto.GoalsResponseDto
+import com.hitbosss.data.remote.dto.MetricGoalDto
+import com.hitbosss.data.remote.dto.ProgressPhotoDto
+import com.hitbosss.data.remote.dto.StrengthEntryDto
+import com.hitbosss.data.remote.dto.StrengthHistoryDto
 import com.hitbosss.data.remote.dto.CreateUserResponseDto
 import com.hitbosss.data.remote.dto.EventDetailDto
 import com.hitbosss.data.remote.dto.EventsResponseDto
@@ -203,4 +212,65 @@ interface HitbosssApi {
         @PartMap fields: Map<String, @JvmSuppressWildcards RequestBody>,
         @Part video: MultipartBody.Part?,
     ): MessageResponseDto
+
+    // ============ Métricas (sección Métricas: Físico + Fuerza) ============
+
+    /** GET /metrics/{id}/body-logs — histórico de composición corporal. Requiere auth. */
+    @GET("metrics/{id}/body-logs")
+    suspend fun getBodyLogs(
+        @Path("id") userId: String,
+        @Query("from") from: Long? = null,
+        @Query("to") to: Long? = null,
+    ): List<BodyLogDto>
+
+    @POST("metrics/{id}/body-logs")
+    suspend fun createBodyLog(@Path("id") userId: String, @Body body: CreateBodyLogRequestDto): BodyLogDto
+
+    @DELETE("metrics/{id}/body-logs/{logId}")
+    suspend fun deleteBodyLog(@Path("id") userId: String, @Path("logId") logId: Long)
+
+    /** GET /metrics/{id}/goals — objetivo activo + historial (type=weight|strength). */
+    @GET("metrics/{id}/goals")
+    suspend fun getGoals(
+        @Path("id") userId: String,
+        @Query("type") type: String,
+        @Query("exercise") exercise: String? = null,
+    ): GoalsResponseDto
+
+    @POST("metrics/{id}/goals")
+    suspend fun createGoal(@Path("id") userId: String, @Body body: CreateGoalRequestDto): MetricGoalDto
+
+    @DELETE("metrics/{id}/goals/{goalId}")
+    suspend fun deleteGoal(@Path("id") userId: String, @Path("goalId") goalId: Long)
+
+    /** GET /metrics/{id}/strength-history — entrenamientos + HITs oficiales de un ejercicio. */
+    @GET("metrics/{id}/strength-history")
+    suspend fun getStrengthHistory(
+        @Path("id") userId: String,
+        @Query("exercise") exercise: String,
+        @Query("from") from: Long? = null,
+        @Query("to") to: Long? = null,
+    ): StrengthHistoryDto
+
+    @POST("metrics/{id}/strength-logs")
+    suspend fun createStrengthLog(@Path("id") userId: String, @Body body: CreateStrengthLogRequestDto): StrengthEntryDto
+
+    @DELETE("metrics/{id}/strength-logs/{logId}")
+    suspend fun deleteStrengthLog(@Path("id") userId: String, @Path("logId") logId: Long)
+
+    /** GET /metrics/{id}/photos — fotos de progreso. */
+    @GET("metrics/{id}/photos")
+    suspend fun getProgressPhotos(@Path("id") userId: String): List<ProgressPhotoDto>
+
+    /** POST /metrics/{id}/photos (multipart) — foto + medidas opcionales. */
+    @Multipart
+    @POST("metrics/{id}/photos")
+    suspend fun uploadProgressPhoto(
+        @Path("id") userId: String,
+        @Part photo: MultipartBody.Part,
+        @PartMap fields: Map<String, @JvmSuppressWildcards RequestBody>,
+    ): ProgressPhotoDto
+
+    @DELETE("metrics/{id}/photos/{photoId}")
+    suspend fun deleteProgressPhoto(@Path("id") userId: String, @Path("photoId") photoId: Long)
 }
