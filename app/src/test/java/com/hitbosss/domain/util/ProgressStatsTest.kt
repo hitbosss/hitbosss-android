@@ -21,6 +21,8 @@ class ProgressStatsTest {
         assertEquals(10.0, ProgressStats.progressRatePerMonth(points)!!, 0.01)
         assertNull(ProgressStats.progressRatePerMonth(listOf(0L to 100.0)))
         assertNull(ProgressStats.progressRatePerMonth(listOf(0L to 100.0, 0L to 120.0)))
+        // Puntos del mismo día: sin recorrido suficiente, no se extrapola (daría cifras absurdas)
+        assertNull(ProgressStats.progressRatePerMonth(listOf(0L to 100.0, 3600L to 120.0)))
     }
 
     @Test

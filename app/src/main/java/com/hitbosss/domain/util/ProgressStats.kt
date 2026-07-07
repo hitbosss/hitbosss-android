@@ -15,10 +15,13 @@ object ProgressStats {
 
     /**
      * Ritmo de progreso en kg/mes: pendiente de la regresión lineal simple sobre
-     * (tiempo unix seg, kg). Null con <2 puntos o si todos son del mismo instante.
+     * (tiempo unix seg, kg). Null con <2 puntos o con menos de 7 días de recorrido
+     * (extrapolar a un mes desde puntos del mismo día da cifras absurdas).
      */
     fun progressRatePerMonth(points: List<Pair<Long, Double>>): Double? {
         if (points.size < 2) return null
+        val span = points.maxOf { it.first } - points.minOf { it.first }
+        if (span < MIN_SPAN_SECONDS) return null
         val n = points.size.toDouble()
         val meanX = points.sumOf { it.first.toDouble() } / n
         val meanY = points.sumOf { it.second } / n
@@ -41,4 +44,5 @@ object ProgressStats {
     }
 
     private const val SECONDS_PER_MONTH = 30.44 * 24 * 3600
+    private const val MIN_SPAN_SECONDS = 7L * 24 * 3600
 }
