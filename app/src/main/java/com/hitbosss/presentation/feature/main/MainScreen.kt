@@ -4,6 +4,7 @@ import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.NavigationBar
@@ -13,6 +14,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -44,6 +46,7 @@ private enum class MainTab(@androidx.annotation.StringRes val label: Int, @Drawa
 @Composable
 fun MainScreen(
     onOpenSettings: () -> Unit = {},
+    onEditProfile: () -> Unit = {},
     onRecordHit: (String, Double) -> Unit = { _, _ -> },
     onSavedHits: () -> Unit = {},
     onTutorial: (String) -> Unit = {},
@@ -105,7 +108,25 @@ fun MainScreen(
             }
         },
     ) { innerPadding ->
-        Box(Modifier.fillMaxSize().padding(innerPadding)) {
+        androidx.compose.foundation.layout.Column(Modifier.fillMaxSize().padding(innerPadding)) {
+            // Banner de subida en curso (iOS MainTabView #649): "Subiendo HIT… X%" + barra.
+            val uploadVM: UploadBannerViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+            val uploadState by uploadVM.uploadState.collectAsStateWithLifecycle()
+            if (uploadState.inProgress) {
+                androidx.compose.foundation.layout.Row(
+                    Modifier.padding(horizontal = 16.dp).padding(top = 4.dp),
+                ) {
+                    Text(stringResource(R.string.upload_notif_title), style = HitbosssType.bodySmallRegular, color = com.hitbosss.presentation.designsystem.theme.Gray800)
+                    androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
+                    Text("${(uploadState.progress * 100).toInt()}%", style = HitbosssType.bodySmallRegular, color = com.hitbosss.presentation.designsystem.theme.Gray800)
+                }
+                androidx.compose.material3.LinearProgressIndicator(
+                    progress = { uploadState.progress },
+                    color = Primary500,
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                )
+            }
+        Box(Modifier.fillMaxSize()) {
             // Barrido horizontal entre pestañas según la dirección del cambio (izq/der).
             androidx.compose.animation.AnimatedContent(
                 targetState = selectedIndex,
@@ -129,9 +150,10 @@ fun MainScreen(
                         onCreateEvent = onCreateEvent,
                         viewModel = communityVM,
                     )
-                    MainTab.Profile -> ProfileScreen(onOpenSettings = onOpenSettings, onEditHit = onEditHit, viewModel = profileVM)
+                    MainTab.Profile -> ProfileScreen(onOpenSettings = onOpenSettings, onEditProfile = onEditProfile, onEditHit = onEditHit, viewModel = profileVM)
                 }
             }
+        }
         }
     }
 }

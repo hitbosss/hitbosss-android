@@ -16,6 +16,16 @@ Mantener **estética y funcionamiento**. Misma API REST (la dockerizada en `../h
 
 Estado de la migración: `.claude/specs/migration-status.md`.
 
+## Recuperación de contexto (sesión nueva)
+
+Leer en este orden antes de tocar nada:
+1. Este fichero + `.claude/specs/migration-status.md` (estado vivo — mantenerlo actualizado al completar features).
+2. `git log --oneline -10` y `git diff --stat` (trabajo en curso real).
+3. `../hitbosss-api/PENDING.md`, `PENDING-2.1.0.md` y `CHANGELOG.md` (tareas API y contrato PRE vs PRO).
+4. Si se toca iOS: `../Hitbosss_iOS/Hitbosss/CLAUDE.md`.
+
+Repos hermanos: `../hitbosss-api` (API), `../Hitbosss_iOS` (referencia), `../Hitbosss_Android` (scaffold viejo, NO trabajar ahí).
+
 ## El producto
 App de fuerza: el usuario compite en un ranking global grabando vídeos de sus ejercicios desde la app.
 Deportes: **Powerlifting** y **Crossfit**. Núcleo = subida de hits (vídeo + stats) y rankings.

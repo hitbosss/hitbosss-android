@@ -25,8 +25,16 @@ fun Throwable.toAuthMessage(context: Context): String = when ((this as? Firebase
     "ERROR_INVALID_EMAIL" -> context.getString(R.string.err_invalid_email)
     "ERROR_EMAIL_ALREADY_IN_USE" -> context.getString(R.string.err_email_in_use)
     "ERROR_WEAK_PASSWORD" -> context.getString(R.string.err_weak_password)
-    // Cualquier otro error (incl. errores de Firebase no mapeados): mensaje amigable, sin el texto crudo.
-    else -> context.getString(R.string.common_unexpected_error_msg)
+    // Si algún día se activa la password policy de Firebase (mayúsculas/números/símbolos).
+    "ERROR_PASSWORD_DOES_NOT_MEET_REQUIREMENTS" -> context.getString(R.string.err_weak_password)
+    "ERROR_TOO_MANY_REQUESTS" -> context.getString(R.string.err_too_many_requests)
+    else -> when (this) {
+        // No son FirebaseAuthException: llegan como excepciones genéricas de Firebase.
+        is com.google.firebase.FirebaseNetworkException -> context.getString(R.string.err_network)
+        is com.google.firebase.FirebaseTooManyRequestsException -> context.getString(R.string.err_too_many_requests)
+        // Cualquier otro error (incl. errores de Firebase no mapeados): mensaje amigable, sin el texto crudo.
+        else -> context.getString(R.string.common_unexpected_error_msg)
+    }
 }
 
 /**

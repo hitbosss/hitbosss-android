@@ -162,12 +162,15 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
                         "group" -> uri.lastPathSegment?.toIntOrNull()?.let { navController.navigate(Routes.groupRanking(it)) }
                         "event" -> uri.lastPathSegment?.toIntOrNull()?.let { navController.navigate(Routes.eventRanking(it)) }
                         "profile" -> uri.lastPathSegment?.let { navController.navigate(Routes.userProfile(it)) }
+                        // Desde la notificación "Error al subir HIT" → Ir a 'HIT Guardados'.
+                        "savedhits" -> navController.navigate(Routes.SAVED_HITS)
                     }
                     com.hitbosss.core.deeplink.DeepLinkBus.consume()
                 }
             }
             MainScreen(
                 onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                onEditProfile = { navController.navigate(Routes.EDIT_PROFILE) },
                 onRecordHit = { exercise, weight -> navController.navigate(Routes.recordHit(exercise, weight)) },
                 onSavedHits = { navController.navigate(Routes.SAVED_HITS) },
                 onTutorial = { apiKey -> navController.navigate(Routes.tutorialsExercise(apiKey)) },

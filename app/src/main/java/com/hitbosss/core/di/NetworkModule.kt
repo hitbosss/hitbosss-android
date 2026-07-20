@@ -46,6 +46,13 @@ object NetworkModule {
         return OkHttpClient.Builder()
             .addInterceptor(authInterceptor)
             .addInterceptor(logging)
+            // Timeouts pensados para subir vídeos por redes lentas: los 10s por defecto de
+            // write/read abortaban la subida entera al primer parón (SocketTimeoutException)
+            // aunque la conexión siguiera viva. Son límites por operación de I/O (no totales):
+            // una subida sana de minutos no se corta; una red muerta falla en ≤60s → HITS guardados.
+            .connectTimeout(java.time.Duration.ofSeconds(15))
+            .writeTimeout(java.time.Duration.ofSeconds(60))
+            .readTimeout(java.time.Duration.ofSeconds(60))
             .build()
     }
 

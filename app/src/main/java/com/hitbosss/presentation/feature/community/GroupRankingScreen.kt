@@ -243,26 +243,29 @@ private fun GroupRankingContent(
     onTutorial: (String) -> Unit,
     onOpenUserProfile: (String) -> Unit,
 ) {
-    val sportKey = g.officialSports.firstOrNull()
-        ?: g.exercises.firstNotNullOfOrNull { ex -> Exercise.entries.firstOrNull { it.apiValue.equals(ex, true) }?.sport?.apiValue }
-        ?: "powerlifting"
-    val sportEnum = Sport.entries.firstOrNull { it.apiValue == sportKey } ?: Sport.Powerlifting
-    val isPl = sportEnum == Sport.Powerlifting
-    val ranking = g.ranking[sportKey]
-    val officialCat = if (isPl) RankingCategory.PlOfficial else RankingCategory.CfOfficial
-    val exerciseCats = RankingCategory.forSport(sportEnum)
-        .filter { it != RankingCategory.PlOfficial && it != RankingCategory.CfOfficial }
-        .filter { cat -> g.exercises.any { it.equals(cat.apiKey, true) } }
-    val categories = listOf(officialCat) + exerciseCats
+    // Pestañas de TODOS los deportes del grupo: oficial (si el grupo es oficial en ese deporte) + sus ejercicios.
+    val categories = Sport.entries.flatMap { sp ->
+        val official = if (sp == Sport.Powerlifting) RankingCategory.PlOfficial else RankingCategory.CfOfficial
+        val exCats = RankingCategory.forSport(sp)
+            .filter { it != RankingCategory.PlOfficial && it != RankingCategory.CfOfficial }
+            .filter { cat -> g.exercises.any { it.equals(cat.apiKey, true) } }
+        val isOfficialSport = g.officialSports.any { it.equals(sp.apiValue, true) }
+        (if (isOfficialSport) listOf(official) else emptyList()) + exCats
+    }
 
-    var selected by rememberSaveable { mutableStateOf(officialCat) }
+    var selected by rememberSaveable { mutableStateOf(categories.firstOrNull() ?: RankingCategory.PlOfficial) }
     var search by rememberSaveable { mutableStateOf("") }
     var showSort by remember { mutableStateOf(false) }
     var order by rememberSaveable { mutableStateOf(RankingOrder.Lift) }
     var selectedUserId by remember { mutableStateOf<String?>(null) }
     var selectedLevels by rememberSaveable(stateSaver = levelSetSaver) { mutableStateOf(emptySet<String>()) }
 
+    // Todo lo dependiente del deporte se deriva de la pestaña seleccionada (soporta grupos con ambos deportes).
+    val sportEnum = selected.sport
+    val isPl = sportEnum == Sport.Powerlifting
     val sportColor = if (isPl) Secondary500 else Error500
+    val officialCat = if (isPl) RankingCategory.PlOfficial else RankingCategory.CfOfficial
+    val ranking = g.ranking[sportEnum.apiValue]
     val isOfficial = selected == officialCat
     val usePoints = order == RankingOrder.Points
 
@@ -291,7 +294,7 @@ private fun GroupRankingContent(
     )
     val notParticipating = required.count { it.done } < 3
     // Levanta tarjeta "Tú" + FAB del borde inferior (sin barra de navegación que los suba aquí).
-    val bottomBase = 80.dp
+    val bottomBase = 12.dp
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {

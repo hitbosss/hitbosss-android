@@ -60,6 +60,7 @@ data class EditVideoUiState(
     val failedSaved: Boolean = false,   // falló la subida → guardado en HITS guardados
     val downloadSuccess: Boolean = false,
     val downloadError: Boolean = false,
+    val leftToUpload: Boolean = false,  // subida delegada al HitUploadManager → salir de la pantalla
 )
 
 /**
@@ -76,11 +77,13 @@ class EditVideoViewModel @Inject constructor(
     private val editHitUseCase: EditHitUseCase,
     private val savedHitStore: SavedHitStore,
     private val refreshCoordinator: com.hitbosss.core.RefreshCoordinator,
+    private val uploadManager: com.hitbosss.core.upload.HitUploadManager,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
     private var lastPrepared: File? = null
     private var lastPerformedAt: Double = 0.0
+    private var uploadRequestId: String? = null
 
     private val exercise: Exercise = Exercise.entries
         .firstOrNull { it.apiValue.equals(savedStateHandle.get<String>("exercise"), true) } ?: Exercise.Squat
@@ -125,9 +128,14 @@ class EditVideoViewModel @Inject constructor(
         }
     }
 
-    /** startSec/endSec = recorte; pinSec = división Peso/Ejercicio (absoluta). */
+    /**
+     * startSec/endSec = recorte; pinSec = división Peso/Ejercicio (absoluta).
+     * iOS #649: el vídeo se persiste como SavedHit ANTES de tocar la red y la subida corre en
+     * HitUploadManager (foreground service + notificación): el usuario sale de la pantalla y
+     * el progreso se ve en el banner del MainScreen / la notificación.
+     */
     fun upload(startSec: Double, endSec: Double, pinSec: Double) {
-        if (_state.value.isUploading) return
+        if (_state.value.isPreparing || uploadManager.state.value.inProgress) return
         val info = personalInfo
         val uid = getCurrentUser()?.uid
         if (info == null || uid == null) {
@@ -135,7 +143,7 @@ class EditVideoViewModel @Inject constructor(
             return
         }
         uploadJob = viewModelScope.launch {
-            // Recorte/exportación primero (overlay "Preparando HIT…"), luego subida con %.
+            // Recorte/exportación primero (overlay "Preparando HIT…").
             _state.update { it.copy(isPreparing = true, error = null) }
             val unit = if (info.measurementSystem.equals("imperial", true)) "lbs" else "kg"
             val original = File(videoPath)
@@ -145,36 +153,36 @@ class EditVideoViewModel @Inject constructor(
             val toUpload = withContext(Dispatchers.IO) { ensureIosCompatible(trimmed) }
             lastPrepared = toUpload
             lastPerformedAt = (pinSec - startSec).coerceAtLeast(0.0)
-            _state.update { it.copy(isPreparing = false, isUploading = true, progress = 0f) }
-            var lastPct = -1
-            uploadHit(
-                UploadHitParams(
-                    userId = uid,
-                    sport = exercise.sport.apiValue,
-                    exercise = exercise.apiValue,
-                    lift = weight,
-                    unit = unit,
-                    bodyWeightKg = info.bodyWeightKg,
-                    gender = info.gender,
-                    videoFile = toUpload,
-                    performedAt = (pinSec - startSec).coerceAtLeast(0.0),  // relativo al vídeo recortado
-                    contextType = ctxType,
-                    groupId = ctxGroupId,
-                    eventId = ctxEventId,
-                    onProgress = { p ->
-                        val pct = (p * 100).toInt()
-                        if (pct != lastPct) { lastPct = pct; _state.update { it.copy(progress = p) } }
-                    },
-                ),
-            ).onSuccess {
-                invalidateForContext()  // recarga el ranking/grupo/evento afectado + perfil
-                _state.update { it.copy(isUploading = false, progress = 1f, success = true) }
+            // Idempotencia: un UUID por intento lógico; los reintentos (desde HITS guardados)
+            // reutilizan la clave y el backend no crea duplicados.
+            val requestId = uploadRequestId ?: UUID.randomUUID().toString().also { uploadRequestId = it }
+            // Persistencia durable ANTES de la red: si el proceso muere, el hit no se pierde.
+            val hit = SavedHit(
+                id = UUID.randomUUID().toString(),
+                videoFileName = "hit_${System.currentTimeMillis()}.mp4",
+                userId = uid,
+                sport = exercise.sport.apiValue,
+                exercise = exercise.apiValue,
+                lift = weight,
+                unit = unit,
+                bodyWeightKg = info.bodyWeightKg,
+                gender = info.gender,
+                performedAt = lastPerformedAt,
+                contextType = ctxType,
+                groupId = ctxGroupId,
+                eventId = ctxEventId,
+                createdAt = System.currentTimeMillis() / 1000,
+                clientRequestId = requestId,
+                status = SavedHit.STATUS_UPLOADING,
+            )
+            withContext(Dispatchers.IO) { savedHitStore.save(hit, toUpload) }
+            if (uploadManager.start(hit)) {
+                // La subida sigue sola: salir a la pestaña Ranking (igual que iOS con la Live Activity).
+                _state.update { it.copy(isPreparing = false, leftToUpload = true) }
+            } else {
+                withContext(Dispatchers.IO) { savedHitStore.setStatus(hit.id, SavedHit.STATUS_PENDING) }
+                _state.update { it.copy(isPreparing = false, error = context.getString(R.string.upload_in_progress)) }
             }
-                // Falló: se guarda en HITS guardados para reintentar (igual que iOS).
-                .onFailure {
-                    saveLocally()
-                    _state.update { it.copy(isUploading = false, failedSaved = true) }
-                }
         }
     }
 
@@ -273,6 +281,7 @@ class EditVideoViewModel @Inject constructor(
             groupId = ctxGroupId,
             eventId = ctxEventId,
             createdAt = System.currentTimeMillis() / 1000,
+            clientRequestId = uploadRequestId,
         )
         runCatching { savedHitStore.save(hit, file) }
     }

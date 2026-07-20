@@ -29,6 +29,8 @@ data class UploadHitParams(
     val contextType: String = "global",  // "global" | "group" | "event"
     val groupId: Int? = null,
     val eventId: Int? = null,
+    // Clave de idempotencia (UUID por intento lógico de subida; los reintentos reutilizan la misma).
+    val clientRequestId: String? = null,
 )
 
 class UploadHitUseCase @Inject constructor(
@@ -54,6 +56,7 @@ class UploadHitUseCase @Inject constructor(
             // Solo se envían en su contexto (el backend valida que estén presentes).
             params.groupId?.takeIf { params.contextType == "group" }?.let { put("groupId", it.toString()) }
             params.eventId?.takeIf { params.contextType == "event" }?.let { put("eventId", it.toString()) }
+            params.clientRequestId?.let { put("clientRequestId", it) }
         }
         return hitRepository.uploadHit(params.videoFile, fields, params.onProgress)
     }

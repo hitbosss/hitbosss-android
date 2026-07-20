@@ -91,6 +91,8 @@
     <string name="err_invalid_email">El correo no es válido</string>
     <string name="err_email_in_use">Este correo ya está registrado.</string>
     <string name="err_weak_password">La contraseña es demasiado débil.</string>
+    <string name="err_network">No hay conexión. Comprueba tu internet e inténtalo de nuevo.</string>
+    <string name="err_too_many_requests">Demasiados intentos. Espera unos minutos e inténtalo de nuevo.</string>
     <string name="err_unknown_with_msg">Error desconocido: %1$s</string>
     <string name="err_recover_no_account">No existe ninguna cuenta con este correo</string>
     <string name="err_recover_missing_email">Debes ingresar un correo</string>
@@ -468,4 +470,19 @@
         <item quantity="one">1 participante</item>
         <item quantity="other">%d participantes</item>
     </plurals>
+    <string name="upload_notif_title">Subiendo HIT…</string>
+    <string name="upload_notif_done">¡HIT subido con éxito!</string>
+    <string name="upload_notif_failed">No se pudo subir el HIT</string>
+    <string name="upload_notif_failed_msg">Guardado en HITS guardados para reintentar.</string>
+    <string name="upload_channel_name">Subida de HITs</string>
+    <string name="upload_in_progress">Ya hay una subida en curso. Espera a que termine.</string>
+    <string name="profile_share_action">Compartir perfil</string>
+    <string name="profile_report_action">Denunciar perfil</string>
+    <string name="profile_report_title">¿Quieres denunciar a este usuario?</string>
+    <string name="profile_report_msg">Si este usuario infringe las normas de la comunidad, puedes enviarnos una denuncia. Revisaremos el contenido y tomaremos las medidas necesarias. Las denuncias son confidenciales.</string>
+    <string name="upload_notif_waiting">Esperando la conexión…</string>
+    <string name="upload_notif_canceled">Cancelaste la subida</string>
+    <string name="upload_notif_saved_msg">Tu HIT no se ha eliminado. Encuéntralo en \'Subir HIT\' &gt; \'HITS guardados\' para subirlo más tarde.</string>
+    <string name="upload_notif_view_hit">Ver HIT</string>
+    <string name="upload_notif_go_saved">Ir a \'HITS guardados\'</string>
 </resources>

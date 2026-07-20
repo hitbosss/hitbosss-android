@@ -28,6 +28,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Leaderboard
@@ -92,6 +94,7 @@ private enum class RecordTab(@androidx.annotation.StringRes val label: Int) { Ra
 @Composable
 fun ProfileScreen(
     onOpenSettings: () -> Unit = {},
+    onEditProfile: () -> Unit = {},
     onBack: () -> Unit = {},
     onEditHit: (EditHitNav) -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel(),
@@ -101,6 +104,10 @@ fun ProfileScreen(
     var menuHit by remember { mutableStateOf<Participation?>(null) }
     // HIT pendiente de confirmar borrado (popup de confirmación antes de eliminar).
     var confirmDeleteHit by remember { mutableStateOf<Participation?>(null) }
+    // Menú ⋮ del perfil ajeno (Compartir / Denunciar) y diálogo de denuncia.
+    var showProfileMenu by remember { mutableStateOf(false) }
+    var showReportDialog by remember { mutableStateOf(false) }
+    val shareContext = androidx.compose.ui.platform.LocalContext.current
 
     LaunchedEffect(Unit) { viewModel.editEvents.collect { onEditHit(it) } }
 
@@ -116,6 +123,48 @@ fun ProfileScreen(
         state.profile != null -> ProfileContent(
             state.profile!!, state.isOtherUser, state.rankings, state.isRefreshing, viewModel::refresh, onOpenSettings, onBack,
             onHitLongPress = if (!state.isOtherUser) ({ menuHit = it }) else null,
+            onOpenProfileMenu = if (state.isOtherUser) ({ showProfileMenu = true }) else null,
+            onEditProfile = onEditProfile,
+        )
+    }
+
+    // Menú del perfil ajeno: Compartir / Denunciar / Cancelar (Figma "Denunciar el perfil de otro usuario").
+    if (showProfileMenu) {
+        ProfileMenuSheet(
+            onShare = {
+                showProfileMenu = false
+                state.profile?.id?.let { shareProfile(shareContext, it) }
+            },
+            onReport = { showProfileMenu = false; showReportDialog = true },
+            onDismiss = { showProfileMenu = false },
+        )
+    }
+
+    if (showReportDialog) {
+        com.hitbosss.presentation.feature.hit.ReportDialog(
+            title = stringResource(R.string.profile_report_title),
+            message = stringResource(R.string.profile_report_msg),
+            onConfirm = { comment -> showReportDialog = false; viewModel.reportUser(comment) },
+            onDismiss = { showReportDialog = false },
+        )
+    }
+
+    if (state.reportSent) {
+        HitPopup(
+            title = stringResource(R.string.report_sent_title),
+            message = stringResource(R.string.report_sent_msg),
+            confirmText = stringResource(R.string.common_accept),
+            onConfirm = viewModel::clearReportResult,
+            onDismissRequest = viewModel::clearReportResult,
+        )
+    }
+    if (state.reportFailed) {
+        HitPopup(
+            title = stringResource(R.string.common_unexpected_error),
+            message = stringResource(R.string.common_unexpected_error_msg),
+            confirmText = stringResource(R.string.common_accept),
+            onConfirm = viewModel::clearReportResult,
+            onDismissRequest = viewModel::clearReportResult,
         )
     }
 
@@ -182,6 +231,34 @@ private fun HitActionSheet(onEdit: () -> Unit, onDelete: () -> Unit, onDismiss: 
     }
 }
 
+/** Menú ⋮ del perfil ajeno: Compartir perfil / Denunciar perfil / Cancelar (1:1 con el Figma). */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun ProfileMenuSheet(onShare: () -> Unit, onReport: () -> Unit, onDismiss: () -> Unit) {
+    androidx.compose.material3.ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Gray100) {
+        Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
+            Text(
+                stringResource(R.string.profile_share_action),
+                style = HitbosssType.bodyLargeRegular, color = Secondary500,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().clickable { onShare() }.padding(horizontal = 24.dp, vertical = 16.dp),
+            )
+            Text(
+                stringResource(R.string.profile_report_action),
+                style = HitbosssType.bodyLargeRegular, color = Error500,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().clickable { onReport() }.padding(horizontal = 24.dp, vertical = 16.dp),
+            )
+            Text(
+                stringResource(R.string.common_cancel),
+                style = HitbosssType.bodyLargeEmphasis, color = Gray800,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().clickable { onDismiss() }.padding(horizontal = 24.dp, vertical = 16.dp),
+            )
+        }
+    }
+}
+
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun ProfileContent(
@@ -193,6 +270,8 @@ private fun ProfileContent(
     onOpenSettings: () -> Unit,
     onBack: () -> Unit,
     onHitLongPress: ((Participation) -> Unit)? = null,
+    onOpenProfileMenu: (() -> Unit)? = null,
+    onEditProfile: () -> Unit = {},
 ) {
     var media by rememberSaveable { mutableStateOf(MediaTab.Marcas) }
     var record by rememberSaveable { mutableStateOf(RecordTab.Ranking) }
@@ -216,10 +295,17 @@ private fun ProfileContent(
                         modifier = Modifier.size(24.dp).clickable { onBack() },
                     )
                     Text(stringResource(R.string.common_back), style = HitbosssType.titleSubsection, color = Gray800)
+                    Spacer(Modifier.weight(1f))
+                    if (onOpenProfileMenu != null) {
+                        Icon(
+                            Icons.Filled.MoreVert, contentDescription = stringResource(R.string.common_options), tint = Gray800,
+                            modifier = Modifier.size(24.dp).clickable { onOpenProfileMenu() },
+                        )
+                    }
                 }
             }
         }
-        item { ProfileHeader(p, isOtherUser, onOpenSettings) }
+        item { ProfileHeader(p, isOtherUser, onOpenSettings, onEditProfile) }
         item { MediaTabs(media) { media = it } }
 
         when (media) {
@@ -284,7 +370,7 @@ private fun ProfileContent(
 // MARK: - Cabecera
 
 @Composable
-private fun ProfileHeader(p: UserProfile, isOtherUser: Boolean, onOpenSettings: () -> Unit) {
+private fun ProfileHeader(p: UserProfile, isOtherUser: Boolean, onOpenSettings: () -> Unit, onEditProfile: () -> Unit = {}) {
     var enlarged by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().background(Gray100)) {
         Box(Modifier.fillMaxWidth()) {
@@ -298,9 +384,16 @@ private fun ProfileHeader(p: UserProfile, isOtherUser: Boolean, onOpenSettings: 
             if (!isOtherUser) {
                 val context = androidx.compose.ui.platform.LocalContext.current
                 Row(
-                    modifier = Modifier.align(Alignment.TopEnd).padding(top = 48.dp, end = 16.dp),
+                    modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 8.dp, end = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
+                    // Acceso directo a Editar perfil (Figma 8), sin pasar por Ajustes.
+                    Box(
+                        modifier = Modifier.size(32.dp).clip(CircleShape).background(Gray100).clickable { onEditProfile() },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.settings_edit_profile), tint = Gray500, modifier = Modifier.size(16.dp))
+                    }
                     Box(
                         modifier = Modifier.size(32.dp).clip(CircleShape).background(Gray100).clickable { shareProfile(context, p.id) },
                         contentAlignment = Alignment.Center,

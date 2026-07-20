@@ -2,6 +2,7 @@ package com.hitbosss.data.repository
 
 import com.hitbosss.data.mapper.toDomain
 import com.hitbosss.data.remote.HitbosssApi
+import com.hitbosss.data.remote.dto.ReportRequestDto
 import com.hitbosss.data.remote.dto.CreateUserRequestDto
 import com.hitbosss.domain.model.CreateUserData
 import com.hitbosss.domain.model.PersonalInfo
@@ -46,6 +47,11 @@ class UserRepositoryImpl @Inject constructor(
                 )
                 Unit
             }
+        }
+
+    override suspend fun reportUser(userId: String, comment: String?): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            runCatching { api.reportUser(userId, ReportRequestDto(comment?.takeIf { it.isNotBlank() })); Unit }
         }
 
     override suspend fun deleteAccount(userId: String): Result<Unit> =

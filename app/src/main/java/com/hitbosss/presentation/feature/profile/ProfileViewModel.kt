@@ -39,6 +39,8 @@ data class ProfileUiState(
     val error: String? = null,
     val isProcessingHit: Boolean = false,   // borrando o preparando edición de un HIT
     val actionError: String? = null,        // error de borrar/editar (popup "Error inesperado")
+    val reportSent: Boolean = false,        // denuncia de perfil enviada (popup de confirmación)
+    val reportFailed: Boolean = false,
 )
 
 /** Evento de navegación para editar un HIT ya subido (con el vídeo ya descargado en local). */
@@ -57,6 +59,7 @@ class ProfileViewModel @Inject constructor(
     private val getUserProfile: GetUserProfileUseCase,
     private val getRanking: GetRankingUseCase,
     private val deleteHitUseCase: DeleteHitUseCase,
+    private val reportUserUseCase: com.hitbosss.domain.usecase.ReportUserUseCase,
     private val refreshCoordinator: com.hitbosss.core.RefreshCoordinator,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -83,6 +86,18 @@ class ProfileViewModel @Inject constructor(
 
     /** Pull-to-refresh manual. */
     fun refresh() = reloadAll(showRefreshing = true)
+
+    /** Denuncia el perfil visitado (solo perfil ajeno). */
+    fun reportUser(comment: String) {
+        val target = otherUserId ?: return
+        viewModelScope.launch {
+            reportUserUseCase(target, comment.ifBlank { null })
+                .onSuccess { _state.update { it.copy(reportSent = true) } }
+                .onFailure { _state.update { it.copy(reportFailed = true) } }
+        }
+    }
+
+    fun clearReportResult() = _state.update { it.copy(reportSent = false, reportFailed = false) }
 
     // Refresco por antigüedad (al cambiar a la pestaña tras mucho tiempo), silencioso. Solo perfil propio.
     private var lastLoadedAt = 0L

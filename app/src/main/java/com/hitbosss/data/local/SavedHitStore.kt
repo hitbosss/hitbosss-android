@@ -41,5 +41,21 @@ class SavedHitStore @Inject constructor(
         index.writeText(json.encodeToString(all.filterNot { it.id == id }))
     }
 
+    @Synchronized
+    fun setStatus(id: String, status: String) {
+        val all = getAll().map { if (it.id == id) it.copy(status = status) else it }
+        index.writeText(json.encodeToString(all))
+    }
+
+    /** Al arrancar: si el proceso murió a mitad de subida, el hit vuelve a "pendiente" (iOS #649). */
+    @Synchronized
+    fun reconcile() {
+        val all = getAll()
+        if (all.none { it.status == SavedHit.STATUS_UPLOADING }) return
+        index.writeText(json.encodeToString(all.map {
+            if (it.status == SavedHit.STATUS_UPLOADING) it.copy(status = SavedHit.STATUS_PENDING) else it
+        }))
+    }
+
     fun videoFile(hit: SavedHit): File = File(dir, hit.videoFileName)
 }

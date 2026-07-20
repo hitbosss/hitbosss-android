@@ -272,9 +272,10 @@ private fun EventRankingContent(
     val exerciseCats = RankingCategory.forSport(sportEnum)
         .filter { it != RankingCategory.PlOfficial && it != RankingCategory.CfOfficial }
         .filter { cat -> e.exercises.any { it.equals(cat.apiKey, true) } }
-    val categories = listOf(officialCat) + exerciseCats
+    // La pestaña oficial (disciplina) solo si el evento es oficial; si no, solo su(s) ejercicio(s).
+    val categories = (if (e.hasOfficial) listOf(officialCat) else emptyList()) + exerciseCats
 
-    var selected by rememberSaveable { mutableStateOf(officialCat) }
+    var selected by rememberSaveable { mutableStateOf(categories.firstOrNull() ?: officialCat) }
     var search by rememberSaveable { mutableStateOf("") }
     var showSort by remember { mutableStateOf(false) }
     var order by rememberSaveable { mutableStateOf(RankingOrder.Lift) }
@@ -310,7 +311,7 @@ private fun EventRankingContent(
     )
     val notParticipating = required.count { it.done } < 3
     // Levanta tarjeta "Tú" + FAB del borde inferior (sin barra de navegación que los suba aquí).
-    val bottomBase = 80.dp
+    val bottomBase = 12.dp
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {

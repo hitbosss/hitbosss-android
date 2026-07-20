@@ -52,6 +52,7 @@ class RecordHitViewModel @Inject constructor(
 
     private var personalInfo: PersonalInfo? = null
     private var pendingFile: File? = null
+    private var uploadRequestId: String? = null
 
     private val _state = MutableStateFlow(RecordHitUiState())
     val state: StateFlow<RecordHitUiState> = _state.asStateFlow()
@@ -80,6 +81,8 @@ class RecordHitViewModel @Inject constructor(
         val info = personalInfo ?: return
         val uid = getCurrentUser()?.uid ?: return
         pendingFile = null
+        // Idempotencia: mismo UUID si el usuario reintenta tras un fallo en esta pantalla.
+        val requestId = uploadRequestId ?: java.util.UUID.randomUUID().toString().also { uploadRequestId = it }
         viewModelScope.launch {
             _state.update { it.copy(isUploading = true, error = null) }
             val unit = if (info.measurementSystem.equals("imperial", true)) "lbs" else "kg"
@@ -96,8 +99,9 @@ class RecordHitViewModel @Inject constructor(
                     gender = info.gender,
                     videoFile = compatible,
                     performedAt = videoMidpointSeconds(compatible),
+                    clientRequestId = requestId,
                 ),
-            ).onSuccess { _state.update { it.copy(isUploading = false, success = true) } }
+            ).onSuccess { uploadRequestId = null; _state.update { it.copy(isUploading = false, success = true) } }
                 .onFailure { e -> _state.update { it.copy(isUploading = false, error = context.getString(R.string.err_upload_hit)) } }
         }
     }
