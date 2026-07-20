@@ -2,19 +2,19 @@ package com.hitbosss.presentation.feature.hit
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hitbosss.core.upload.HitUploadManager
 import com.hitbosss.data.local.SavedHitStore
 import com.hitbosss.domain.model.Exercise
 import com.hitbosss.domain.model.SavedHit
-import com.hitbosss.domain.usecase.UploadHitParams
-import com.hitbosss.domain.usecase.UploadHitUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withContext
 
 data class SavedHitsUiState(
     val hits: List<SavedHit> = emptyList(),
@@ -37,19 +37,36 @@ enum class SavedHitsFilter(@androidx.annotation.StringRes val label: Int, val co
     Eventos(com.hitbosss.R.string.community_tab_events, "event"),
 }
 
-/** Pantalla "HITS guardados": lista, borra y reintenta la subida de los HITs guardados localmente. */
+/**
+ * Pantalla "HITS guardados": lista, borra y reintenta la subida de los HITs guardados localmente.
+ * iOS #649: la subida corre en HitUploadManager (sigue aunque salgas de la pantalla) y aquí
+ * solo se observa su estado.
+ */
 @HiltViewModel
 class SavedHitsViewModel @Inject constructor(
     private val store: SavedHitStore,
-    private val uploadHit: UploadHitUseCase,
+    private val uploadManager: HitUploadManager,
     private val refreshCoordinator: com.hitbosss.core.RefreshCoordinator,
 ) : ViewModel() {
 
-    private var uploadJob: Job? = null
     private val _state = MutableStateFlow(SavedHitsUiState())
     val state: StateFlow<SavedHitsUiState> = _state.asStateFlow()
 
-    init { load() }
+    init {
+        load()
+        // Refleja el estado global de subida; al terminar (borra el hit subido) recarga la lista.
+        viewModelScope.launch {
+            var wasUploading = false
+            uploadManager.state.collect { st ->
+                _state.update { it.copy(isUploading = st.inProgress, progress = st.progress) }
+                if (wasUploading && !st.inProgress) {
+                    load()
+                    _state.update { it.copy(selectedId = null) }
+                }
+                wasUploading = st.inProgress
+            }
+        }
+    }
 
     fun load() {
         val hits = store.getAll().sortedByDescending { it.createdAt }
@@ -78,48 +95,16 @@ class SavedHitsViewModel @Inject constructor(
     fun uploadSelected() {
         if (_state.value.isUploading) return
         val hit = _state.value.hits.firstOrNull { it.id == _state.value.selectedId } ?: return
-        uploadJob = viewModelScope.launch {
-            _state.update { it.copy(isUploading = true, progress = 0f, error = false) }
-            var lastPct = -1
-            uploadHit(
-                UploadHitParams(
-                    userId = hit.userId,
-                    sport = hit.sport,
-                    exercise = hit.exercise,
-                    lift = hit.lift,
-                    unit = hit.unit,
-                    bodyWeightKg = hit.bodyWeightKg,
-                    gender = hit.gender,
-                    videoFile = store.videoFile(hit),
-                    performedAt = hit.performedAt,
-                    contextType = hit.contextType,
-                    groupId = hit.groupId,
-                    eventId = hit.eventId,
-                    onProgress = { p ->
-                        val pct = (p * 100).toInt()
-                        if (pct != lastPct) { lastPct = pct; _state.update { it.copy(progress = p) } }
-                    },
-                ),
-            ).onSuccess {
-                store.delete(hit.id)
-                // Recarga lo afectado según el contexto del HIT.
-                when (hit.contextType) {
-                    "group" -> { hit.groupId?.let { refreshCoordinator.invalidateGroup(it) }; refreshCoordinator.invalidateProfile() }
-                    "event" -> { hit.eventId?.let { refreshCoordinator.invalidateEvent(it) }; refreshCoordinator.invalidateProfile() }
-                    else -> refreshCoordinator.onHitUploaded()
-                }
-                _state.update { it.copy(isUploading = false, success = true, selectedId = null) }
-                load()
-            }.onFailure {
-                _state.update { it.copy(isUploading = false, error = true) }
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { store.setStatus(hit.id, SavedHit.STATUS_UPLOADING) }
+            if (!uploadManager.start(hit.copy(status = SavedHit.STATUS_UPLOADING))) {
+                withContext(Dispatchers.IO) { store.setStatus(hit.id, SavedHit.STATUS_PENDING) }
+                _state.update { it.copy(error = true) }
             }
         }
     }
 
-    fun cancelUpload() {
-        uploadJob?.cancel()
-        _state.update { it.copy(isUploading = false, progress = 0f) }
-    }
+    fun cancelUpload() = uploadManager.cancel()
 
     fun dismissSuccess() = _state.update { it.copy(success = false) }
     fun dismissError() = _state.update { it.copy(error = false) }

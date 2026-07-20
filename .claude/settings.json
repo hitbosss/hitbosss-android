@@ -1,4 +1,26 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(ls /Users/joselopez/Documents/Fitboss/repos/)",
+      "Read(//Users/joselopez/Documents/Fitboss/repos/**)",
+      "Bash(git -C /Users/joselopez/Documents/Fitboss/repos/hitbosss-api branch --show-current)",
+      "Bash(git -C /Users/joselopez/Documents/Fitboss/repos/Hitbosss_iOS branch --show-current)",
+      "Bash(git -C /Users/joselopez/Documents/Fitboss/repos/hitbosss-api log --oneline -25)",
+      "Bash(git -C /Users/joselopez/Documents/Fitboss/repos/hitbosss-api branch -a)",
+      "Bash(git -C /Users/joselopez/Documents/Fitboss/repos/hitbosss-api log --oneline develop..api-metrics-upgrade)",
+      "Bash(git -C /Users/joselopez/Documents/Fitboss/repos/hitbosss-api diff develop...api-metrics-upgrade --stat)",
+      "Bash(git -C /Users/joselopez/Documents/Fitboss/repos/hitbosss-api show 6180279 --stat)",
+      "Bash(git -C /Users/joselopez/Documents/Fitboss/repos/hitbosss-api show api-metrics-upgrade:src/routes/api/metrics.js)",
+      "Bash(git -C /Users/joselopez/Documents/Fitboss/repos/hitbosss-api show api-metrics-upgrade:.claude/specs/decisions/adr-007-database-schema.md)",
+      "Bash(git -C /Users/joselopez/Documents/Fitboss/repos/hitbosss-api show api-metrics-upgrade:PENDING-2.2.0.md)",
+      "Bash(git ls-tree *)",
+      "Bash(git -C /Users/joselopez/Documents/Fitboss/repos/hitbosss-api show 6180279 -- src/service/rankingService.js src/models/dao/postgres.js)"
+    ],
+    "additionalDirectories": [
+      "/Users/joselopez/Documents/Fitboss/repos/hitbosss-api",
+      "/Users/joselopez/Documents/Fitboss/repos/Hitbosss_iOS/Hitbosss"
+    ]
+  },
   "hooks": {
     "PostToolUse": [
       {

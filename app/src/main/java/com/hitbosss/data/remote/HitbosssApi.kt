@@ -147,6 +147,10 @@ interface HitbosssApi {
         @Part cover: MultipartBody.Part?,
     ): MessageResponseDto
 
+    /** POST /users/{id}/report — denunciar el perfil de un usuario (body opcional {comment}). */
+    @POST("users/{id}/report")
+    suspend fun reportUser(@Path("id") userId: String, @Body body: ReportRequestDto): MessageResponseDto
+
     /** DELETE /users/delete/{id} — eliminar cuenta. */
     @DELETE("users/delete/{id}")
     suspend fun deleteAccount(@Path("id") userId: String): MessageResponseDto

@@ -112,7 +112,21 @@ fun EditVideoScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val videoPath = viewModel.videoPath
 
-    // No navegamos al tener éxito: se muestra el popup y se vuelve al ranking al pulsar "Aceptar".
+    // iOS #649: al arrancar la subida (corre en el HitUploadManager con notificación) se sale de
+    // la pantalla; el progreso se ve en el banner del MainScreen y en la notificación.
+    LaunchedEffect(state.leftToUpload) { if (state.leftToUpload) onUploaded() }
+
+    // Permiso de notificaciones (Android 13+) para ver el progreso fuera de la app; si se
+    // deniega, la subida funciona igual (queda el banner in-app).
+    val notifPermission = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
+    ) { }
+    LaunchedEffect(Unit) {
+        if (android.os.Build.VERSION.SDK_INT >= 33 &&
+            androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) !=
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) notifPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+    }
 
     val durationSec = remember(videoPath) {
         runCatching {

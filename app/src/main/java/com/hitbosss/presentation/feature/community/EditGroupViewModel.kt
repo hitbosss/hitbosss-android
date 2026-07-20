@@ -83,6 +83,12 @@ class EditGroupViewModel @Inject constructor(
     fun onVisibility(public: Boolean) = _state.update { it.copy(isPublic = public) }
     fun clearError() = _state.update { it.copy(error = null) }
 
+    /** Chip de disciplina (oficial): selecciona/quita los 3 ejercicios del deporte. */
+    fun toggleSport(sport: com.hitbosss.domain.model.Sport) = _state.update {
+        val all = Exercise.forSport(sport).toSet()
+        it.copy(exercises = if (it.exercises.containsAll(all)) it.exercises - all else it.exercises + all)
+    }
+
     fun toggleExercise(e: Exercise) = _state.update {
         it.copy(exercises = if (e in it.exercises) it.exercises - e else it.exercises + e)
     }

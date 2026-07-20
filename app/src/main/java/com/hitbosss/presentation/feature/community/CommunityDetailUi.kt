@@ -123,6 +123,17 @@ fun communityAdmins(members: List<Member>, creatorId: String?): List<Member> =
     members.filter { it.isAdmin || it.userId == creatorId }
         .sortedWith(compareByDescending<Member> { it.userId == creatorId }.thenBy { it.username.lowercase() })
 
+/** Chip seleccionable (ejercicio/disciplina): fondo blanco, borde del color del deporte si está activo. */
+@Composable
+fun SelectChip(text: String, selected: Boolean, color: Color, onClick: () -> Unit) {
+    Text(
+        text, style = HitbosssType.bodyDefaultRegular, color = Gray800,
+        modifier = Modifier.clip(RoundedCornerShape(32.dp)).background(Gray100)
+            .border(1.dp, if (selected) color else Gray300, RoundedCornerShape(32.dp))
+            .clickable { onClick() }.padding(horizontal = 16.dp, vertical = 8.dp),
+    )
+}
+
 /** Pestañas del detalle de comunidad (grupo/evento), 1:1 con CommunityTabs de iOS. */
 enum class CommunityTabs(@StringRes val label: Int) {
     Ranking(R.string.comm_tab_ranking),

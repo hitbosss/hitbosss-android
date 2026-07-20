@@ -119,8 +119,18 @@ class CompleteProfileViewModel @Inject constructor(
                 ),
             ).onSuccess { _state.update { it.copy(isLoading = false, success = true) } }
                 .onFailure { e ->
-                    val taken = e.message?.contains("username", true) == true || e.message?.contains("taken", true) == true
-                    _state.update { it.copy(isLoading = false, usernameTaken = taken, error = if (taken) null else (context.getString(R.string.err_create_profile))) }
+                    // Retrofit no incluye el body en e.message: hay que leer el errorBody del 409.
+                    // El backend usa 409 para dos casos: "Username already exists" (nombre cogido)
+                    // y "User already exists" (este uid ya tiene perfil → continuar como éxito).
+                    val body = (e as? retrofit2.HttpException)?.response()?.errorBody()?.string().orEmpty()
+                    when {
+                        body.contains("Username already exists", true) ->
+                            _state.update { it.copy(isLoading = false, usernameTaken = true, error = null) }
+                        body.contains("User already exists", true) ->
+                            _state.update { it.copy(isLoading = false, success = true) }
+                        else ->
+                            _state.update { it.copy(isLoading = false, error = context.getString(R.string.err_create_profile)) }
+                    }
                 }
         }
     }

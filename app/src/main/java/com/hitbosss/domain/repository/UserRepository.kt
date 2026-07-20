@@ -11,6 +11,9 @@ interface UserRepository {
     suspend fun createUser(userId: String, data: CreateUserData): Result<Unit>
     suspend fun deleteAccount(userId: String): Result<Unit>
 
+    /** Denuncia el perfil de otro usuario (comment opcional). */
+    suspend fun reportUser(userId: String, comment: String?): Result<Unit>
+
     /** Actualiza el perfil (campos editados + fotos opcionales). */
     suspend fun updateProfile(
         userId: String,

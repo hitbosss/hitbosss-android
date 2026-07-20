@@ -53,6 +53,7 @@ import com.hitbosss.presentation.designsystem.theme.Gray600
 import com.hitbosss.presentation.designsystem.theme.Gray800
 import com.hitbosss.presentation.designsystem.theme.HitbosssType
 import com.hitbosss.presentation.designsystem.theme.Secondary500
+import com.hitbosss.presentation.designsystem.theme.Error500
 import com.hitbosss.presentation.designsystem.theme.Secondary800
 import androidx.compose.ui.res.stringResource
 import com.hitbosss.R
@@ -118,17 +119,14 @@ fun EditGroupScreen(
             Spacer(Modifier.height(16.dp))
 
             Sport.entries.forEach { sport ->
-                Text(sport.title.uppercase(), style = HitbosssType.bodySmallRegular, color = Gray500)
+                val sportColor = if (sport == Sport.Crossfit) Error500 else Secondary500
+                val sportExs = Exercise.forSport(sport)
+                Text(sport.brandTitle.uppercase(), style = HitbosssType.bodySmallRegular, color = sportColor)
                 Spacer(Modifier.height(8.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Exercise.forSport(sport).forEach { ex ->
-                        val sel = ex in state.exercises
-                        Text(
-                            stringResource(ex.titleRes()), style = HitbosssType.bodyDefaultRegular, color = Gray800,
-                            modifier = Modifier.clip(RoundedCornerShape(32.dp)).background(Gray100)
-                                .border(1.dp, if (sel) Secondary500 else Gray300, RoundedCornerShape(32.dp))
-                                .clickable { viewModel.toggleExercise(ex) }.padding(horizontal = 16.dp, vertical = 8.dp),
-                        )
+                    SelectChip(sport.brandTitle, state.exercises.containsAll(sportExs.toSet()), sportColor) { viewModel.toggleSport(sport) }
+                    sportExs.forEach { ex ->
+                        SelectChip(stringResource(ex.titleRes()), ex in state.exercises, sportColor) { viewModel.toggleExercise(ex) }
                     }
                 }
                 Spacer(Modifier.height(24.dp))

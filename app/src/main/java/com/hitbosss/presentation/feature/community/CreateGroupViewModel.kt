@@ -59,6 +59,12 @@ class CreateGroupViewModel @Inject constructor(
         it.copy(exercises = if (e in it.exercises) it.exercises - e else it.exercises + e)
     }
 
+    /** Chip de disciplina (oficial): selecciona los 3 ejercicios del deporte, o los quita si ya están. */
+    fun toggleSport(sport: com.hitbosss.domain.model.Sport) = _state.update {
+        val all = Exercise.forSport(sport).toSet()
+        it.copy(exercises = if (it.exercises.containsAll(all)) it.exercises - all else it.exercises + all)
+    }
+
     fun submit() {
         val s = _state.value
         if (!s.isValid) return

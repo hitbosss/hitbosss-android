@@ -90,6 +90,8 @@
     <string name="err_invalid_email">Invalid email</string>
     <string name="err_email_in_use">This email is already registered.</string>
     <string name="err_weak_password">The password is too weak.</string>
+    <string name="err_network">No connection. Check your internet and try again.</string>
+    <string name="err_too_many_requests">Too many attempts. Wait a few minutes and try again.</string>
     <string name="err_unknown_with_msg">Unknown error: %1$s</string>
     <string name="err_recover_no_account">We couldn\'t find any account with that email address</string>
     <string name="err_recover_missing_email">You must enter an email address</string>
@@ -553,4 +555,19 @@
     <string name="metrics_photos_empty">Add your first progress photo with the + button</string>
     <string name="metrics_photo_delete_title">Delete photo</string>
     <string name="metrics_photo_delete_msg">Are you sure you want to delete this progress photo? This action cannot be undone.</string>
+    <string name="upload_notif_title">Uploading HIT…</string>
+    <string name="upload_notif_done">HIT uploaded successfully!</string>
+    <string name="upload_notif_failed">HIT upload failed</string>
+    <string name="upload_notif_failed_msg">Saved to Saved HITS to retry.</string>
+    <string name="upload_channel_name">HIT uploads</string>
+    <string name="upload_in_progress">An upload is already in progress. Wait for it to finish.</string>
+    <string name="profile_share_action">Share profile</string>
+    <string name="profile_report_action">Report profile</string>
+    <string name="profile_report_title">Do you want to report this user?</string>
+    <string name="profile_report_msg">If this user violates the community rules, you can send us a report. We will review the content and take the necessary measures. Reports are confidential.</string>
+    <string name="upload_notif_waiting">Waiting for connection…</string>
+    <string name="upload_notif_canceled">You canceled the upload</string>
+    <string name="upload_notif_saved_msg">Your HIT was not deleted. Find it in \'Upload HIT\' &gt; \'Saved HITS\' to upload it later.</string>
+    <string name="upload_notif_view_hit">View HIT</string>
+    <string name="upload_notif_go_saved">Go to \'Saved HITS\'</string>
 </resources>

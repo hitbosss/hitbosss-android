@@ -65,6 +65,22 @@ fun SavedHitsScreen(
 
     Column(Modifier.fillMaxSize().background(Gray100)) {
         HitTopBar(title = stringResource(R.string.hit_saved_list), onBack = onBack)
+        if (state.isUploading) {
+            // iOS #649: sin overlay bloqueante; la subida corre en el HitUploadManager (notificación)
+            // y aquí solo se ve una barra de progreso. Se puede salir de la pantalla sin cortar nada.
+            Column(Modifier.fillMaxWidth()) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
+                    Text(stringResource(R.string.upload_notif_title), style = HitbosssType.bodySmallRegular, color = Gray800)
+                    Spacer(Modifier.weight(1f))
+                    Text("${(state.progress * 100).toInt()}%", style = HitbosssType.bodySmallRegular, color = Gray800)
+                }
+                androidx.compose.material3.LinearProgressIndicator(
+                    progress = { state.progress },
+                    color = Primary500,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
         Box(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 8.dp)) {
             Text(
                 stringResource(R.string.saved_hits_desc),
@@ -108,30 +124,13 @@ fun SavedHitsScreen(
                     stringResource(R.string.hit_upload),
                     onClick = viewModel::uploadSelected,
                     type = HitButtonType.Primary,
-                    enabled = state.selectedId != null,
+                    enabled = state.selectedId != null && !state.isUploading,
                     modifier = Modifier.padding(16.dp),
                 )
             }
         }
     }
 
-    if (state.isUploading) {
-        Box(
-            Modifier.fillMaxSize().background(Secondary800.copy(alpha = 0.9f)).padding(horizontal = 60.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Column(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Gray100).padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Text(stringResource(R.string.hit_uploading_progress), style = HitbosssType.titleSubsection, color = Gray800)
-                CircularProgressIndicator(progress = { state.progress }, color = Primary500)
-                Text("${(state.progress * 100).toInt()}%", style = HitbosssType.titleSection, color = Gray800)
-                HitButton("Cancelar", onClick = viewModel::cancelUpload, type = HitButtonType.Tertiary, size = com.hitbosss.presentation.designsystem.components.HitButtonSize.Medium)
-            }
-        }
-    }
 
     state.deleteTarget?.let {
         HitPopup(

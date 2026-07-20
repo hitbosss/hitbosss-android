@@ -9,6 +9,10 @@
     <!-- Ranking por ubicación "Current" (filtra a ≤10 km del usuario), igual que iOS. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Subida de HIT en segundo plano con notificación de progreso (iOS #649 Live Activity). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-feature android:name="android.hardware.camera.any" android:required="false" />
 
     <application
@@ -39,6 +43,12 @@
                 <data android:scheme="hitbosss" />
             </intent-filter>
         </activity>
+
+        <!-- Subida de HIT con progreso fuera de la app (equivalente a la Live Activity de iOS) -->
+        <service
+            android:name=".core.upload.HitUploadService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
 
         <!-- Para grabar el vídeo del hit (la cámara escribe en un fichero de cache nuestro) -->
         <provider

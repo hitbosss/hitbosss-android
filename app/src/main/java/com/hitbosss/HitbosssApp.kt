@@ -11,6 +11,15 @@ import dagger.hilt.android.HiltAndroidApp
 @HiltAndroidApp
 class HitbosssApp : Application(), ImageLoaderFactory {
 
+    @javax.inject.Inject lateinit var savedHitStore: com.hitbosss.data.local.SavedHitStore
+
+    override fun onCreate() {
+        super.onCreate()
+        // iOS #649: si el proceso murió a mitad de una subida, el hit vuelve a "pendiente"
+        // (el vídeo se persistió antes de tocar la red, así que no se pierde nada).
+        savedHitStore.reconcile()
+    }
+
     /**
      * ImageLoader global con decoder de frames de vídeo y caché en disco propia, para que las
      * miniaturas de los hits (perfil/ranking/comunidad) se decodifiquen una vez y persistan →

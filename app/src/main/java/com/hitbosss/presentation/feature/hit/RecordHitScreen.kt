@@ -135,6 +135,13 @@ fun RecordHitScreen(
         videoCapture.value = capture
     }
 
+    // La pantalla no se apaga mientras se graba (iOS #648: isIdleTimerDisabled).
+    val recordView = androidx.compose.ui.platform.LocalView.current
+    androidx.compose.runtime.DisposableEffect(isRecording) {
+        recordView.keepScreenOn = isRecording
+        onDispose { recordView.keepScreenOn = false }
+    }
+
     // Contador mientras graba; corta a 01:45.
     LaunchedEffect(isRecording) {
         if (!isRecording) return@LaunchedEffect
