@@ -84,7 +84,7 @@ private fun SportSection(sport: String, exercises: List<TutorialExercise>, isMet
     val isPl = sport == "powerlifting"
     val sportColor = if (isPl) Secondary500 else Error500
     val sportIcon = if (isPl) R.drawable.ic_sport_powerlifting else R.drawable.ic_sport_crossfit
-    val sportTitle = if (isPl) "PowerHIT" else "CrossHIT"
+    val sportTitle = if (isPl) "Powerlifting" else "CrossHIT"
     var showThresholds by remember { mutableStateOf(false) }
 
     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {

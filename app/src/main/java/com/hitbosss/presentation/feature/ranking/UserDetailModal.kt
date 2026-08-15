@@ -278,14 +278,25 @@ internal fun VideoPlayer(url: String, seekSeconds: Double, isActive: Boolean) {
             setMediaItem(MediaItem.fromUri(url))
             repeatMode = Player.REPEAT_MODE_OFF // iOS no hace loop
             playWhenReady = false
-            // Se reproduce el clip COMPLETO desde el principio (no se hace seek a performedAt: en
-            // algunos hits performedAt cae al final del recorte y el vídeo se mostraba "ya acabado").
+            // Seek al instante del lift (performedAt en segundos) ANTES de preparar → el primer fotograma
+            // ya sale en el lift, no al principio (mirroring de iOS). El caso "performedAt fuera del recorte"
+            // se corrige abajo cuando ya se conoce la duración.
+            seekTo((seekSeconds * 1000).toLong().coerceAtLeast(0L))
             prepare()
         }
     }
 
+    // Si el lift cae al final/fuera del clip (recorte), arrancar desde el principio en vez de quedar "ya acabado".
+    var fixedOvershoot by remember(url) { mutableStateOf(false) }
     DisposableEffect(player) {
         val listener = object : Player.Listener {
+            override fun onPlaybackStateChanged(state: Int) {
+                if (state == Player.STATE_READY && !fixedOvershoot) {
+                    fixedOvershoot = true
+                    val dur = player.duration
+                    if (dur > 0 && player.currentPosition >= dur - 300) player.seekTo(0)
+                }
+            }
             // El primer fotograma decodificado y mostrado en la superficie (también en pausa tras el seek).
             override fun onRenderedFirstFrame() { firstFrame = true }
         }

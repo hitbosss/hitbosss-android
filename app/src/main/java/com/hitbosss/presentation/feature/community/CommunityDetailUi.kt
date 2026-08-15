@@ -361,7 +361,7 @@ fun GroupExercisesContent(availableApiKeys: List<String>) {
             val sportColor = if (isPl) com.hitbosss.presentation.designsystem.theme.Secondary500 else com.hitbosss.presentation.designsystem.theme.Error500
             val chipBg = if (isPl) Secondary100 else com.hitbosss.presentation.designsystem.theme.Error100
             val officialKey = if (isPl) "officialPowerlifting" else "officialCrossfit"
-            val officialLabel = if (isPl) "PowerHIT" else "CrossHIT"
+            val officialLabel = if (isPl) "Powerlifting" else "CrossHIT"
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(sport.brandTitle.uppercase(), style = HitbosssType.bodySmallEmphasis, color = sportColor)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

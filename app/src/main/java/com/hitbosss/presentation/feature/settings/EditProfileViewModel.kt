@@ -140,7 +140,32 @@ class EditProfileViewModel @Inject constructor(
     fun onGender(g: String) = _state.update { it.copy(gender = g) }
     fun onBirthDate(millis: Long) = _state.update { it.copy(birthDate = millis) }
     fun onCountry(code: String) = _state.update { it.copy(countryCode = code) }
-    fun onSystem(s: MeasureSystem) = _state.update { it.copy(system = s) }
+    // Al cambiar de unidad hay que RECONVERTIR los campos: si no, el número viejo (p.ej. 108 kg) se
+    // enviaría con la unidad nueva (108 lbs) y el servidor guardaría un peso corrupto → rompe el Wilks.
+    fun onSystem(s: MeasureSystem) = _state.update { st ->
+        if (s == st.system) return@update st
+        if (s == MeasureSystem.Imperial) {
+            val kg = st.weightText.replace(',', '.').toDoubleOrNull()
+            val totalIn = st.heightCmText.toIntOrNull()?.let { it / 2.54 }
+            st.copy(
+                system = s,
+                weightText = kg?.let { round1(it * 2.20462) } ?: "",
+                heightCmText = "",
+                heightFeetText = totalIn?.let { (it.toInt() / 12).toString() } ?: "",
+                heightInchesText = totalIn?.let { (it.toInt() % 12).toString() } ?: "",
+            )
+        } else {
+            val lbs = st.weightText.replace(',', '.').toDoubleOrNull()
+            val totalIn = (st.heightFeetText.toIntOrNull() ?: 0) * 12 + (st.heightInchesText.toIntOrNull() ?: 0)
+            st.copy(
+                system = s,
+                weightText = lbs?.let { round1(it / 2.20462) } ?: "",
+                heightCmText = totalIn.takeIf { it > 0 }?.let { (it * 2.54).toInt().toString() } ?: "",
+                heightFeetText = "",
+                heightInchesText = "",
+            )
+        }
+    }
     fun onWeight(v: String) = _state.update { it.copy(weightText = v.filter { c -> c.isDigit() || c == '.' || c == ',' }) }
     fun onHeightCm(v: String) = _state.update { it.copy(heightCmText = v.filter { c -> c.isDigit() }) }
     fun onHeightFeet(v: String) = _state.update { it.copy(heightFeetText = v.filter { c -> c.isDigit() }) }
@@ -228,4 +253,5 @@ class EditProfileViewModel @Inject constructor(
     }
 
     private fun trimNum(v: Double): String = if (v % 1.0 == 0.0) v.toInt().toString() else v.toString()
+    private fun round1(v: Double): String = trimNum(kotlin.math.round(v * 10) / 10.0)
 }

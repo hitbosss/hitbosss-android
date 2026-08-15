@@ -527,7 +527,7 @@ private fun EventCoverBanner(e: EventDetail, isPast: Boolean) {
     val sport = Sport.entries.firstOrNull { it.apiValue == e.sport } ?: Sport.Powerlifting
     val isPl = sport == Sport.Powerlifting
     val sportColor = if (isPl) Secondary700 else Error700
-    val sportName = (if (isPl) "PowerHIT" else "CrossHIT").uppercase()
+    val sportName = (if (isPl) "Powerlifting" else "CrossHIT").uppercase()
     val exerciseTitle = e.exercises.firstOrNull()?.let { eventExerciseLabel(it) }?.uppercase() ?: ""
     Box(
         Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp).height(160.dp)
