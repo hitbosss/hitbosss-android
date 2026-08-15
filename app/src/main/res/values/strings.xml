@@ -575,8 +575,8 @@
     <string name="metrics_rate_info">La velocidad media a la que estás ganando fuerza, calculada en kg por mes. Se actualiza automáticamente con cada nueva marca que registras.</string>
     <string name="metrics_advantage">Ventaja comunidad</string>
     <string name="metrics_advantage_info">La diferencia entre tu marca y la media de la comunidad. Cuanto mayor sea el número, más por encima de la media estás.</string>
-    <string name="metrics_surpassed">Porcentaje de ranking</string>
-    <string name="metrics_surpassed_info" formatted="false">El porcentaje de usuarios que superan este ejercicio. Un número más bajo indica que eres fuerte: si eres el 8%, solo el 8% te supera.</string>
+    <string name="metrics_surpassed">Usuarios superados</string>
+    <string name="metrics_surpassed_info" formatted="false">Porcentaje de usuarios a los que superas en este ejercicio. Cuanto mayor sea el porcentaje, mejor será tu posición en el ranking.</string>
     <string name="metrics_next_rival">Próximo rival a superar</string>
     <string name="metrics_next_rival_info">El usuario que está justo por encima de ti en el ranking y lo que necesitas para adelantarle.</string>
     <string name="metrics_no_rival">No hay ningún rival por encima. ¡Eres el número 1!</string>

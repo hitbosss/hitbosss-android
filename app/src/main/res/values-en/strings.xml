@@ -550,8 +550,8 @@
     <string name="metrics_rate_info">The average speed at which you\'re gaining strength, calculated in kg per month. It updates automatically with each new mark you record.</string>
     <string name="metrics_advantage">Community advantage</string>
     <string name="metrics_advantage_info">The difference between your mark and the community average. The higher the number, the further above the average you are.</string>
-    <string name="metrics_surpassed">Ranking percentage</string>
-    <string name="metrics_surpassed_info" formatted="false">The percentage of users who surpass this exercise. A lower number means you\'re strong: if you\'re the 8%, only 8% surpass you.</string>
+    <string name="metrics_surpassed">Users surpassed</string>
+    <string name="metrics_surpassed_info" formatted="false">Percentage of users you surpass in this exercise. The higher the percentage, the better your ranking position.</string>
     <string name="metrics_next_rival">Next rival to beat</string>
     <string name="metrics_next_rival_info">The user right above you in the ranking and what you need to overtake them.</string>
     <string name="metrics_no_rival">No rival above you. You\'re number 1!</string>
