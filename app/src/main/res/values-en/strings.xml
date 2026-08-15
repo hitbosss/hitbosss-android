@@ -226,7 +226,7 @@
     <string name="tutorial_section_recording">How to record the exercise</string>
     <string name="tutorial_section_thresholds">Thresholds</string>
     <string name="tutorial_video_label">TUTORIAL VIDEO</string>
-    <string name="tutorial_thresholds_power">PowerHIT Thresholds</string>
+    <string name="tutorial_thresholds_power">Powerlifting Thresholds</string>
     <string name="tutorial_thresholds_cross">CrossHIT Thresholds</string>
     <string name="threshold_male">MALE</string>
     <string name="threshold_female">FEMALE</string>
@@ -491,11 +491,16 @@
     <string name="metrics_bmi_over_msg">Your BMI is between 25 and 30. Consider adjusting your diet and physical activity.</string>
     <string name="metrics_bmi_obese">Obese BMI</string>
     <string name="metrics_bmi_obese_msg">Your BMI is above 30. We recommend consulting a specialist.</string>
+    <string name="metrics_bmi_low_badge">UNDERWEIGHT</string>
+    <string name="metrics_bmi_normal_badge">HEALTHY</string>
+    <string name="metrics_bmi_over_badge">OVERWEIGHT</string>
+    <string name="metrics_bmi_obese_badge">OBESE</string>
     <string name="metrics_weight_goal">Weight Goal</string>
     <string name="metrics_your_goal">Your goal</string>
     <string name="metrics_goal">Goal</string>
     <string name="metrics_progress">Progress</string>
     <string name="metrics_goal_remaining">You are %1$s away from your goal</string>
+    <string name="metrics_goal_reached">You\'ve reached your goal!</string>
     <string name="metrics_goal_history">Goal history</string>
     <string name="metrics_goal_empty">You don\'t have any goal yet. Add one with the + button.</string>
     <string name="metrics_goal_add_title">Add goal</string>
@@ -529,19 +534,22 @@
     <string name="metrics_axis_pct" formatted="false">Percentage (%)</string>
     <string name="metrics_competitive">Competitive data</string>
     <string name="metrics_improvement">Accumulated improvement</string>
-    <string name="metrics_improvement_info">Difference between your first recorded mark and your best mark in this exercise.</string>
+    <string name="metrics_improvement_info">Extra kilos lifted since your first session in the app. It reflects your strength progress from day one.</string>
     <string name="metrics_rate">Progress rate</string>
-    <string name="metrics_rate_info">Average speed at which your mark improves, based on all your records for this exercise.</string>
+    <string name="metrics_rate_info">The average speed at which you\'re gaining strength, calculated in kg per month. It updates automatically with each new mark you record.</string>
     <string name="metrics_advantage">Community advantage</string>
-    <string name="metrics_advantage_info">Difference between your best mark and the community average for this exercise.</string>
-    <string name="metrics_surpassed">Users surpassed</string>
-    <string name="metrics_surpassed_info">Percentage of community users you outrank in this exercise.</string>
+    <string name="metrics_advantage_info">The difference between your mark and the community average. The higher the number, the further above the average you are.</string>
+    <string name="metrics_surpassed">Ranking percentage</string>
+    <string name="metrics_surpassed_info" formatted="false">The percentage of users who surpass this exercise. A lower number means you\'re strong: if you\'re the 8%, only 8% surpass you.</string>
     <string name="metrics_next_rival">Next rival to beat</string>
-    <string name="metrics_next_rival_info">The user right above you in this exercise\'s ranking.</string>
+    <string name="metrics_next_rival_info">The user right above you in the ranking and what you need to overtake them.</string>
     <string name="metrics_no_rival">No rival above you. You\'re number 1!</string>
     <string name="metrics_rival_gap">They lead you by %1$s</string>
     <string name="metrics_add_training">Add training</string>
     <string name="metrics_training_weight">Weight lifted</string>
+    <string name="metrics_photo_needs_update_title">Update your metrics</string>
+    <string name="metrics_photo_needs_update">Update your weight or body composition before uploading photos, so you can compare them consistently.</string>
+    <string name="metrics_photo_limit">You can only upload 10 photos per day.</string>
     <string name="metrics_comparison">Comparison by exercise</string>
     <string name="metrics_per_month">%1$s/month</string>
     <string name="metrics_legend_training">Training</string>
@@ -570,4 +578,8 @@
     <string name="upload_notif_saved_msg">Your HIT was not deleted. Find it in \'Upload HIT\' &gt; \'Saved HITS\' to upload it later.</string>
     <string name="upload_notif_view_hit">View HIT</string>
     <string name="upload_notif_go_saved">Go to \'Saved HITS\'</string>
+    <string name="metrics_composition">Body composition</string>
+    <string name="metrics_other">Other</string>
+    <string name="metrics_add_record">Add record</string>
+    <string name="metrics_muscle_goal">Muscle goal</string>
 </resources>

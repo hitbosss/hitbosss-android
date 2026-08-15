@@ -3,15 +3,21 @@ package com.hitbosss.presentation.feature.metrics
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -21,12 +27,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -38,6 +46,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,26 +55,29 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hitbosss.R
-import com.hitbosss.domain.model.BodyLog
+import com.hitbosss.domain.model.BodyComposition
+import com.hitbosss.domain.model.BodyHistoryPoint
 import com.hitbosss.domain.model.MetricGoal
 import com.hitbosss.domain.model.PersonalInfo
+import com.hitbosss.domain.model.TrendPoint
 import com.hitbosss.domain.util.BmiCalculator
 import com.hitbosss.presentation.designsystem.components.ChartMarker
 import com.hitbosss.presentation.designsystem.components.ChartSeries
 import com.hitbosss.presentation.designsystem.components.ErrorConnectionView
-import com.hitbosss.presentation.designsystem.components.HitButtonType
 import com.hitbosss.presentation.designsystem.components.HitPopup
 import com.hitbosss.presentation.designsystem.components.LineChart
 import com.hitbosss.presentation.designsystem.theme.Error400
 import com.hitbosss.presentation.designsystem.theme.Gray100
 import com.hitbosss.presentation.designsystem.theme.Gray200
 import com.hitbosss.presentation.designsystem.theme.Gray300
+import com.hitbosss.presentation.designsystem.theme.Gray400
 import com.hitbosss.presentation.designsystem.theme.Gray500
 import com.hitbosss.presentation.designsystem.theme.Gray800
 import com.hitbosss.presentation.designsystem.theme.HitbosssType
@@ -73,8 +85,10 @@ import com.hitbosss.presentation.designsystem.theme.Orange300
 import com.hitbosss.presentation.designsystem.theme.Primary500
 import com.hitbosss.presentation.designsystem.theme.Secondary500
 import com.hitbosss.presentation.designsystem.theme.Secondary800
-import com.hitbosss.presentation.designsystem.theme.Success400
 import com.hitbosss.presentation.designsystem.theme.Success500
+import com.hitbosss.presentation.designsystem.theme.Warning400
+import androidx.compose.ui.graphics.Color
+import com.hitbosss.domain.model.GoalHistoryEntry
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -82,9 +96,6 @@ import java.util.Locale
 
 /** Sub-pestañas de Métricas. */
 private enum class MetricsTab { Physical, Strength }
-
-/** Métricas físicas de las gráficas de evolución (pager de ESTADÍSTICAS + detalle). */
-enum class PhysicalMetric { Weight, Fat, Muscle }
 
 @Composable
 fun MetricsScreen(
@@ -103,13 +114,13 @@ fun MetricsScreen(
         )
         when (tab) {
             MetricsTab.Physical -> PhysicalContent(state, viewModel, onOpenDetail)
-            MetricsTab.Strength -> StrengthContent()
+            MetricsTab.Strength -> StrengthContent(onOpenDetail = onOpenDetail)
         }
     }
 
     state.actionError?.let { error ->
         HitPopup(
-            title = stringResource(R.string.common_something_wrong),
+            title = state.actionErrorTitle ?: stringResource(R.string.common_something_wrong),
             message = error,
             confirmText = stringResource(R.string.common_accept),
             onConfirm = viewModel::clearActionError,
@@ -127,13 +138,27 @@ private fun PhysicalContent(
     viewModel: MetricsViewModel,
     onOpenDetail: (String) -> Unit,
 ) {
-    var showAddLog by remember { mutableStateOf(false) }
-    var showAddGoal by remember { mutableStateOf(false) }
+    var addRecordMetric by remember { mutableStateOf<PhysicalMetric?>(null) }
+    var goalMetric by remember { mutableStateOf<PhysicalMetric?>(null) }
     var showEditMeasures by remember { mutableStateOf(false) }
-    var goalToDelete by remember { mutableStateOf<MetricGoal?>(null) }
-    var photoToDelete by remember { mutableStateOf<com.hitbosss.domain.model.ProgressPhoto?>(null) }
+    var showEditComposition by remember { mutableStateOf(false) }
+    var showPhotoSource by remember { mutableStateOf(false) }
+    val context = LocalContext.current
     val pickPhoto = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         uri?.let(viewModel::onAddPhoto)
+    }
+    var cameraUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    val takePhoto = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
+        if (ok) cameraUri?.let(viewModel::onAddPhoto)
+    }
+    fun launchCamera() {
+        val dir = java.io.File(context.cacheDir, "progress").apply { mkdirs() }
+        val file = java.io.File(dir, "cam_${System.currentTimeMillis()}.jpg")
+        cameraUri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        takePhoto.launch(cameraUri!!)
+    }
+    val cameraPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) launchCamera()
     }
 
     when {
@@ -143,27 +168,24 @@ private fun PhysicalContent(
         else -> PullToRefreshBox(isRefreshing = state.isRefreshing, onRefresh = viewModel::refresh) {
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
                 MetricsSectionLabel(stringResource(R.string.metrics_section_state))
-                BodyMeasuresCard(state.personalInfo, onEdit = { showEditMeasures = true })
-
-                MetricsSectionLabel(stringResource(R.string.metrics_section_goals))
-                GoalCard(
-                    title = stringResource(R.string.metrics_weight_goal),
-                    goals = state.weightGoals,
-                    currentValue = state.personalInfo?.weight?.value,
-                    unit = state.weightUnit,
-                    lowerIsBetter = (state.personalInfo?.weight?.value ?: 0.0) > (state.weightGoals.active?.target?.value ?: Double.MAX_VALUE),
-                    onAdd = { showAddGoal = true },
-                    onDelete = { goalToDelete = it },
+                BodyStatePager(
+                    state = state,
+                    onEditMeasures = { showEditMeasures = true },
+                    onEditComposition = { showEditComposition = true },
                 )
 
+                MetricsSectionLabel(stringResource(R.string.metrics_section_goals))
+                GoalsPager(state, viewModel, onAdd = { goalMetric = it })
+
                 MetricsSectionLabel(stringResource(R.string.metrics_section_stats))
-                PhysicalEvolutionPager(state, onAddLog = { showAddLog = true }, onOpenDetail = onOpenDetail)
+                PhysicalEvolutionPager(state, viewModel, onAddLog = { addRecordMetric = it }, onOpenDetail = onOpenDetail)
 
                 MetricsSectionLabel(stringResource(R.string.metrics_section_visual))
                 ProgressPhotosCard(
                     photos = state.photos,
-                    onAdd = { pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                    onDelete = { photoToDelete = it },
+                    unit = state.weightUnit,
+                    onAdd = { showPhotoSource = true },
+                    onDelete = viewModel::onDeletePhoto,
                 )
 
                 Spacer(Modifier.height(24.dp))
@@ -171,63 +193,129 @@ private fun PhysicalContent(
         }
     }
 
-    if (showAddLog) {
-        AddBodyLogSheet(
-            unit = state.weightUnit,
+    addRecordMetric?.let { metric ->
+        SingleValueSheet(
+            title = stringResource(R.string.metrics_record_add_title_fmt, metric.label()),
+            description = stringResource(R.string.metrics_record_add_desc),
+            hint = stringResource(R.string.metrics_record_new),
+            unit = state.unitFor(metric),
+            buttonText = stringResource(R.string.metrics_record_add),
             isSaving = state.isSaving,
-            onDismiss = { showAddLog = false },
-            onSave = { w, f, m -> viewModel.onAddBodyLog(w, f, m); showAddLog = false },
+            onDismiss = { addRecordMetric = null },
+            onSave = { viewModel.onAddRecord(metric, it); addRecordMetric = null },
         )
     }
-    if (showAddGoal) {
+    goalMetric?.let { metric ->
         SingleValueSheet(
-            title = stringResource(R.string.metrics_goal_add_title),
+            title = stringResource(R.string.metrics_goal_add_title_fmt, metric.label()),
+            description = stringResource(R.string.metrics_goal_add_desc),
             hint = stringResource(R.string.metrics_goal_add_hint),
-            unit = state.weightUnit,
+            unit = state.unitFor(metric),
             buttonText = stringResource(R.string.metrics_goal_add_title),
             isSaving = state.isSaving,
-            onDismiss = { showAddGoal = false },
-            onSave = { viewModel.onAddWeightGoal(it); showAddGoal = false },
+            onDismiss = { goalMetric = null },
+            onSave = { viewModel.onCreateGoal(metric, it); goalMetric = null },
         )
     }
     if (showEditMeasures) {
         EditMeasuresSheet(
             info = state.personalInfo,
+            currentWeight = state.composition?.weightKg,
             unitSystem = state.unitSystem,
             isSaving = state.isSaving,
             onDismiss = { showEditMeasures = false },
             onSave = { h, w -> viewModel.onEditMeasures(h, w); showEditMeasures = false },
         )
     }
-    goalToDelete?.let { goal ->
-        HitPopup(
-            title = stringResource(R.string.metrics_goal_delete_title),
-            message = stringResource(R.string.metrics_goal_delete_msg),
-            confirmText = stringResource(R.string.common_delete),
-            confirmType = HitButtonType.Destructive,
-            onConfirm = { viewModel.onDeleteGoal(goal.id); goalToDelete = null },
-            cancelText = stringResource(R.string.common_cancel),
-            onCancel = { goalToDelete = null },
-            onDismissRequest = { goalToDelete = null },
+    if (showPhotoSource) {
+        PhotoSourceSheet(
+            onCamera = {
+                showPhotoSource = false
+                if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CAMERA) ==
+                    android.content.pm.PackageManager.PERMISSION_GRANTED) launchCamera()
+                else cameraPermission.launch(android.Manifest.permission.CAMERA)
+            },
+            onGallery = {
+                showPhotoSource = false
+                pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            },
+            onDismiss = { showPhotoSource = false },
         )
     }
-    photoToDelete?.let { photo ->
-        HitPopup(
-            title = stringResource(R.string.metrics_photo_delete_title),
-            message = stringResource(R.string.metrics_photo_delete_msg),
-            confirmText = stringResource(R.string.common_delete),
-            confirmType = HitButtonType.Destructive,
-            onConfirm = { viewModel.onDeletePhoto(photo.id); photoToDelete = null },
-            cancelText = stringResource(R.string.common_cancel),
-            onCancel = { photoToDelete = null },
-            onDismissRequest = { photoToDelete = null },
+    if (showEditComposition) {
+        EditCompositionSheet(
+            composition = state.composition,
+            unit = state.weightUnit,
+            isSaving = state.isSaving,
+            onDismiss = { showEditComposition = false },
+            onSave = { f, m -> viewModel.onEditComposition(f, m); showEditComposition = false },
         )
+    }
+}
+
+@Composable
+private fun PhysicalMetric.label(): String = when (this) {
+    PhysicalMetric.Weight -> stringResource(R.string.metrics_weight)
+    PhysicalMetric.Fat -> stringResource(R.string.metrics_fat)
+    PhysicalMetric.Muscle -> stringResource(R.string.metrics_muscle)
+}
+
+@Composable
+private fun PhysicalMetric.goalTitle(): String = when (this) {
+    PhysicalMetric.Weight -> stringResource(R.string.metrics_weight_goal)
+    PhysicalMetric.Fat -> stringResource(R.string.metrics_fat_goal)
+    PhysicalMetric.Muscle -> stringResource(R.string.metrics_muscle_goal)
+}
+
+/** Color por métrica (diseño): peso azul, grasa ámbar, músculo rojo. */
+fun metricColor(metric: String): Color = when (metric) {
+    "fat" -> Warning400
+    "muscle" -> Error400
+    else -> Secondary500
+}
+private fun PhysicalMetric.color(): Color = metricColor(apiKey)
+
+/** ESTADO FÍSICO: Medidas corporales (M1) y Composición (M2) en scroll lateral con dots. */
+@Composable
+private fun BodyStatePager(state: MetricsUiState, onEditMeasures: () -> Unit, onEditComposition: () -> Unit) {
+    val pager = rememberPagerState { 2 }
+    HorizontalPager(state = pager, beyondViewportPageCount = 1, verticalAlignment = Alignment.Top) { page ->
+        if (page == 0) BodyMeasuresCard(state, onEdit = onEditMeasures)
+        else CompositionCard(state.composition, state.weightUnit, onEdit = onEditComposition)
+    }
+    Spacer(Modifier.height(10.dp))
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { PagerDots(count = 2, current = pager.currentPage) }
+}
+
+/** OBJETIVOS: Peso / Grasa / Músculo en scroll lateral con dots (M3). */
+@Composable
+private fun GoalsPager(state: MetricsUiState, viewModel: MetricsViewModel, onAdd: (PhysicalMetric) -> Unit) {
+    val pager = rememberPagerState { PhysicalMetric.entries.size }
+    HorizontalPager(state = pager, beyondViewportPageCount = 1, verticalAlignment = Alignment.Top) { page ->
+        val metric = PhysicalMetric.entries[page]
+        GoalCard(
+            title = metric.goalTitle(),
+            goal = state.goals[metric],
+            unit = state.unitFor(metric),
+            onAdd = { onAdd(metric) },
+            history = state.goalHistory[metric] ?: emptyList(),
+            barColor = metric.color(),
+            showHistory = true,
+            onExpand = { viewModel.loadGoalHistory(metric) },
+            onDelete = viewModel::onDeleteGoal,
+        )
+    }
+    Spacer(Modifier.height(10.dp))
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        PagerDots(count = PhysicalMetric.entries.size, current = pager.currentPage)
     }
 }
 
 /** Medidas corporales: altura + peso + IMC con slider y clasificación. */
 @Composable
-private fun BodyMeasuresCard(info: PersonalInfo?, onEdit: () -> Unit) {
+private fun BodyMeasuresCard(state: MetricsUiState, onEdit: () -> Unit) {
+    val info = state.personalInfo
+    val weightVal = state.composition?.weightKg ?: info?.weight?.value
     MetricsCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.metrics_body_measures), style = HitbosssType.titleGroup, color = Gray800, modifier = Modifier.weight(1f))
@@ -236,12 +324,13 @@ private fun BodyMeasuresCard(info: PersonalInfo?, onEdit: () -> Unit) {
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             MeasureBox(stringResource(R.string.metrics_height), info?.height?.value, info?.height?.unit ?: "cm", Modifier.weight(1f))
-            MeasureBox(stringResource(R.string.metrics_weight), info?.weight?.value, info?.weight?.unit ?: "kg", Modifier.weight(1f))
+            MeasureBox(stringResource(R.string.metrics_weight), weightVal, state.weightUnit, Modifier.weight(1f))
         }
 
-        // IMC (siempre a partir de valores métricos)
         val heightCm = info?.height?.let { if (it.unit.equals("in", true)) it.value * 2.54 else it.value } ?: 0.0
-        val bmi = BmiCalculator.bmi(info?.bodyWeightKg ?: 0.0, heightCm)
+        val weightKg = state.composition?.weightKg?.let { if (state.unitSystem == "imperial") it / 2.20462 else it }
+            ?: info?.bodyWeightKg ?: 0.0
+        val bmi = BmiCalculator.bmi(weightKg, heightCm)
         if (bmi != null) {
             Spacer(Modifier.height(16.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -258,13 +347,100 @@ private fun BodyMeasuresCard(info: PersonalInfo?, onEdit: () -> Unit) {
                 BmiCalculator.Band.Overweight -> Triple(R.string.metrics_bmi_over, R.string.metrics_bmi_over_msg, Orange300)
                 BmiCalculator.Band.Obese -> Triple(R.string.metrics_bmi_obese, R.string.metrics_bmi_obese_msg, Error400)
             }
+            val badgeRes = when (band) {
+                BmiCalculator.Band.Low -> R.string.metrics_bmi_low_badge
+                BmiCalculator.Band.Normal -> R.string.metrics_bmi_normal_badge
+                BmiCalculator.Band.Overweight -> R.string.metrics_bmi_over_badge
+                BmiCalculator.Band.Obese -> R.string.metrics_bmi_obese_badge
+            }
             Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(Gray200).padding(12.dp)) {
-                Text(stringResource(titleRes), style = HitbosssType.bodyDefaultEmphasis, color = color)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(titleRes), style = HitbosssType.bodyDefaultEmphasis, color = color, modifier = Modifier.weight(1f))
+                    Text(
+                        stringResource(badgeRes),
+                        style = HitbosssType.bodySmallEmphasis, color = color,
+                        modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(color.copy(alpha = 0.15f)).padding(horizontal = 8.dp, vertical = 3.dp),
+                    )
+                }
                 Spacer(Modifier.height(4.dp))
                 Text(stringResource(msgRes), style = HitbosssType.bodySmallRegular, color = Gray500)
             }
         }
     }
+}
+
+/** Composición corporal (M2): descripción + barra de proporción + filas Músculo/Grasa/Otras (kg y %). */
+@Composable
+private fun CompositionCard(composition: BodyComposition?, unit: String, onEdit: () -> Unit) {
+    var showOtherInfo by remember { mutableStateOf(false) }
+    MetricsCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.metrics_composition), style = HitbosssType.titleGroup, color = Gray800, modifier = Modifier.weight(1f))
+            Icon(Icons.Filled.Edit, stringResource(R.string.common_edit), tint = Gray500, modifier = Modifier.size(18.dp).clickable(onClick = onEdit))
+        }
+        Text(stringResource(R.string.metrics_composition_desc), style = HitbosssType.bodySmallRegular, color = Gray500, modifier = Modifier.padding(top = 4.dp))
+        Spacer(Modifier.height(14.dp))
+        ProportionBar(composition?.muscleKg, composition?.fatKg, composition?.otherKg)
+        Spacer(Modifier.height(10.dp))
+        CompositionRow(Error400, stringResource(R.string.metrics_muscle), composition?.muscleKg, composition?.musclePercent, unit)
+        CompositionRow(Warning400, stringResource(R.string.metrics_fat), composition?.fatKg, composition?.fatPercent, unit)
+        CompositionRow(Gray400, stringResource(R.string.metrics_other), composition?.otherKg, composition?.otherPercent, unit, onInfo = { showOtherInfo = true })
+    }
+    if (showOtherInfo) {
+        HitPopup(
+            title = stringResource(R.string.metrics_other_info_title),
+            message = stringResource(R.string.metrics_other_info_msg),
+            confirmText = stringResource(R.string.common_accept),
+            onConfirm = { showOtherInfo = false },
+            onDismissRequest = { showOtherInfo = false },
+        )
+    }
+}
+
+/** Barra proporcional músculo/grasa/otras. Gris completa si no hay datos. */
+@Composable
+private fun ProportionBar(muscle: Double?, fat: Double?, other: Double?) {
+    val m = (muscle ?: 0.0).toFloat().coerceAtLeast(0f)
+    val f = (fat ?: 0.0).toFloat().coerceAtLeast(0f)
+    val o = (other ?: 0.0).toFloat().coerceAtLeast(0f)
+    Row(Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)).background(Gray400)) {
+        if (m + f + o > 0f) {
+            if (m > 0f) Box(Modifier.fillMaxHeight().weight(m).background(Error400))
+            if (f > 0f) Box(Modifier.fillMaxHeight().weight(f).background(Warning400))
+            if (o > 0f) Box(Modifier.fillMaxHeight().weight(o).background(Gray400))
+        }
+    }
+}
+
+@Composable
+private fun CompositionRow(dot: Color, label: String, kg: Double?, pct: Double?, unit: String, onInfo: (() -> Unit)? = null) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(8.dp).clip(CircleShape).background(dot))
+        Spacer(Modifier.width(8.dp))
+        Text(label, style = HitbosssType.bodyDefaultRegular, color = Gray500)
+        if (onInfo != null) { Spacer(Modifier.width(4.dp)); InfoIcon(onInfo) }
+        Spacer(Modifier.weight(1f))
+        if (kg != null) {
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text("${formatNum(kg)} $unit", style = HitbosssType.bodyDefaultEmphasis, color = Gray800)
+                pct?.let {
+                    Spacer(Modifier.width(8.dp))
+                    Text("${formatNum(it)}%", style = HitbosssType.bodySmallRegular, color = Gray500, modifier = Modifier.padding(bottom = 1.dp))
+                }
+            }
+        } else {
+            NoDataBadge()
+        }
+    }
+}
+
+@Composable
+private fun NoDataBadge() {
+    Text(
+        stringResource(R.string.metrics_no_data),
+        style = HitbosssType.bodySmallEmphasis, color = Gray500,
+        modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Gray300).padding(horizontal = 8.dp, vertical = 3.dp),
+    )
 }
 
 @Composable
@@ -280,93 +456,140 @@ private fun MeasureBox(label: String, value: Double?, unit: String, modifier: Mo
     }
 }
 
-/** Objetivo (de peso o de fuerza — mismo card): activo con progreso + historial desplegable. */
+/**
+ * Objetivo (M3). Barra de color por métrica, progreso derivado, y "Historial de objetivos" desplegable
+ * (con check de cumplido y borrado por pulsación larga). Reutilizado en Fuerza con history vacío.
+ */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun GoalCard(
     title: String,
-    goals: com.hitbosss.domain.model.MetricGoals,
-    currentValue: Double?,
+    goal: MetricGoal?,
     unit: String,
-    lowerIsBetter: Boolean,
     onAdd: () -> Unit,
-    onDelete: (MetricGoal) -> Unit,
+    history: List<GoalHistoryEntry> = emptyList(),
+    barColor: Color = Primary500,
+    showHistory: Boolean = false,
+    onExpand: () -> Unit = {},
+    onDelete: (Long) -> Unit = {},
 ) {
-    var historyOpen by remember { mutableStateOf(false) }
+    var expanded by remember { mutableStateOf(false) }
+    var pendingDelete by remember { mutableStateOf<GoalHistoryEntry?>(null) }
+
     MetricsCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(title, style = HitbosssType.titleGroup, color = Gray800, modifier = Modifier.weight(1f))
             Icon(Icons.Filled.Add, stringResource(R.string.metrics_goal_add_title), tint = Gray500, modifier = Modifier.size(20.dp).clickable(onClick = onAdd))
         }
-        val active = goals.active
-        if (active == null) {
+        if (goal == null) {
             Spacer(Modifier.height(12.dp))
             Text(stringResource(R.string.metrics_goal_empty), style = HitbosssType.bodyDefaultRegular, color = Gray500)
         } else {
             Spacer(Modifier.height(12.dp))
             Row(verticalAlignment = Alignment.Bottom) {
-                Text(currentValue?.let { formatNum(it) } ?: "--", style = HitbosssType.titleSection, color = Gray800)
-                Text(
-                    " /${formatNum(active.target.value)} $unit",
-                    style = HitbosssType.bodyDefaultRegular, color = Gray500,
-                    modifier = Modifier.padding(bottom = 4.dp),
-                )
+                Text(formatNum(goal.currentValue), style = HitbosssType.titleSection, color = Gray800)
+                Text(" /${formatNum(goal.targetValue)} $unit", style = HitbosssType.bodyDefaultRegular, color = Gray500, modifier = Modifier.padding(bottom = 4.dp))
             }
-            if (currentValue != null && currentValue > 0) {
-                val progress = (minOf(currentValue, active.target.value) / maxOf(currentValue, active.target.value)).toFloat().coerceIn(0f, 1f)
+            val progress = goal.progress.toFloat().coerceIn(0f, 1f)
+            Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.metrics_progress), style = HitbosssType.bodySmallRegular, color = Gray500, modifier = Modifier.weight(1f))
+                Text("${(progress * 100).toInt()}%", style = HitbosssType.bodySmallEmphasis, color = Gray800)
+            }
+            Spacer(Modifier.height(6.dp))
+            Box(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)).background(Gray300)) {
+                Box(Modifier.fillMaxWidth(progress).height(8.dp).clip(RoundedCornerShape(4.dp)).background(barColor))
+            }
+            // Al 100% (objetivo alcanzado) no tiene sentido seguir mostrando la diferencia → felicitación.
+            val remaining = kotlin.math.abs(goal.targetValue - goal.currentValue)
+            if (progress >= 1f) {
                 Spacer(Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(R.string.metrics_progress), style = HitbosssType.bodySmallRegular, color = Gray500, modifier = Modifier.weight(1f))
-                    Text("${(progress * 100).toInt()}%", style = HitbosssType.bodySmallEmphasis, color = Gray800)
-                }
-                Spacer(Modifier.height(6.dp))
-                Box(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)).background(Gray300)) {
-                    Box(
-                        Modifier.fillMaxWidth(progress).height(8.dp).clip(RoundedCornerShape(4.dp))
-                            .background(if (lowerIsBetter) Secondary500 else Primary500),
-                    )
-                }
-                val remaining = kotlin.math.abs(active.target.value - currentValue)
-                if (remaining > 0.01) {
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        stringResource(R.string.metrics_goal_remaining, "${formatNum(remaining)} $unit"),
-                        style = HitbosssType.bodySmallRegular, color = Success500,
-                    )
-                }
+                Text(
+                    stringResource(R.string.metrics_goal_reached),
+                    style = HitbosssType.bodySmallEmphasis, color = Success500,
+                )
+            } else if (remaining > 0.01 && goal.currentValue > 0) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    stringResource(R.string.metrics_goal_remaining, "${formatNum(remaining)} $unit"),
+                    style = HitbosssType.bodySmallRegular, color = Success500,
+                )
             }
         }
 
-        if (goals.history.isNotEmpty() || active != null) {
+        // Historial de objetivos (desplegable): carga bajo demanda al abrir.
+        if (showHistory) {
             Spacer(Modifier.height(12.dp))
+            Box(Modifier.fillMaxWidth().height(1.dp).background(Gray300))
             Row(
-                Modifier.fillMaxWidth().clickable { historyOpen = !historyOpen },
+                Modifier.fillMaxWidth().clickable { expanded = !expanded; if (expanded) onExpand() }.padding(vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(stringResource(R.string.metrics_goal_history), style = HitbosssType.bodyDefaultRegular, color = Gray500, modifier = Modifier.weight(1f))
-                Icon(
-                    if (historyOpen) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-                    null, tint = Gray500, modifier = Modifier.size(20.dp),
-                )
+                Text(stringResource(R.string.metrics_goal_history), style = HitbosssType.bodyDefaultEmphasis, color = Gray800, modifier = Modifier.weight(1f))
+                Icon(if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown, null, tint = Gray500, modifier = Modifier.size(20.dp))
             }
-            if (historyOpen) {
-                val dateFmt = remember { DateTimeFormatter.ofPattern("dd/MM/yyyy") }
-                (listOfNotNull(active) + goals.history).forEach { goal ->
-                    Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text("${stringResource(R.string.metrics_goal)}: ${formatNum(goal.target.value)} $unit", style = HitbosssType.bodyDefaultEmphasis, color = Gray800)
-                            Text(
-                                java.time.Instant.ofEpochSecond(goal.createdAt).atZone(ZoneId.systemDefault()).toLocalDate().format(dateFmt),
-                                style = HitbosssType.bodySmallRegular, color = Gray500,
-                            )
-                        }
-                        Icon(
-                            Icons.Filled.Delete, stringResource(R.string.common_delete), tint = Error400,
-                            modifier = Modifier.size(18.dp).clickable { onDelete(goal) },
-                        )
+            if (expanded) {
+                if (history.isEmpty()) {
+                    Text(stringResource(R.string.metrics_goal_empty), style = HitbosssType.bodySmallRegular, color = Gray500, modifier = Modifier.padding(bottom = 8.dp))
+                } else {
+                    history.forEach { entry ->
+                        GoalHistoryRow(entry, unit, onLongPress = { pendingDelete = entry })
                     }
                 }
             }
         }
+    }
+
+    pendingDelete?.let { entry ->
+        HitPopup(
+            title = stringResource(R.string.metrics_goal_delete_title),
+            message = stringResource(R.string.metrics_goal_delete_msg),
+            confirmText = stringResource(R.string.common_delete),
+            cancelText = stringResource(R.string.common_cancel),
+            onConfirm = { entry.id?.let(onDelete); pendingDelete = null },
+            onCancel = { pendingDelete = null },
+            onDismissRequest = { pendingDelete = null },
+        )
+    }
+}
+
+/** Fila del historial: check de cumplido + "Objetivo: X kg" + fecha. Pulsación larga → borrar. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun GoalHistoryRow(entry: GoalHistoryEntry, unit: String, onLongPress: () -> Unit) {
+    val dateFmt = remember { DateTimeFormatter.ofPattern("d MMM yyyy", Locale("es")) }
+    val date = java.time.Instant.ofEpochSecond(entry.createdAt).atZone(ZoneId.systemDefault()).toLocalDate().format(dateFmt)
+    Row(
+        Modifier.fillMaxWidth()
+            .combinedClickable(onClick = {}, onLongClick = onLongPress)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        GoalCheck(entry.reached)
+        Spacer(Modifier.width(10.dp))
+        Text(
+            "${stringResource(R.string.metrics_goal)}: ${formatNum(entry.targetValue)} $unit",
+            style = HitbosssType.bodyDefaultRegular, color = Gray800, modifier = Modifier.weight(1f),
+        )
+        Text(date, style = HitbosssType.bodySmallRegular, color = Gray500)
+        Spacer(Modifier.width(8.dp))
+        // Botón de borrar visible (además de la pulsación larga, poco descubrible).
+        Icon(
+            Icons.Filled.Delete, stringResource(R.string.common_delete), tint = Gray500,
+            modifier = Modifier.size(18.dp).clickable(onClick = onLongPress),
+        )
+    }
+}
+
+/** Círculo de estado del objetivo: verde con check si cumplido, vacío si no / activo. */
+@Composable
+private fun GoalCheck(reached: Boolean?) {
+    if (reached == true) {
+        Box(Modifier.size(20.dp).clip(CircleShape).background(Success500), contentAlignment = Alignment.Center) {
+            Icon(Icons.Filled.Check, null, tint = Gray100, modifier = Modifier.size(13.dp))
+        }
+    } else {
+        Box(Modifier.size(20.dp).clip(CircleShape).background(Gray300))
     }
 }
 
@@ -374,7 +597,8 @@ fun GoalCard(
 @Composable
 private fun PhysicalEvolutionPager(
     state: MetricsUiState,
-    onAddLog: () -> Unit,
+    viewModel: MetricsViewModel,
+    onAddLog: (PhysicalMetric) -> Unit,
     onOpenDetail: (String) -> Unit,
 ) {
     val pager = rememberPagerState { PhysicalMetric.entries.size }
@@ -382,11 +606,13 @@ private fun PhysicalEvolutionPager(
         val metric = PhysicalMetric.entries[page]
         EvolutionCard(
             metric = metric,
-            logs = state.bodyLogs,
-            goalValue = if (metric == PhysicalMetric.Weight) state.weightGoals.active?.target?.value else null,
-            unit = if (metric == PhysicalMetric.Fat) "%" else state.weightUnit,
-            onAddLog = onAddLog,
-            onOpenDetail = { onOpenDetail(metric.name.lowercase()) },
+            state = state,
+            loadHistory = viewModel::loadHistory,
+            loadTrend = viewModel::loadTrend,
+            goalValue = state.goals[metric]?.targetValue,
+            unit = state.unitFor(metric),
+            onAddLog = { onAddLog(metric) },
+            onOpenDetail = { onOpenDetail(metric.apiKey) },
         )
     }
     Spacer(Modifier.height(10.dp))
@@ -402,44 +628,45 @@ private fun PhysicalMetric.title(): String = when (this) {
     PhysicalMetric.Muscle -> stringResource(R.string.metrics_muscle_evolution)
 }
 
-private fun BodyLog.valueOf(metric: PhysicalMetric): Double? = when (metric) {
-    PhysicalMetric.Weight -> weight.value
-    PhysicalMetric.Fat -> bodyFatPct
-    PhysicalMetric.Muscle -> muscleMass?.value
-}
-
-/** Card de evolución con gráfica Semana/Mes, tiles y añadir registro. */
+/** Card de evolución con gráfica Semana/Mes (historial del servidor), tiles y añadir registro. */
 @Composable
 private fun EvolutionCard(
     metric: PhysicalMetric,
-    logs: List<BodyLog>,
+    state: MetricsUiState,
+    loadHistory: (PhysicalMetric, String) -> Unit,
+    loadTrend: (String) -> Unit,
     goalValue: Double?,
     unit: String,
     onAddLog: () -> Unit,
     onOpenDetail: () -> Unit,
 ) {
     var monthly by rememberSaveable(metric) { mutableStateOf(false) }
+    val timeframe = if (monthly) "month" else "week"
+    LaunchedEffect(metric, timeframe) { loadHistory(metric, timeframe) }
+    LaunchedEffect(timeframe) { loadTrend(timeframe) }
+    val history: List<BodyHistoryPoint> = state.history[metric to timeframe] ?: emptyList()
+    // Registros abiertos por el ⓘ de un tile: (esPeríodoActual, puntos).
+    var registros by remember(metric) { mutableStateOf<Pair<Boolean, List<TrendPoint>>?>(null) }
+
     val zone = ZoneId.systemDefault()
     val today = LocalDate.now(zone)
-
-    // Rango temporal visible
-    val start = if (monthly) today.withDayOfMonth(1) else today.with(java.time.DayOfWeek.MONDAY)
-    val end = if (monthly) start.plusMonths(1) else start.plusWeeks(1)
+    val start = if (monthly) today.minusWeeks(3).with(java.time.DayOfWeek.MONDAY) else today.with(java.time.DayOfWeek.MONDAY)
+    val end = if (monthly) start.plusWeeks(4) else start.plusWeeks(1)
     val startSec = start.atStartOfDay(zone).toEpochSecond()
     val endSec = end.atStartOfDay(zone).toEpochSecond()
-    val span = (endSec - startSec).toFloat()
+    val span = (endSec - startSec).toFloat().coerceAtLeast(1f)
 
-    val points = logs.mapNotNull { log ->
-        val v = log.valueOf(metric) ?: return@mapNotNull null
-        if (log.loggedAt < startSec || log.loggedAt >= endSec) return@mapNotNull null
-        (log.loggedAt - startSec) / span to v
+    // (fracción X, valor, fecha) — la fecha alimenta el tooltip.
+    val pts = history.mapNotNull { p ->
+        if (p.measuredAt < startSec || p.measuredAt >= endSec) return@mapNotNull null
+        Triple((p.measuredAt - startSec) / span, p.value, p.measuredAt)
     }
+    val points = pts.map { it.first to it.second }
+    var selectedPoint by remember(metric, timeframe) { mutableStateOf<Int?>(null) }
+    val pointFmt = remember { DateTimeFormatter.ofPattern("EEE d MMM", Locale("es")) }
 
-    val xLabels = if (monthly) {
-        listOf("1", "8", "15", "22", stringResource(R.string.metrics_month_end_label))
-    } else {
-        stringResource(R.string.metrics_week_days).split(",")
-    }
+    val xLabels = if (monthly) listOf("1", "2", "3", "4")
+    else stringResource(R.string.metrics_week_days).split(",")
 
     MetricsCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -458,45 +685,69 @@ private fun EvolutionCard(
         )
         Spacer(Modifier.height(16.dp))
 
-        if (points.isEmpty() && logs.none { it.valueOf(metric) != null }) {
+        if (history.isEmpty()) {
             Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
                 Text(stringResource(R.string.metrics_empty_logs), style = HitbosssType.bodyDefaultRegular, color = Gray500)
             }
         } else {
             val series = buildList {
                 if (points.isNotEmpty()) {
-                    add(ChartSeries(points, color = if (metric == PhysicalMetric.Weight) Secondary500 else Success400, marker = ChartMarker.Circle, fill = true))
+                    add(ChartSeries(points, color = metric.color(), marker = ChartMarker.Circle, fill = true))
                 }
                 goalValue?.let { add(ChartSeries(listOf(0f to it, 1f to it), color = Success500, dashed = true, marker = ChartMarker.None)) }
             }
-            LineChart(series = series, xLabels = xLabels, modifier = Modifier.fillMaxWidth().height(160.dp))
+            LineChart(
+                series = series,
+                xLabels = xLabels,
+                modifier = Modifier.fillMaxWidth().height(160.dp),
+                selectedIndex = selectedPoint,
+                onSelect = { selectedPoint = it },
+                pointLabel = { i ->
+                    val (_, v, date) = pts[i]
+                    val d = java.time.Instant.ofEpochSecond(date).atZone(ZoneId.systemDefault()).toLocalDate()
+                        .format(pointFmt).replaceFirstChar { it.uppercase() }
+                    "$d · ${formatNum(v)} $unit"
+                },
+            )
         }
 
-        // Tiles semana actual / pasada + mensaje delta
-        val weekStart = today.with(java.time.DayOfWeek.MONDAY).atStartOfDay(zone).toEpochSecond()
-        val lastWeekStart = weekStart - 7 * 86400
-        fun avgIn(from: Long, to: Long): Double? =
-            logs.filter { it.loggedAt in from until to }.mapNotNull { it.valueOf(metric) }
-                .takeIf { it.isNotEmpty() }?.average()
-        val currentAvg = avgIn(weekStart, weekStart + 7 * 86400)
-        val pastAvg = avgIn(lastWeekStart, weekStart)
-
+        // Tendencia (M5): media del período actual vs anterior (endpoint trend). ⓘ abre "Registros".
+        val trend = state.trend[timeframe]?.forMetric(metric.apiKey)
+        val currentVal = trend?.currentAvg
+        val prevVal = trend?.previousAvg
         Spacer(Modifier.height(16.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            WeekTile(stringResource(R.string.metrics_current_week), currentAvg, unit, Modifier.weight(1f))
-            WeekTile(stringResource(R.string.metrics_past_week), pastAvg, unit, Modifier.weight(1f))
+            WeekTile(
+                label = stringResource(if (monthly) R.string.metrics_current_month else R.string.metrics_current_week),
+                value = currentVal, unit = unit, modifier = Modifier.weight(1f),
+                onInfo = trend?.let { t -> { registros = true to t.current } },
+            )
+            WeekTile(
+                label = stringResource(if (monthly) R.string.metrics_past_month else R.string.metrics_past_week),
+                value = prevVal, unit = unit, modifier = Modifier.weight(1f),
+                onInfo = trend?.let { t -> { registros = false to t.previous } },
+            )
         }
-        if (metric == PhysicalMetric.Weight && currentAvg != null && pastAvg != null) {
-            val delta = currentAvg - pastAvg
+        if (currentVal != null && prevVal != null) {
+            val delta = currentVal - prevVal
             if (kotlin.math.abs(delta) > 0.001) {
                 Spacer(Modifier.height(8.dp))
+                // "Bueno" según la métrica. Grasa: bajar; músculo: subir. Peso: depende del OBJETIVO
+                // del usuario (si quiere subir y sube → verde; si no hay objetivo → neutro).
+                val good = when (metric) {
+                    PhysicalMetric.Fat -> delta < 0
+                    PhysicalMetric.Muscle -> delta > 0
+                    PhysicalMetric.Weight -> state.goals[metric]
+                        ?.takeIf { it.targetValue != it.currentValue }
+                        ?.let { (delta > 0) == (it.targetValue > it.currentValue) }
+                }
                 Text(
                     stringResource(
                         if (delta < 0) R.string.metrics_lost_msg else R.string.metrics_gained_msg,
                         "${formatNum(kotlin.math.abs(delta))} $unit",
                     ),
                     style = HitbosssType.bodySmallRegular,
-                    color = if (delta < 0) Error400 else Success500,
+                    color = when (good) { true -> Success500; false -> Error400; null -> Gray500 },
                 )
             }
         }
@@ -510,16 +761,51 @@ private fun EvolutionCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Filled.Add, null, tint = Gray100, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
-                Text(stringResource(R.string.metrics_add_log), style = HitbosssType.bodyDefaultEmphasis, color = Gray100)
+                Text(stringResource(R.string.metrics_add_record), style = HitbosssType.bodyDefaultEmphasis, color = Gray100)
             }
         }
+    }
+
+    registros?.let { (esActual, pts) ->
+        val body = buildString {
+            append(registrosText(pts, monthly, unit))
+            if (esActual) { append("\n\n"); append(stringResource(R.string.metrics_records_disclaimer)) }
+        }
+        HitPopup(
+            title = stringResource(R.string.metrics_records),
+            message = body.ifBlank { stringResource(R.string.metrics_no_compare) },
+            confirmText = stringResource(R.string.common_accept),
+            onConfirm = { registros = null },
+            onDismissRequest = { registros = null },
+        )
+    }
+}
+
+/** Texto del popup "Registros": semana → días con dato; mes → 4 semanas (o SIN DATOS). */
+@Composable
+private fun registrosText(points: List<TrendPoint>, monthly: Boolean, unit: String): String {
+    if (monthly) {
+        return points.mapIndexed { i, p ->
+            val v = p.value?.let { "${formatNum(it)} $unit" } ?: stringResource(R.string.metrics_no_data)
+            "${stringResource(R.string.metrics_week)} ${i + 1}: $v"
+        }.joinToString("\n")
+    }
+    val fmt = remember { DateTimeFormatter.ofPattern("EEEE d MMM", Locale("es")) }
+    val zone = ZoneId.systemDefault()
+    return points.filter { it.value != null }.joinToString("\n") { p ->
+        val d = java.time.Instant.ofEpochSecond(p.date).atZone(zone).toLocalDate().format(fmt)
+            .replaceFirstChar { it.uppercase() }
+        "$d: ${formatNum(p.value!!)} $unit"
     }
 }
 
 @Composable
-private fun WeekTile(label: String, value: Double?, unit: String, modifier: Modifier = Modifier) {
+private fun WeekTile(label: String, value: Double?, unit: String, modifier: Modifier = Modifier, onInfo: (() -> Unit)? = null) {
     Column(modifier.clip(RoundedCornerShape(8.dp)).background(Gray200).padding(12.dp)) {
-        Text(label, style = HitbosssType.bodySmallRegular, color = Gray500)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(label, style = HitbosssType.bodySmallRegular, color = Gray500, modifier = Modifier.weight(1f))
+            if (onInfo != null) InfoIcon(onInfo)
+        }
         Spacer(Modifier.height(4.dp))
         Row(verticalAlignment = Alignment.Bottom) {
             Text(value?.let { formatNum(it) } ?: "--", style = HitbosssType.titleBody, color = Gray800)
@@ -531,35 +817,7 @@ private fun WeekTile(label: String, value: Double?, unit: String, modifier: Modi
 
 // ============================ SHEETS ============================
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun AddBodyLogSheet(
-    unit: String,
-    isSaving: Boolean,
-    onDismiss: () -> Unit,
-    onSave: (weight: Double, fat: Double?, muscle: Double?) -> Unit,
-) {
-    var weight by remember { mutableStateOf("") }
-    var fat by remember { mutableStateOf("") }
-    var muscle by remember { mutableStateOf("") }
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Gray100) {
-        Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
-            Text(stringResource(R.string.metrics_add_log), style = HitbosssType.titleBody, color = Gray800)
-            Spacer(Modifier.height(16.dp))
-            NumberField(weight, { weight = it }, stringResource(R.string.metrics_weight), unit)
-            Spacer(Modifier.height(12.dp))
-            NumberField(fat, { fat = it }, stringResource(R.string.metrics_fat_pct), "%")
-            Spacer(Modifier.height(12.dp))
-            NumberField(muscle, { muscle = it }, stringResource(R.string.metrics_muscle_mass), unit)
-            Spacer(Modifier.height(20.dp))
-            SheetButton(stringResource(R.string.metrics_add), enabled = weight.toDoubleOrNull()?.let { it > 0 } == true && !isSaving) {
-                onSave(weight.toDouble(), fat.toDoubleOrNull(), muscle.toDoubleOrNull())
-            }
-        }
-    }
-}
-
-/** Sheet genérico de un solo valor numérico (objetivo de peso/fuerza, entrenamiento). */
+/** Sheet genérico de un solo valor numérico (registro, objetivo, entrenamiento). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SingleValueSheet(
@@ -570,11 +828,16 @@ fun SingleValueSheet(
     isSaving: Boolean,
     onDismiss: () -> Unit,
     onSave: (Double) -> Unit,
+    description: String? = null,
 ) {
     var value by remember { mutableStateOf("") }
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Gray100) {
         Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
             Text(title, style = HitbosssType.titleBody, color = Gray800)
+            if (description != null) {
+                Spacer(Modifier.height(6.dp))
+                Text(description, style = HitbosssType.bodySmallRegular, color = Gray500)
+            }
             Spacer(Modifier.height(16.dp))
             NumberField(value, { value = it }, hint, unit)
             Spacer(Modifier.height(20.dp))
@@ -589,23 +852,54 @@ fun SingleValueSheet(
 @Composable
 private fun EditMeasuresSheet(
     info: PersonalInfo?,
+    currentWeight: Double?,
     unitSystem: String,
     isSaving: Boolean,
     onDismiss: () -> Unit,
     onSave: (height: Double?, weight: Double?) -> Unit,
 ) {
     var height by remember { mutableStateOf(info?.height?.value?.let { formatNum(it) } ?: "") }
-    var weight by remember { mutableStateOf(info?.weight?.value?.let { formatNum(it) } ?: "") }
+    var weight by remember { mutableStateOf(currentWeight?.let { formatNum(it) } ?: "") }
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Gray100) {
         Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
-            Text(stringResource(R.string.metrics_body_measures), style = HitbosssType.titleBody, color = Gray800)
+            Text(stringResource(R.string.metrics_edit_measures), style = HitbosssType.titleBody, color = Gray800)
+            Spacer(Modifier.height(6.dp))
+            Text(stringResource(R.string.metrics_edit_measures_desc), style = HitbosssType.bodySmallRegular, color = Gray500)
             Spacer(Modifier.height(16.dp))
-            NumberField(height, { height = it }, stringResource(R.string.metrics_height), if (unitSystem == "imperial") "in" else "cm")
-            Spacer(Modifier.height(12.dp))
             NumberField(weight, { weight = it }, stringResource(R.string.metrics_weight), if (unitSystem == "imperial") "lbs" else "kg")
+            Spacer(Modifier.height(12.dp))
+            NumberField(height, { height = it }, stringResource(R.string.metrics_height), if (unitSystem == "imperial") "in" else "cm")
             Spacer(Modifier.height(20.dp))
-            SheetButton(stringResource(R.string.common_save_changes), enabled = !isSaving) {
+            SheetButton(stringResource(R.string.metrics_update_data), enabled = !isSaving) {
                 onSave(height.toDoubleOrNull(), weight.toDoubleOrNull())
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EditCompositionSheet(
+    composition: BodyComposition?,
+    unit: String,
+    isSaving: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (fatKg: Double?, muscleKg: Double?) -> Unit,
+) {
+    var fat by remember { mutableStateOf(composition?.fatKg?.let { formatNum(it) } ?: "") }
+    var muscle by remember { mutableStateOf(composition?.muscleKg?.let { formatNum(it) } ?: "") }
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Gray100) {
+        Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
+            Text(stringResource(R.string.metrics_edit_composition), style = HitbosssType.titleBody, color = Gray800)
+            Spacer(Modifier.height(6.dp))
+            Text(stringResource(R.string.metrics_edit_composition_desc), style = HitbosssType.bodySmallRegular, color = Gray500)
+            Spacer(Modifier.height(16.dp))
+            NumberField(muscle, { muscle = it }, stringResource(R.string.metrics_muscle), unit)
+            Spacer(Modifier.height(12.dp))
+            NumberField(fat, { fat = it }, stringResource(R.string.metrics_fat), unit)
+            Spacer(Modifier.height(20.dp))
+            SheetButton(stringResource(R.string.metrics_update_data), enabled = !isSaving) {
+                onSave(fat.toDoubleOrNull(), muscle.toDoubleOrNull())
             }
         }
     }
@@ -647,14 +941,42 @@ private fun SheetButton(text: String, enabled: Boolean, onClick: () -> Unit) {
 
 // ============================ FOTOS DE PROGRESO ============================
 
-/** Fotos de progreso: Individual (carrusel) / Comparado (primera vs última) + medidas snapshot. */
+/** Action sheet de origen de foto: Hacer foto / Subir foto de Galería / Cancelar (1:1 con iOS). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PhotoSourceSheet(onCamera: () -> Unit, onGallery: () -> Unit, onDismiss: () -> Unit) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Gray100) {
+        Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
+            Text(
+                stringResource(R.string.metrics_photo_camera),
+                style = HitbosssType.bodyLargeRegular, color = Gray800, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().clickable(onClick = onCamera).padding(horizontal = 24.dp, vertical = 16.dp),
+            )
+            Text(
+                stringResource(R.string.metrics_photo_gallery),
+                style = HitbosssType.bodyLargeRegular, color = Secondary500, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().clickable(onClick = onGallery).padding(horizontal = 24.dp, vertical = 16.dp),
+            )
+            Text(
+                stringResource(R.string.common_cancel),
+                style = HitbosssType.bodyLargeEmphasis, color = Gray800, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().clickable(onClick = onDismiss).padding(horizontal = 24.dp, vertical = 16.dp),
+            )
+        }
+    }
+}
+
+/** Fotos de progreso: Individual (carrusel) / Comparado (arrastrar/tocar dos fotos + diferencia) + snapshot. */
 @Composable
 private fun ProgressPhotosCard(
     photos: List<com.hitbosss.domain.model.ProgressPhoto>,
+    unit: String,
     onAdd: () -> Unit,
-    onDelete: (com.hitbosss.domain.model.ProgressPhoto) -> Unit,
+    onDelete: (Long) -> Unit = {},
 ) {
     var compare by rememberSaveable { mutableStateOf(false) }
+    var pendingDelete by remember { mutableStateOf<com.hitbosss.domain.model.ProgressPhoto?>(null) }
+    var fullscreenPhoto by remember { mutableStateOf<String?>(null) }
     val dateFmt = remember { DateTimeFormatter.ofPattern("dd MMM") }
     fun dateOf(p: com.hitbosss.domain.model.ProgressPhoto): String =
         java.time.Instant.ofEpochSecond(p.takenAt).atZone(ZoneId.systemDefault()).toLocalDate().format(dateFmt)
@@ -684,9 +1006,20 @@ private fun ProgressPhotosCard(
             HorizontalPager(state = pager, beyondViewportPageCount = 1) { page ->
                 val photo = photos[page]
                 Column {
-                    ProgressPhotoImage(photo.photoUrl, dateOf(photo), onLongPress = { onDelete(photo) })
+                    Box {
+                        ProgressPhotoImage(photo.photoUrl, dateOf(photo), onClick = { fullscreenPhoto = photo.photoUrl })
+                        if (photo.id != null) {
+                            Box(
+                                Modifier.align(Alignment.TopEnd).padding(8.dp).size(32.dp).clip(CircleShape)
+                                    .background(Gray800.copy(alpha = 0.55f)).clickable { pendingDelete = photo },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(Icons.Filled.Delete, stringResource(R.string.common_delete), tint = Gray100, modifier = Modifier.size(18.dp))
+                            }
+                        }
+                    }
                     Spacer(Modifier.height(12.dp))
-                    PhotoStatsRow(photo)
+                    PhotoStatsRow(photo, unit)
                 }
             }
             if (photos.size > 1) {
@@ -696,31 +1029,94 @@ private fun ProgressPhotosCard(
                 }
             }
         } else {
-            // Comparado: la más antigua vs la más reciente (photos viene ordenado por fecha DESC)
-            val newest = photos.first()
-            val oldest = photos.last()
+            // Comparado: dos huecos + carrusel. Tocar una miniatura la asigna al primer hueco libre
+            // (tocar la seleccionada la quita). Con ambos huecos → fila de diferencias.
+            // Fotos vienen DESC (más reciente primero): izquierda = más antigua, derecha = más reciente.
+            var slotA by rememberSaveable { mutableStateOf(photos.lastIndex) }
+            var slotB by rememberSaveable { mutableStateOf(if (photos.size > 1) 0 else -1) }
+            val a = photos.getOrNull(slotA)
+            val b = photos.getOrNull(slotB)
+
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Column(Modifier.weight(1f)) {
-                    ProgressPhotoImage(oldest.photoUrl, dateOf(oldest), onLongPress = { onDelete(oldest) })
-                    Spacer(Modifier.height(8.dp))
-                    PhotoStatsRow(oldest, compact = true)
+                    if (a != null) { ProgressPhotoImage(a.photoUrl, dateOf(a)); Spacer(Modifier.height(8.dp)); PhotoStatsRow(a, unit, compact = true) } else EmptySlot()
                 }
                 Column(Modifier.weight(1f)) {
-                    ProgressPhotoImage(newest.photoUrl, dateOf(newest), onLongPress = { onDelete(newest) })
-                    Spacer(Modifier.height(8.dp))
-                    PhotoStatsRow(newest, compact = true)
+                    if (b != null) { ProgressPhotoImage(b.photoUrl, dateOf(b)); Spacer(Modifier.height(8.dp)); PhotoStatsRow(b, unit, compact = true) } else EmptySlot()
                 }
+            }
+            if (a != null && b != null) {
+                Spacer(Modifier.height(10.dp))
+                PhotoDiffRow(a, b, unit)
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(stringResource(R.string.metrics_photo_drag_hint), style = HitbosssType.bodySmallRegular, color = Gray500)
+            Spacer(Modifier.height(10.dp))
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                photos.forEachIndexed { i, p ->
+                    val sel = i == slotA || i == slotB
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(
+                            Modifier.size(56.dp).clip(RoundedCornerShape(8.dp))
+                                .then(if (sel) Modifier.border(2.dp, Primary500, RoundedCornerShape(8.dp)) else Modifier)
+                                .clickable {
+                                    when {
+                                        slotA == i -> slotA = -1
+                                        slotB == i -> slotB = -1
+                                        slotA < 0 -> slotA = i
+                                        slotB < 0 -> slotB = i
+                                        else -> slotB = i
+                                    }
+                                },
+                        ) {
+                            coil.compose.AsyncImage(
+                                model = p.photoUrl, contentDescription = null,
+                                contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxSize(),
+                            )
+                        }
+                        Spacer(Modifier.height(2.dp))
+                        Text(dateOf(p), style = HitbosssType.bodySmallRegular, color = Gray500)
+                    }
+                }
+            }
+        }
+    }
+
+    pendingDelete?.let { photo ->
+        HitPopup(
+            title = stringResource(R.string.metrics_photo_delete_title),
+            message = stringResource(R.string.metrics_photo_delete_msg),
+            confirmText = stringResource(R.string.common_delete),
+            cancelText = stringResource(R.string.common_cancel),
+            onConfirm = { photo.id?.let(onDelete); pendingDelete = null },
+            onCancel = { pendingDelete = null },
+            onDismissRequest = { pendingDelete = null },
+        )
+    }
+
+    // Foto a pantalla completa al tocarla (igual que la foto de perfil). Tap para cerrar.
+    fullscreenPhoto?.let { url ->
+        Dialog(onDismissRequest = { fullscreenPhoto = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+            Box(
+                Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.95f))
+                    .clickable { fullscreenPhoto = null },
+                contentAlignment = Alignment.Center,
+            ) {
+                coil.compose.AsyncImage(
+                    model = url, contentDescription = null,
+                    contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
         }
     }
 }
 
-@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-private fun ProgressPhotoImage(url: String, dateLabel: String, onLongPress: () -> Unit) {
+private fun ProgressPhotoImage(url: String, dateLabel: String, onClick: (() -> Unit)? = null) {
     Box(
         Modifier.fillMaxWidth().height(280.dp).clip(RoundedCornerShape(10.dp)).background(Gray300)
-            .combinedClickable(onClick = {}, onLongClick = onLongPress),
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
     ) {
         coil.compose.AsyncImage(
             model = url, contentDescription = null,
@@ -738,11 +1134,11 @@ private fun ProgressPhotoImage(url: String, dateLabel: String, onLongPress: () -
 }
 
 @Composable
-private fun PhotoStatsRow(photo: com.hitbosss.domain.model.ProgressPhoto, compact: Boolean = false) {
+private fun PhotoStatsRow(photo: com.hitbosss.domain.model.ProgressPhoto, unit: String, compact: Boolean = false) {
     Row(horizontalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 12.dp)) {
-        PhotoStat(stringResource(R.string.metrics_weight), photo.weight?.let { "${formatNum(it.value)} ${it.unit}" }, Modifier.weight(1f))
-        PhotoStat(stringResource(R.string.metrics_fat), photo.bodyFatPct?.let { "${formatNum(it)}%" }, Modifier.weight(1f))
-        PhotoStat(stringResource(R.string.metrics_muscle), photo.muscleMass?.let { "${formatNum(it.value)} ${it.unit}" }, Modifier.weight(1f))
+        PhotoStat(stringResource(R.string.metrics_weight), photo.weightKg?.let { "${formatNum(it)} $unit" }, Modifier.weight(1f))
+        PhotoStat(stringResource(R.string.metrics_fat), photo.fatPercent?.let { "${formatNum(it)}%" }, Modifier.weight(1f))
+        PhotoStat(stringResource(R.string.metrics_muscle), photo.muscleKg?.let { "${formatNum(it)} $unit" }, Modifier.weight(1f))
     }
 }
 
@@ -751,6 +1147,46 @@ private fun PhotoStat(label: String, value: String?, modifier: Modifier = Modifi
     Column(modifier.clip(RoundedCornerShape(8.dp)).background(Gray200).padding(8.dp)) {
         Text(label, style = HitbosssType.bodySmallRegular, color = Gray500)
         Text(value ?: "--", style = HitbosssType.bodyDefaultEmphasis, color = Gray800)
+    }
+}
+
+/** Hueco vacío del modo Comparado (aún sin foto asignada). */
+@Composable
+private fun EmptySlot() {
+    Box(
+        Modifier.fillMaxWidth().height(280.dp).clip(RoundedCornerShape(10.dp)).background(Gray200),
+        contentAlignment = Alignment.Center,
+    ) { Icon(Icons.Filled.Add, null, tint = Gray400, modifier = Modifier.size(32.dp)) }
+}
+
+/** Fila de diferencias entre dos fotos (B − A): peso/grasa/músculo, coloreada por sentido. */
+@Composable
+private fun PhotoDiffRow(a: com.hitbosss.domain.model.ProgressPhoto, b: com.hitbosss.domain.model.ProgressPhoto, unit: String) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        DiffStat(stringResource(R.string.metrics_weight), photoDiff(a.weightKg, b.weightKg), unit, goodUp = true, Modifier.weight(1f))
+        DiffStat(stringResource(R.string.metrics_fat), photoDiff(a.fatPercent, b.fatPercent), "%", goodUp = false, Modifier.weight(1f))
+        DiffStat(stringResource(R.string.metrics_muscle), photoDiff(a.muscleKg, b.muscleKg), unit, goodUp = true, Modifier.weight(1f))
+    }
+}
+
+private fun photoDiff(a: Double?, b: Double?): Double? = if (a != null && b != null) b - a else null
+
+@Composable
+private fun DiffStat(label: String, delta: Double?, unit: String, goodUp: Boolean, modifier: Modifier = Modifier) {
+    Column(modifier.clip(RoundedCornerShape(8.dp)).background(Gray200).padding(8.dp)) {
+        Text(label, style = HitbosssType.bodySmallRegular, color = Gray500)
+        if (delta == null) {
+            Text("--", style = HitbosssType.bodyDefaultEmphasis, color = Gray500)
+        } else {
+            val neutral = kotlin.math.abs(delta) < 0.05
+            val good = if (goodUp) delta > 0 else delta < 0
+            val sign = if (delta > 0) "+" else ""
+            Text(
+                "$sign${formatNum(delta)} $unit",
+                style = HitbosssType.bodyDefaultEmphasis,
+                color = if (neutral) Gray800 else if (good) Success500 else Error400,
+            )
+        }
     }
 }
 

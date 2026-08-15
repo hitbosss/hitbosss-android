@@ -1,16 +1,21 @@
 package com.hitbosss.data.remote
 
 import com.hitbosss.data.remote.dto.AppConfigDto
-import com.hitbosss.data.remote.dto.BodyLogDto
-import com.hitbosss.data.remote.dto.CreateBodyLogRequestDto
+import com.hitbosss.data.remote.dto.BodyCompositionDto
+import com.hitbosss.data.remote.dto.BodyHistoryPointDto
 import com.hitbosss.data.remote.dto.CreateGoalRequestDto
-import com.hitbosss.data.remote.dto.CreateStrengthLogRequestDto
-import com.hitbosss.data.remote.dto.CreateUserRequestDto
-import com.hitbosss.data.remote.dto.GoalsResponseDto
-import com.hitbosss.data.remote.dto.MetricGoalDto
+import com.hitbosss.data.remote.dto.CreateStrengthGoalRequestDto
+import com.hitbosss.data.remote.dto.CreateTrainingRequestDto
+import com.hitbosss.data.remote.dto.GoalDto
+import com.hitbosss.data.remote.dto.GoalHistoryEntryDto
 import com.hitbosss.data.remote.dto.ProgressPhotoDto
-import com.hitbosss.data.remote.dto.StrengthEntryDto
-import com.hitbosss.data.remote.dto.StrengthHistoryDto
+import com.hitbosss.data.remote.dto.StrengthStatsDto
+import com.hitbosss.data.remote.dto.EvolutionPointDto
+import com.hitbosss.data.remote.dto.StrengthBestDto
+import com.hitbosss.data.remote.dto.TrainingEntryDto
+import com.hitbosss.data.remote.dto.TrendDto
+import com.hitbosss.data.remote.dto.UpdateBodyCompositionDto
+import com.hitbosss.data.remote.dto.CreateUserRequestDto
 import com.hitbosss.data.remote.dto.CreateUserResponseDto
 import com.hitbosss.data.remote.dto.EventDetailDto
 import com.hitbosss.data.remote.dto.EventsResponseDto
@@ -22,6 +27,8 @@ import com.hitbosss.data.remote.dto.PersonalInfoDto
 import com.hitbosss.data.remote.dto.ReportRequestDto
 import com.hitbosss.data.remote.dto.SportRankingDto
 import com.hitbosss.data.remote.dto.UploadHitResponseDto
+import com.hitbosss.data.remote.dto.HiddenHitsResponseDto
+import com.hitbosss.data.remote.dto.HitVisibilityRequestDto
 import com.hitbosss.data.remote.dto.UserProfileDto
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -217,64 +224,96 @@ interface HitbosssApi {
         @Part video: MultipartBody.Part?,
     ): MessageResponseDto
 
-    // ============ Métricas (sección Métricas: Físico + Fuerza) ============
+    // ============ Métricas (contrato iOS 663: /user/..., usuario del token) ============
 
-    /** GET /metrics/{id}/body-logs — histórico de composición corporal. Requiere auth. */
-    @GET("metrics/{id}/body-logs")
-    suspend fun getBodyLogs(
-        @Path("id") userId: String,
-        @Query("from") from: Long? = null,
-        @Query("to") to: Long? = null,
-    ): List<BodyLogDto>
+    /** GET /metrics/body-composition — última composición (números en la unidad pedida). */
+    @GET("metrics/body-composition")
+    suspend fun getBodyComposition(@Query("unit") unit: String? = null): BodyCompositionDto
 
-    @POST("metrics/{id}/body-logs")
-    suspend fun createBodyLog(@Path("id") userId: String, @Body body: CreateBodyLogRequestDto): BodyLogDto
+    /** GET /metrics/body-composition/history — serie de una métrica (weight/height/muscle/fat) en un rango. */
+    @GET("metrics/body-composition/history")
+    suspend fun getBodyCompositionHistory(
+        @Query("metric") metric: String,
+        @Query("range") range: String,
+        @Query("unit") unit: String? = null,
+    ): List<BodyHistoryPointDto>
 
-    @DELETE("metrics/{id}/body-logs/{logId}")
-    suspend fun deleteBodyLog(@Path("id") userId: String, @Path("logId") logId: Long)
+    /** POST /metrics/body-composition — inserta una medición (solo campos provistos, planos + unit). */
+    @POST("metrics/body-composition")
+    suspend fun updateBodyComposition(@Body body: UpdateBodyCompositionDto, @Query("tzOffset") tzOffset: Int? = null): MessageResponseDto
 
-    /** GET /metrics/{id}/goals — objetivo activo + historial (type=weight|strength). */
-    @GET("metrics/{id}/goals")
-    suspend fun getGoals(
-        @Path("id") userId: String,
-        @Query("type") type: String,
-        @Query("exercise") exercise: String? = null,
-    ): GoalsResponseDto
+    /** GET /metrics/body-composition/trend — período actual vs anterior (weight/fat/muscle) para la Tendencia. */
+    @GET("metrics/body-composition/trend")
+    suspend fun getBodyTrend(
+        @Query("period") period: String,
+        @Query("unit") unit: String? = null,
+        @Query("tzOffset") tzOffset: Int? = null,
+    ): TrendDto
 
-    @POST("metrics/{id}/goals")
-    suspend fun createGoal(@Path("id") userId: String, @Body body: CreateGoalRequestDto): MetricGoalDto
+    /** GET /metrics/goals — objetivo activo de una body-metric (weight/fat/muscle). Null si no hay. */
+    @GET("metrics/goals")
+    suspend fun getGoal(@Query("metric") metric: String, @Query("unit") unit: String? = null): GoalDto?
 
-    @DELETE("metrics/{id}/goals/{goalId}")
-    suspend fun deleteGoal(@Path("id") userId: String, @Path("goalId") goalId: Long)
+    @POST("metrics/goals")
+    suspend fun createGoal(@Body body: CreateGoalRequestDto, @Query("tzOffset") tzOffset: Int? = null): GoalDto
 
-    /** GET /metrics/{id}/strength-history — entrenamientos + HITs oficiales de un ejercicio. */
-    @GET("metrics/{id}/strength-history")
-    suspend fun getStrengthHistory(
-        @Path("id") userId: String,
-        @Query("exercise") exercise: String,
-        @Query("from") from: Long? = null,
-        @Query("to") to: Long? = null,
-    ): StrengthHistoryDto
+    @GET("metrics/goals/history")
+    suspend fun getGoalHistory(@Query("metric") metric: String, @Query("unit") unit: String? = null): List<GoalHistoryEntryDto>
 
-    @POST("metrics/{id}/strength-logs")
-    suspend fun createStrengthLog(@Path("id") userId: String, @Body body: CreateStrengthLogRequestDto): StrengthEntryDto
+    @DELETE("metrics/goals/{goalId}")
+    suspend fun deleteGoal(@Path("goalId") goalId: Long)
 
-    @DELETE("metrics/{id}/strength-logs/{logId}")
-    suspend fun deleteStrengthLog(@Path("id") userId: String, @Path("logId") logId: Long)
+    /** GET /metrics/progress-photos — fotos de progreso (snapshot de composición en masa). */
+    @GET("metrics/progress-photos")
+    suspend fun getProgressPhotos(@Query("unit") unit: String? = null): List<ProgressPhotoDto>
 
-    /** GET /metrics/{id}/photos — fotos de progreso. */
-    @GET("metrics/{id}/photos")
-    suspend fun getProgressPhotos(@Path("id") userId: String): List<ProgressPhotoDto>
-
-    /** POST /metrics/{id}/photos (multipart) — foto + medidas opcionales. */
+    /** POST /metrics/progress-photos (multipart) — sube la foto; el servidor snapshotea la composición. */
     @Multipart
-    @POST("metrics/{id}/photos")
-    suspend fun uploadProgressPhoto(
-        @Path("id") userId: String,
-        @Part photo: MultipartBody.Part,
-        @PartMap fields: Map<String, @JvmSuppressWildcards RequestBody>,
-    ): ProgressPhotoDto
+    @POST("metrics/progress-photos")
+    suspend fun uploadProgressPhoto(@Part photo: MultipartBody.Part, @Query("tzOffset") tzOffset: Int? = null): ProgressPhotoDto
 
-    @DELETE("metrics/{id}/photos/{photoId}")
-    suspend fun deleteProgressPhoto(@Path("id") userId: String, @Path("photoId") photoId: Long)
+    /** DELETE /metrics/progress-photos/{photoId} — borra la foto (y su objeto en S3). */
+    @DELETE("metrics/progress-photos/{photoId}")
+    suspend fun deleteProgressPhoto(@Path("photoId") photoId: Long)
+
+    /** GET /metrics/strength/{exercise}/stats — datos competitivos del ejercicio (server). */
+    @GET("metrics/strength/{exercise}/stats")
+    suspend fun getStrengthStats(@Path("exercise") exercise: String, @Query("unit") unit: String? = null): StrengthStatsDto
+
+    /** POST /metrics/strength/{exercise}/trainings — marca manual del ejercicio. */
+    @POST("metrics/strength/{exercise}/trainings")
+    suspend fun createTraining(@Path("exercise") exercise: String, @Body body: CreateTrainingRequestDto): MessageResponseDto
+
+    /** GET /metrics/strength/{exercise}/trainings — entrenamientos del ejercicio en el rango. */
+    @GET("metrics/strength/{exercise}/trainings")
+    suspend fun getTrainings(
+        @Path("exercise") exercise: String,
+        @Query("range") range: String,
+        @Query("unit") unit: String? = null,
+    ): List<TrainingEntryDto>
+
+    /** GET /metrics/strength/{exercise}/evolution — entrenos + HITs etiquetados (para la gráfica). */
+    @GET("metrics/strength/{exercise}/evolution")
+    suspend fun getStrengthEvolution(
+        @Path("exercise") exercise: String,
+        @Query("range") range: String,
+        @Query("unit") unit: String? = null,
+    ): List<EvolutionPointDto>
+
+    /** GET /metrics/strength/bests — mejor marca por ejercicio (comparativa/ownBest). */
+    @GET("metrics/strength/bests")
+    suspend fun getStrengthBests(@Query("unit") unit: String? = null): List<StrengthBestDto>
+
+    // --- Objetivo de fuerza por ejercicio ---
+    @GET("metrics/strength/{exercise}/goal")
+    suspend fun getStrengthGoal(@Path("exercise") exercise: String, @Query("unit") unit: String? = null): GoalDto?
+
+    @POST("metrics/strength/{exercise}/goal")
+    suspend fun createStrengthGoal(@Path("exercise") exercise: String, @Body body: CreateStrengthGoalRequestDto, @Query("tzOffset") tzOffset: Int? = null): GoalDto
+
+    @GET("metrics/strength/{exercise}/goal/history")
+    suspend fun getStrengthGoalHistory(@Path("exercise") exercise: String, @Query("unit") unit: String? = null): List<GoalHistoryEntryDto>
+
+    @DELETE("metrics/strength/goals/{goalId}")
+    suspend fun deleteStrengthGoal(@Path("goalId") goalId: Long)
 }

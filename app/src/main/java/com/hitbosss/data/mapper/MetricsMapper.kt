@@ -1,68 +1,103 @@
 package com.hitbosss.data.mapper
 
-import com.hitbosss.data.remote.dto.BodyLogDto
-import com.hitbosss.data.remote.dto.GoalsResponseDto
+import com.hitbosss.data.remote.dto.BodyCompositionDto
+import com.hitbosss.data.remote.dto.BodyHistoryPointDto
+import com.hitbosss.data.remote.dto.GoalDto
+import com.hitbosss.data.remote.dto.GoalHistoryEntryDto
 import com.hitbosss.data.remote.dto.MeasurementDto
-import com.hitbosss.data.remote.dto.MetricGoalDto
+import com.hitbosss.data.remote.dto.MetricSeriesDto
 import com.hitbosss.data.remote.dto.ProgressPhotoDto
-import com.hitbosss.data.remote.dto.StrengthEntryDto
-import com.hitbosss.data.remote.dto.StrengthHistoryDto
-import com.hitbosss.domain.model.BodyLog
-import com.hitbosss.domain.model.Measurement
+import com.hitbosss.data.remote.dto.SeriesPointDto
+import com.hitbosss.data.remote.dto.StrengthStatsDto
+import com.hitbosss.data.remote.dto.EvolutionPointDto
+import com.hitbosss.data.remote.dto.StrengthBestDto
+import com.hitbosss.data.remote.dto.TrainingEntryDto
+import com.hitbosss.data.remote.dto.TrendDto
+import com.hitbosss.domain.model.BodyComposition
+import com.hitbosss.domain.model.BodyHistoryPoint
+import com.hitbosss.domain.model.BodyTrend
+import com.hitbosss.domain.model.GoalHistoryEntry
 import com.hitbosss.domain.model.MetricGoal
-import com.hitbosss.domain.model.MetricGoals
+import com.hitbosss.domain.model.MetricTrend
 import com.hitbosss.domain.model.ProgressPhoto
-import com.hitbosss.domain.model.StrengthEntry
-import com.hitbosss.domain.model.StrengthHistory
+import com.hitbosss.domain.model.StrengthStats
+import com.hitbosss.domain.model.StrengthMark
+import com.hitbosss.domain.model.TrainingEntry
+import com.hitbosss.domain.model.TrendPoint
 
-private fun MeasurementDto?.toMeasurementOrNull(): Measurement? =
-    this?.value?.let { Measurement(it, unit ?: "kg") }
+// El valor ya viene en la unidad pedida; nos quedamos con el número (la etiqueta la pone la UI).
+private fun MeasurementDto?.value(): Double? = this?.value
 
-fun BodyLogDto.toDomain(): BodyLog? {
-    val w = weight.toMeasurementOrNull() ?: return null
-    return BodyLog(
-        id = id ?: return null,
-        weight = w,
-        bodyFatPct = bodyFatPct,
-        muscleMass = muscleMass.toMeasurementOrNull(),
-        loggedAt = loggedAt ?: return null,
-    )
-}
-
-fun MetricGoalDto.toDomain(): MetricGoal? {
-    val t = target.toMeasurementOrNull() ?: return null
-    return MetricGoal(
-        id = id ?: return null,
-        type = type ?: "weight",
-        target = t,
-        status = status ?: "active",
-        createdAt = createdAt ?: 0,
-        archivedAt = archivedAt,
-    )
-}
-
-fun GoalsResponseDto.toDomain(): MetricGoals = MetricGoals(
-    active = active?.toDomain(),
-    history = history.mapNotNull { it.toDomain() },
+fun BodyCompositionDto.toDomain(): BodyComposition = BodyComposition(
+    weightKg = weight.value(),
+    heightCm = height.value(),
+    muscleKg = muscle.value(),
+    fatKg = fat.value(),
+    weightMeasuredAt = weightMeasuredAt,
+    heightMeasuredAt = heightMeasuredAt,
+    muscleMeasuredAt = muscleMeasuredAt,
+    fatMeasuredAt = fatMeasuredAt,
 )
 
-fun StrengthEntryDto.toDomain(): StrengthEntry? {
-    val l = lift.toMeasurementOrNull() ?: return null
-    return StrengthEntry(id = id ?: return null, lift = l, performedAt = performedAt ?: return null)
+fun BodyHistoryPointDto.toDomain(): BodyHistoryPoint? {
+    val v = value ?: return null
+    val at = measuredAt ?: return null
+    return BodyHistoryPoint(v, at)
 }
 
-fun StrengthHistoryDto.toDomain(): StrengthHistory = StrengthHistory(
-    trainings = trainings.mapNotNull { it.toDomain() },
-    hits = hits.mapNotNull { it.toDomain() },
+fun GoalDto.toDomain(): MetricGoal? {
+    val m = metric ?: return null
+    val t = target.value() ?: return null
+    return MetricGoal(metric = m, targetValue = t, reached = reached)
+}
+
+/** Objetivo de fuerza: la API devuelve {target, createdAt} sin metric → metric placeholder "strength". */
+fun GoalDto.toStrengthDomain(): MetricGoal? {
+    val t = target.value() ?: return null
+    return MetricGoal(metric = "strength", targetValue = t)
+}
+
+fun GoalHistoryEntryDto.toDomain(): GoalHistoryEntry? {
+    val t = target.value() ?: return null
+    val at = createdAt ?: return null
+    return GoalHistoryEntry(id = id, targetValue = t, createdAt = at, archivedAt = archivedAt, reached = reached)
+}
+
+private fun SeriesPointDto.toTrendPoint() = TrendPoint(date = date ?: weekStart ?: 0L, value = value ?: average)
+private fun MetricSeriesDto?.toTrendPoints(): List<TrendPoint> = this?.points?.map { it.toTrendPoint() } ?: emptyList()
+
+fun TrendDto.toDomain(): BodyTrend = BodyTrend(
+    period = period ?: "week",
+    weight = MetricTrend(current?.weight.toTrendPoints(), previous?.weight.toTrendPoints()),
+    fat = MetricTrend(current?.fat.toTrendPoints(), previous?.fat.toTrendPoints()),
+    muscle = MetricTrend(current?.muscle.toTrendPoints(), previous?.muscle.toTrendPoints()),
 )
+
+fun StrengthStatsDto.toDomain(): StrengthStats = StrengthStats(
+    accumulatedImprovementKg = accumulatedImprovement.value(),
+    progressRateKgPerMonth = progressRate.value(),
+    communityAdvantageKg = communityAdvantage.value(),
+    rankingPercentage = rankingPercentage,
+)
+
+fun TrainingEntryDto.toDomain(): TrainingEntry? {
+    val w = weight.value() ?: return null
+    val at = performedAt ?: return null
+    return TrainingEntry(weightKg = w, performedAt = at)
+}
+
+fun EvolutionPointDto.toDomain(): StrengthMark? {
+    val w = weight.value() ?: return null
+    val at = performedAt ?: return null
+    return StrengthMark(weightKg = w, performedAt = at, isHit = type == "hit")
+}
+
+/** [{exercise, best}] → mapa exercise(apiKey) → mejor marca (en la unidad pedida). */
+fun List<StrengthBestDto>.toBestsMap(): Map<String, Double> =
+    mapNotNull { dto -> val e = dto.exercise; val v = dto.best.value(); if (e != null && v != null) e to v else null }.toMap()
 
 fun ProgressPhotoDto.toDomain(): ProgressPhoto? {
-    return ProgressPhoto(
-        id = id ?: return null,
-        photoUrl = photoUrl ?: return null,
-        takenAt = takenAt ?: return null,
-        weight = weight.toMeasurementOrNull(),
-        bodyFatPct = bodyFatPct,
-        muscleMass = muscleMass.toMeasurementOrNull(),
-    )
+    val url = photoUrl ?: return null
+    val at = takenAt ?: return null
+    return ProgressPhoto(id = id, photoUrl = url, takenAt = at, weightKg = weight.value(), fatKg = fat.value(), muscleKg = muscle.value())
 }

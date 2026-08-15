@@ -1,5 +1,6 @@
 package com.hitbosss.presentation.feature.metrics
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -11,6 +12,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
@@ -18,13 +22,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -33,22 +40,20 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hitbosss.R
-import com.hitbosss.domain.model.BodyHistoryPoint
-import com.hitbosss.domain.usecase.GetBodyHistoryUseCase
+import com.hitbosss.domain.model.StrengthMark
 import com.hitbosss.domain.usecase.GetCurrentUserUseCase
 import com.hitbosss.domain.usecase.GetPersonalInfoUseCase
+import com.hitbosss.domain.usecase.GetStrengthEvolutionUseCase
 import com.hitbosss.presentation.designsystem.components.ChartMarker
 import com.hitbosss.presentation.designsystem.components.ChartSeries
 import com.hitbosss.presentation.designsystem.components.HitTopBar
 import com.hitbosss.presentation.designsystem.components.LineChart
 import com.hitbosss.presentation.designsystem.theme.Gray100
-import com.hitbosss.presentation.designsystem.theme.Gray200
 import com.hitbosss.presentation.designsystem.theme.Gray500
 import com.hitbosss.presentation.designsystem.theme.Gray800
+import com.hitbosss.presentation.designsystem.theme.Gray200
 import com.hitbosss.presentation.designsystem.theme.HitbosssType
 import com.hitbosss.presentation.designsystem.theme.Primary500
-import com.hitbosss.presentation.designsystem.theme.Secondary500
-import com.hitbosss.presentation.designsystem.theme.Success400
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -60,94 +65,67 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
-data class MetricDetailUiState(
-    val isLoading: Boolean = false,
+/** (performedAt Unix seg, valor en unidad del usuario). */
+private typealias Mark = Pair<Long, Double>
+
+data class StrengthDetailUiState(
     val unitSystem: String = "metric",
-    val series: Map<Pair<PhysicalMetric, String>, List<BodyHistoryPoint>> = emptyMap(),
+    val isLoading: Boolean = false,
+    val marks: Map<String, List<StrengthMark>> = emptyMap(), // evolución por "range-unit" (entrenos ∪ HITs, del servidor)
 )
 
 @HiltViewModel
-class MetricDetailViewModel @Inject constructor(
+class StrengthDetailViewModel @Inject constructor(
     private val getCurrentUser: GetCurrentUserUseCase,
-    private val getHistory: GetBodyHistoryUseCase,
+    private val getStrengthEvolution: GetStrengthEvolutionUseCase,
     private val getPersonalInfo: GetPersonalInfoUseCase,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
-    val initialMetric: PhysicalMetric = when (savedStateHandle.get<String>("type")) {
-        "fat" -> PhysicalMetric.Fat
-        "muscle" -> PhysicalMetric.Muscle
-        else -> PhysicalMetric.Weight
-    }
+    val exercise: String = savedStateHandle.get<String>("type") ?: "squat"
 
-    private val _state = MutableStateFlow(MetricDetailUiState())
-    val state: StateFlow<MetricDetailUiState> = _state.asStateFlow()
+    private val _state = MutableStateFlow(StrengthDetailUiState())
+    val state: StateFlow<StrengthDetailUiState> = _state.asStateFlow()
 
     init {
         viewModelScope.launch {
-            getCurrentUser()?.uid ?: return@launch
-            getPersonalInfo(getCurrentUser()!!.uid).onSuccess { info ->
-                _state.update { it.copy(unitSystem = info.measurementSystem) }
-            }
+            val uid = getCurrentUser()?.uid ?: return@launch
+            getPersonalInfo(uid).onSuccess { info -> _state.update { it.copy(unitSystem = info.measurementSystem) } }
         }
     }
 
-    fun load(metric: PhysicalMetric, range: String) {
-        val key = metric to range
-        if (_state.value.series.containsKey(key)) return
+    fun load(range: String) {
+        val key = "$range-${_state.value.unitSystem}"
+        if (_state.value.marks.containsKey(key)) return
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            getHistory(metric.apiKey, range, _state.value.unitSystem).onSuccess { pts ->
-                _state.update { it.copy(isLoading = false, series = it.series + (key to pts)) }
-            }.onFailure { _state.update { it.copy(isLoading = false) } }
+            getStrengthEvolution(exercise, range, _state.value.unitSystem)
+                .onSuccess { list -> _state.update { it.copy(isLoading = false, marks = it.marks + (key to list)) } }
+                .onFailure { _state.update { it.copy(isLoading = false) } }
         }
     }
 }
 
-/** Rangos del detalle (chips 1M/3M/6M/1A/Total → range del servidor). Compartido Físico/Fuerza. */
-enum class DetailRange(val apiRange: String) {
-    M1("month"), M3("3m"), M6("6m"), Y1("1y"), Total("all")
-}
-
+/** Detalle de evolución de FUERZA de un ejercicio: rango 1M/3M/6M/1A/Todo + gráfica (entreno + HIT). */
 @Composable
-fun DetailRange.label(): String = when (this) {
-    DetailRange.M1 -> stringResource(R.string.metrics_range_1m)
-    DetailRange.M3 -> stringResource(R.string.metrics_range_3m)
-    DetailRange.M6 -> stringResource(R.string.metrics_range_6m)
-    DetailRange.Y1 -> stringResource(R.string.metrics_range_1y)
-    DetailRange.Total -> stringResource(R.string.metrics_range_total)
-}
-
-/** Detalle de evolución física: segmented Peso/Grasa/Músculo + rango + gráfica grande. */
-@Composable
-fun MetricDetailScreen(
+fun StrengthDetailScreen(
     onBack: () -> Unit,
-    viewModel: MetricDetailViewModel = hiltViewModel(),
+    viewModel: StrengthDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    var metric by rememberSaveable { mutableStateOf(viewModel.initialMetric) }
     var rangeIndex by rememberSaveable { mutableIntStateOf(DetailRange.entries.lastIndex) }
     val range = DetailRange.entries[rangeIndex]
-
-    LaunchedEffect(metric, range) { viewModel.load(metric, range.apiRange) }
-    val points = state.series[metric to range.apiRange] ?: emptyList()
     val unit = if (state.unitSystem == "imperial") "lbs" else "kg"
+
+    LaunchedEffect(range, state.unitSystem) { viewModel.load(range.apiRange) }
+    // El servidor ya devuelve entrenos + HITs filtrados por rango; aquí solo separamos por tipo.
+    val marks = state.marks["${range.apiRange}-${state.unitSystem}"] ?: emptyList()
+    val trainings = marks.filter { !it.isHit }.map { it.performedAt to it.weightKg }
+    val hits = marks.filter { it.isHit }.map { it.performedAt to it.weightKg }
 
     Column(Modifier.fillMaxSize().background(Gray200)) {
         HitTopBar(title = stringResource(R.string.metrics_evolution), onBack = onBack)
-
         Column(Modifier.fillMaxSize().padding(16.dp)) {
-            MetricsSegmented(
-                options = listOf(
-                    stringResource(R.string.metrics_weight),
-                    stringResource(R.string.metrics_fat),
-                    stringResource(R.string.metrics_muscle),
-                ),
-                selectedIndex = metric.ordinal,
-                onSelect = { metric = PhysicalMetric.entries[it] },
-            )
-            Spacer(Modifier.height(12.dp))
-
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 DetailRange.entries.forEachIndexed { i, r ->
                     Box(
@@ -161,40 +139,64 @@ fun MetricDetailScreen(
                 }
             }
             Spacer(Modifier.height(16.dp))
-
-            // Grasa ahora es masa (kg), no % → todas las métricas usan el eje en la unidad de peso.
             Text(stringResource(R.string.metrics_axis_weight, unit), style = HitbosssType.bodySmallRegular, color = Gray500)
             Spacer(Modifier.height(8.dp))
 
             Column(Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(12.dp)).background(Gray100).padding(16.dp)) {
+                val all = trainings + hits
                 when {
-                    state.isLoading && points.isEmpty() ->
+                    state.isLoading && all.isEmpty() ->
                         Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = Primary500) }
-                    points.isEmpty() ->
+                    all.isEmpty() ->
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text(stringResource(R.string.metrics_empty_logs), style = HitbosssType.bodyDefaultRegular, color = Gray500)
                         }
                     else -> {
                         val zone = ZoneId.systemDefault()
-                        val minT = points.minOf { it.measuredAt }
-                        val maxT = points.maxOf { it.measuredAt }
+                        val minT = all.minOf { it.first }
+                        val maxT = all.maxOf { it.first }
                         val span = (maxT - minT).coerceAtLeast(1).toFloat()
-                        val chartPoints = points.map { (it.measuredAt - minT) / span to it.value }
+                        fun norm(list: List<Mark>) = list.sortedBy { it.first }.map { (it.first - minT) / span to it.second }
                         val fmt = remember(range) { DateTimeFormatter.ofPattern(if (range == DetailRange.M1) "dd MMM" else "MMM yy") }
                         val labels = listOf(0f, 0.5f, 1f).map { frac ->
-                            Instant.ofEpochSecond((minT + (span * frac).toLong())).atZone(zone).toLocalDate().format(fmt)
+                            Instant.ofEpochSecond(minT + (span * frac).toLong()).atZone(zone).toLocalDate().format(fmt)
                         }
                         LineChart(
-                            // Color por métrica y clustering (los marcadores se ocultan solos si hay muchos puntos).
-                            series = listOf(
-                                ChartSeries(chartPoints, color = metricColor(metric.apiKey), marker = ChartMarker.Circle, fill = true),
-                            ),
+                            series = buildList {
+                                if (trainings.isNotEmpty()) add(ChartSeries(norm(trainings), color = Primary500, marker = ChartMarker.Circle, fill = true))
+                                if (hits.isNotEmpty()) add(ChartSeries(norm(hits), color = Primary500, marker = ChartMarker.Diamond, showLine = false))
+                            },
                             xLabels = labels,
                             modifier = Modifier.fillMaxWidth().weight(1f),
                         )
+                        Spacer(Modifier.height(12.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            LegendMark(stringResource(R.string.metrics_legend_training), diamond = false)
+                            LegendMark(stringResource(R.string.metrics_legend_hit), diamond = true)
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+/** Replica el marker de la gráfica: círculo hueco (entreno) / rombo relleno (HIT). */
+@Composable
+private fun LegendMark(label: String, diamond: Boolean) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Canvas(Modifier.size(12.dp)) {
+            val c = Offset(size.width / 2f, size.height / 2f)
+            if (diamond) {
+                val r = 5.dp.toPx()
+                drawPath(Path().apply { moveTo(c.x, c.y - r); lineTo(c.x + r, c.y); lineTo(c.x, c.y + r); lineTo(c.x - r, c.y); close() }, Primary500)
+            } else {
+                val r = 4.dp.toPx()
+                drawCircle(Color.White, r, c)
+                drawCircle(Primary500, r, c, style = Stroke(2.dp.toPx()))
+            }
+        }
+        Spacer(Modifier.width(4.dp))
+        Text(label, style = HitbosssType.bodySmallRegular, color = Gray500)
     }
 }

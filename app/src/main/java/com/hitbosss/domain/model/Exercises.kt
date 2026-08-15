@@ -2,11 +2,11 @@ package com.hitbosss.domain.model
 
 /**
  * Deportes y ejercicios (rawValue camelCase, igual que ExerciseType de iOS).
- * title = nombre del deporte (ej. aviso "no participas"); brandTitle = marca (PowerHIT/CrossHIT),
+ * title = nombre del deporte (ej. aviso "no participas"); brandTitle = marca mostrada (Powerlifting/CrossHIT),
  * 1:1 con Sports.title de iOS (pestañas, banners, tarjetas).
  */
 enum class Sport(val apiValue: String, val title: String, val brandTitle: String) {
-    Powerlifting("powerlifting", "Powerlifting", "PowerHIT"),
+    Powerlifting("powerlifting", "Powerlifting", "Powerlifting"),
     Crossfit("crossfit", "CrossHIT", "CrossHIT"),
 }
 

@@ -189,8 +189,14 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
         composable(
             Routes.METRIC_DETAIL,
             arguments = listOf(navArgument("type") { type = NavType.StringType }),
-        ) {
-            com.hitbosss.presentation.feature.metrics.MetricDetailScreen(onBack = { navController.popBackStack() })
+        ) { entry ->
+            // Físico (weight/fat/muscle) → detalle de composición; cualquier otro type = ejercicio → detalle de fuerza.
+            val type = entry.arguments?.getString("type")
+            if (type in listOf("weight", "fat", "muscle")) {
+                com.hitbosss.presentation.feature.metrics.MetricDetailScreen(onBack = { navController.popBackStack() })
+            } else {
+                com.hitbosss.presentation.feature.metrics.StrengthDetailScreen(onBack = { navController.popBackStack() })
+            }
         }
 
         composable(

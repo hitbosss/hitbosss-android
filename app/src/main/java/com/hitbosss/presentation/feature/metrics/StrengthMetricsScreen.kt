@@ -21,10 +21,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Percent
 import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material.icons.filled.TrendingUp
@@ -42,7 +40,15 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.painterResource
+import com.hitbosss.presentation.feature.settings.tutorialCardDrawable
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -50,16 +56,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.hitbosss.R
-import com.hitbosss.domain.model.MetricGoal
 import com.hitbosss.domain.model.RankingCategory
 import com.hitbosss.domain.model.RankingEntry
 import com.hitbosss.domain.model.Sport
-import com.hitbosss.domain.model.StrengthEntry
-import com.hitbosss.domain.util.ProgressStats
 import com.hitbosss.presentation.designsystem.components.ChartMarker
 import com.hitbosss.presentation.designsystem.components.ChartSeries
 import com.hitbosss.presentation.designsystem.components.ErrorConnectionView
-import com.hitbosss.presentation.designsystem.components.HitButtonType
 import com.hitbosss.presentation.designsystem.components.HitPopup
 import com.hitbosss.presentation.designsystem.components.LineChart
 import com.hitbosss.presentation.designsystem.components.placeholderPainter
@@ -84,24 +86,32 @@ import com.hitbosss.presentation.feature.ranking.titleRes
 import java.time.LocalDate
 import java.time.ZoneId
 
+/** Un punto de la gráfica de fuerza (valor ya en unidad del usuario). */
+private data class StrengthPoint(val performedAt: Long, val value: Double)
+
 /** Contenido de la sub-pestaña FUERZA (todo lo del ejercicio seleccionado). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StrengthContent(
+    onOpenDetail: (String) -> Unit = {},
     viewModel: StrengthMetricsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var showPicker by remember { mutableStateOf(false) }
     var showAddGoal by remember { mutableStateOf(false) }
     var showAddTraining by remember { mutableStateOf(false) }
-    var goalToDelete by remember { mutableStateOf<MetricGoal?>(null) }
     var infoPopup by remember { mutableStateOf<Pair<Int, Int>?>(null) } // (titleRes, msgRes)
 
-    // Datos derivados del ranking del ejercicio (calculados en el dispositivo)
+    // Rival: on-device del ranking del ejercicio (igual que iOS). ownBest = mejor marca del servidor (/bests).
     val entries = state.rankings[state.selected.sport.apiValue]?.byCategory?.get(state.selected).orEmpty()
     val ownEntry = entries.firstOrNull { it.userId == state.currentUserId }
     val rival = ownEntry?.let { own -> entries.firstOrNull { it.rank == own.rank - 1 } }
     val ownBest = bestMarkFor(state, state.selected)
+
+    // Series de la gráfica: entrenos (círculo) + HITs (rombo), del servidor ya etiquetados por tipo
+    // (endpoint /evolution → strength_log ∪ hits con fechas correctas; no depende de participations).
+    val trainingPoints = state.marks.filter { !it.isHit }.map { StrengthPoint(it.performedAt, it.weightKg) }
+    val hitPoints = state.marks.filter { it.isHit }.map { StrengthPoint(it.performedAt, it.weightKg) }
 
     when {
         state.isLoading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = Primary500) }
@@ -109,7 +119,6 @@ fun StrengthContent(
             Box(Modifier.fillMaxSize(), Alignment.Center) { ErrorConnectionView(onRetry = viewModel::retry) }
         else -> PullToRefreshBox(isRefreshing = state.isRefreshing, onRefresh = viewModel::refresh) {
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                // Selector de ejercicio (dropdown → lista full-screen)
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 16.dp)
                         .clip(RoundedCornerShape(10.dp)).background(Gray100)
@@ -121,22 +130,22 @@ fun StrengthContent(
                     Icon(Icons.Filled.KeyboardArrowDown, null, tint = Gray500, modifier = Modifier.size(20.dp))
                 }
 
+                // Objetivo de Fuerza = objetivo de levantamiento POR EJERCICIO; "actual" = mejor marca.
                 MetricsSectionLabel(stringResource(R.string.metrics_section_goals))
                 GoalCard(
                     title = stringResource(R.string.metrics_your_goal),
-                    goals = state.goals,
-                    currentValue = ownBest,
+                    goal = state.strengthGoal,
                     unit = state.weightUnit,
-                    lowerIsBetter = false,
                     onAdd = { showAddGoal = true },
-                    onDelete = { goalToDelete = it },
+                    history = state.goalHistory,
+                    showHistory = true,
+                    onExpand = {}, // el historial ya viene en el estado (cargado por ejercicio)
+                    onDelete = viewModel::onDeleteStrengthGoal,
                 )
 
                 MetricsSectionLabel(stringResource(R.string.metrics_competitive))
                 CompetitiveSection(
                     state = state,
-                    ownEntry = ownEntry,
-                    entries = entries,
                     ownBest = ownBest,
                     rival = rival,
                     onInfo = { title, msg -> infoPopup = title to msg },
@@ -144,9 +153,13 @@ fun StrengthContent(
 
                 MetricsSectionLabel(stringResource(R.string.metrics_section_stats))
                 StrengthEvolutionCard(
-                    state = state,
-                    communityAvg = entries.mapNotNull { it.lift?.value }.takeIf { it.isNotEmpty() }?.average(),
+                    trainings = trainingPoints,
+                    hits = hitPoints,
+                    // media de comunidad = miMejor − ventaja (del servidor); robusto y escalable, no depende de las rankings en cliente.
+                    communityAvg = state.stats?.communityAdvantageKg?.let { adv -> ownBest?.let { it - adv } },
+                    goal = null,
                     onAddTraining = { showAddTraining = true },
+                    onOpenDetail = { onOpenDetail(state.selected.apiKey) },
                 )
 
                 MetricsSectionLabel(stringResource(R.string.metrics_comparison))
@@ -167,35 +180,25 @@ fun StrengthContent(
     if (showAddGoal) {
         SingleValueSheet(
             title = stringResource(R.string.metrics_goal_add_title),
+            description = stringResource(R.string.metrics_strength_goal_desc),
             hint = stringResource(R.string.metrics_goal_add_hint),
             unit = state.weightUnit,
             buttonText = stringResource(R.string.metrics_goal_add_title),
             isSaving = state.isSaving,
             onDismiss = { showAddGoal = false },
-            onSave = { viewModel.onAddGoal(it); showAddGoal = false },
+            onSave = { viewModel.onAddStrengthGoal(it); showAddGoal = false },
         )
     }
     if (showAddTraining) {
         SingleValueSheet(
             title = stringResource(R.string.metrics_add_training),
+            description = stringResource(R.string.metrics_training_add_desc),
             hint = stringResource(R.string.metrics_training_weight),
             unit = state.weightUnit,
-            buttonText = stringResource(R.string.metrics_add),
+            buttonText = stringResource(R.string.metrics_add_training),
             isSaving = state.isSaving,
             onDismiss = { showAddTraining = false },
             onSave = { viewModel.onAddTraining(it); showAddTraining = false },
-        )
-    }
-    goalToDelete?.let { goal ->
-        HitPopup(
-            title = stringResource(R.string.metrics_goal_delete_title),
-            message = stringResource(R.string.metrics_goal_delete_msg),
-            confirmText = stringResource(R.string.common_delete),
-            confirmType = HitButtonType.Destructive,
-            onConfirm = { viewModel.onDeleteGoal(goal.id); goalToDelete = null },
-            cancelText = stringResource(R.string.common_cancel),
-            onCancel = { goalToDelete = null },
-            onDismissRequest = { goalToDelete = null },
         )
     }
     infoPopup?.let { (title, msg) ->
@@ -218,30 +221,21 @@ fun StrengthContent(
     }
 }
 
-/** Mejor marca propia del ejercicio (participations del perfil, ya en unidad del usuario). */
+/** Mejor marca (HIT) del ejercicio, del servidor (`/strength/bests`). Antes se hacía `max` sobre
+ *  participations en cliente → no escalaba con la paginación del perfil. */
 private fun bestMarkFor(state: StrengthMetricsUiState, category: RankingCategory): Double? =
-    state.profile?.participations
-        ?.filter { it.exercise.equals(category.apiKey, ignoreCase = true) }
-        ?.mapNotNull { it.maxLift?.value }
-        ?.maxOrNull()
+    state.bests[category.apiKey]
 
-// ============================ DATOS COMPETITIVOS ============================
+// ============================ DATOS COMPETITIVOS (del servidor) ============================
 
 @Composable
 private fun CompetitiveSection(
     state: StrengthMetricsUiState,
-    ownEntry: RankingEntry?,
-    entries: List<RankingEntry>,
     ownBest: Double?,
     rival: RankingEntry?,
     onInfo: (Int, Int) -> Unit,
 ) {
-    // Serie temporal propia (entrenamientos + hits) para mejora y ritmo
-    val points = (state.history.trainings + state.history.hits).map { it.performedAt to it.lift.value }
-    val improvement = ProgressStats.accumulatedImprovement(points)
-    val rate = ProgressStats.progressRatePerMonth(points)
-    val advantage = ownBest?.let { own -> ProgressStats.communityAdvantage(own, entries.mapNotNull { it.lift?.value }) }
-    val surpassed = ownEntry?.let { ProgressStats.percentSurpassed(it.rank, entries.size) }
+    val stats = state.stats
     val unit = state.weightUnit
 
     Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -249,14 +243,14 @@ private fun CompetitiveSection(
             StatTile(
                 icon = Icons.Filled.TrendingUp, iconTint = Success500, iconBg = Success100,
                 label = stringResource(R.string.metrics_improvement),
-                value = improvement?.let { signed(it) } ?: "--", unit = unit,
+                value = stats?.accumulatedImprovementKg?.let { signed(it) } ?: "--", unit = unit,
                 onInfo = { onInfo(R.string.metrics_improvement, R.string.metrics_improvement_info) },
                 modifier = Modifier.weight(1f),
             )
             StatTile(
                 icon = Icons.Filled.ShowChart, iconTint = Warning500, iconBg = Warning100,
                 label = stringResource(R.string.metrics_rate),
-                value = rate?.let { formatNum(it) } ?: "--",
+                value = stats?.progressRateKgPerMonth?.let { formatNum(it) } ?: "--",
                 unit = stringResource(R.string.metrics_per_month, unit),
                 onInfo = { onInfo(R.string.metrics_rate, R.string.metrics_rate_info) },
                 modifier = Modifier.weight(1f),
@@ -266,23 +260,20 @@ private fun CompetitiveSection(
             StatTile(
                 icon = Icons.Filled.Groups, iconTint = Secondary500, iconBg = Secondary100,
                 label = stringResource(R.string.metrics_advantage),
-                value = advantage?.let { signed(it) } ?: "--", unit = unit,
+                value = stats?.communityAdvantageKg?.let { signed(it) } ?: "--", unit = unit,
                 onInfo = { onInfo(R.string.metrics_advantage, R.string.metrics_advantage_info) },
                 modifier = Modifier.weight(1f),
             )
             StatTile(
                 icon = Icons.Filled.Percent, iconTint = Error500, iconBg = Error100,
                 label = stringResource(R.string.metrics_surpassed),
-                value = surpassed?.let { formatNum(it) } ?: "--", unit = "%",
+                value = stats?.rankingPercentage?.let { formatNum(it) } ?: "--", unit = "%",
                 onInfo = { onInfo(R.string.metrics_surpassed, R.string.metrics_surpassed_info) },
                 modifier = Modifier.weight(1f),
             )
         }
 
-        // Próximo rival a superar (card sin el padding externo: la sección ya lo aplica)
-        Column(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Gray100).padding(16.dp),
-        ) {
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Gray100).padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.metrics_next_rival), style = HitbosssType.titleGroup, color = Gray800, modifier = Modifier.weight(1f))
                 InfoIcon(onClick = { onInfo(R.string.metrics_next_rival, R.string.metrics_next_rival_info) })
@@ -326,32 +317,47 @@ private fun signed(v: Double): String = (if (v >= 0) "+" else "") + formatNum(v)
 
 @Composable
 private fun StrengthEvolutionCard(
-    state: StrengthMetricsUiState,
+    trainings: List<StrengthPoint>,
+    hits: List<StrengthPoint>,
     communityAvg: Double?,
+    goal: Double?,
     onAddTraining: () -> Unit,
+    onOpenDetail: () -> Unit,
 ) {
-    var monthly by rememberSaveable(state.selected) { mutableStateOf(false) }
+    var monthly by rememberSaveable { mutableStateOf(false) }
     val zone = ZoneId.systemDefault()
     val today = LocalDate.now(zone)
-    val start = if (monthly) today.withDayOfMonth(1) else today.with(java.time.DayOfWeek.MONDAY)
-    val end = if (monthly) start.plusMonths(1) else start.plusWeeks(1)
+    val start = if (monthly) today.minusWeeks(3).with(java.time.DayOfWeek.MONDAY) else today.with(java.time.DayOfWeek.MONDAY)
+    val end = if (monthly) start.plusWeeks(4) else start.plusWeeks(1)
     val startSec = start.atStartOfDay(zone).toEpochSecond()
     val endSec = end.atStartOfDay(zone).toEpochSecond()
-    val span = (endSec - startSec).toFloat()
+    val span = (endSec - startSec).toFloat().coerceAtLeast(1f)
+    val xLabels = if (monthly) listOf("1", "2", "3", "4")
+    else stringResource(R.string.metrics_week_days).split(",")
+    val slots = xLabels.size
 
-    fun List<StrengthEntry>.toPoints() = mapNotNull { e ->
+    // Cada punto se ancla a su columna (día en semana, semana en mes) para caer bajo su etiqueta;
+    // las etiquetas se pintan equiespaciadas, así que el x debe ser slot/(slots-1), no la fracción continua.
+    fun List<StrengthPoint>.toPoints() = mapNotNull { e ->
         if (e.performedAt < startSec || e.performedAt >= endSec) null
-        else (e.performedAt - startSec) / span to e.lift.value
+        else {
+            val slot = (((e.performedAt - startSec) / span) * slots).toInt().coerceIn(0, slots - 1)
+            (if (slots > 1) slot.toFloat() / (slots - 1) else 0.5f) to e.value
+        }
     }
 
-    val trainingPoints = state.history.trainings.toPoints()
-    val hitPoints = state.history.hits.toPoints()
-    val goal = state.goals.active?.target?.value
-    val xLabels = if (monthly) listOf("1", "8", "15", "22", stringResource(R.string.metrics_month_end_label))
-    else stringResource(R.string.metrics_week_days).split(",")
+    val trainingPoints = trainings.toPoints()
+    val hitPoints = hits.toPoints()
 
     MetricsCard {
-        Text(stringResource(R.string.metrics_evolution), style = HitbosssType.titleGroup, color = Gray800)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.metrics_evolution), style = HitbosssType.titleGroup, color = Gray800, modifier = Modifier.weight(1f))
+            Text(
+                stringResource(R.string.metrics_more_details),
+                style = HitbosssType.bodySmallLink, color = Secondary500,
+                modifier = Modifier.clickable(onClick = onOpenDetail),
+            )
+        }
         Spacer(Modifier.height(12.dp))
         MetricsSegmented(
             options = listOf(stringResource(R.string.metrics_week), stringResource(R.string.metrics_month)),
@@ -360,7 +366,7 @@ private fun StrengthEvolutionCard(
         )
         Spacer(Modifier.height(16.dp))
 
-        if (trainingPoints.isEmpty() && hitPoints.isEmpty() && state.history.trainings.isEmpty() && state.history.hits.isEmpty()) {
+        if (trainings.isEmpty() && hits.isEmpty()) {
             Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
                 Text(stringResource(R.string.metrics_empty_logs), style = HitbosssType.bodyDefaultRegular, color = Gray500)
             }
@@ -373,12 +379,10 @@ private fun StrengthEvolutionCard(
             }
             LineChart(series = series, xLabels = xLabels, modifier = Modifier.fillMaxWidth().height(160.dp))
             Spacer(Modifier.height(12.dp))
-            // Leyenda
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                LegendDot(Primary500, stringResource(R.string.metrics_legend_training))
-                LegendDot(Primary500, stringResource(R.string.metrics_legend_hit), diamond = true)
-                LegendDot(Gray500, stringResource(R.string.metrics_legend_community))
-                LegendDot(Success500, stringResource(R.string.metrics_legend_goal))
+                LegendMark(LegendKind.Training, stringResource(R.string.metrics_legend_training))
+                LegendMark(LegendKind.Hit, stringResource(R.string.metrics_legend_hit))
+                LegendMark(LegendKind.Community, stringResource(R.string.metrics_legend_community))
             }
         }
 
@@ -393,14 +397,37 @@ private fun StrengthEvolutionCard(
     }
 }
 
+private enum class LegendKind { Training, Hit, Community }
+
+/** Marcador de leyenda que replica exactamente lo que pinta la gráfica: círculo hueco (entreno),
+ *  rombo relleno (HIT), línea discontinua gris (media de comunidad). */
 @Composable
-private fun LegendDot(color: androidx.compose.ui.graphics.Color, label: String, diamond: Boolean = false) {
+private fun LegendMark(kind: LegendKind, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            Modifier.size(8.dp)
-                .clip(if (diamond) RoundedCornerShape(1.dp) else CircleShape)
-                .background(color),
-        )
+        Canvas(Modifier.size(width = 14.dp, height = 10.dp)) {
+            val cx = size.width / 2f
+            val cy = size.height / 2f
+            when (kind) {
+                LegendKind.Training -> {
+                    val r = 4.dp.toPx()
+                    drawCircle(androidx.compose.ui.graphics.Color.White, r, Offset(cx, cy))
+                    drawCircle(Primary500, r, Offset(cx, cy), style = Stroke(2.dp.toPx()))
+                }
+                LegendKind.Hit -> {
+                    val r = 5.dp.toPx()
+                    drawPath(
+                        Path().apply {
+                            moveTo(cx, cy - r); lineTo(cx + r, cy); lineTo(cx, cy + r); lineTo(cx - r, cy); close()
+                        },
+                        Primary500,
+                    )
+                }
+                LegendKind.Community -> drawLine(
+                    Gray500, Offset(0f, cy), Offset(size.width, cy),
+                    strokeWidth = 2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 5f)),
+                )
+            }
+        }
         Spacer(Modifier.width(4.dp))
         Text(label, style = HitbosssType.bodySmallRegular, color = Gray500)
     }
@@ -410,32 +437,42 @@ private fun LegendDot(color: androidx.compose.ui.graphics.Color, label: String, 
 
 @Composable
 private fun ComparisonCard(state: StrengthMetricsUiState) {
+    // Comparación desde el punto de vista del ejercicio seleccionado (que se excluye de la lista).
+    // Diferencia = cuánto más/menos levantas en el seleccionado respecto a ese ejercicio.
+    val selectedBest = bestMarkFor(state, state.selected)
     MetricsCard {
         Sport.entries.forEachIndexed { sportIndex, sport ->
             val color = if (sport == Sport.Powerlifting) Secondary500 else Error500
+            val categories = RankingCategory.forSport(sport)
+                .filter { it != RankingCategory.PlOfficial && it != RankingCategory.CfOfficial && it != state.selected }
+            if (categories.isEmpty()) return@forEachIndexed
             if (sportIndex > 0) Spacer(Modifier.height(16.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    if (sport == Sport.Powerlifting) Icons.Filled.FitnessCenter else Icons.Filled.LocalFireDepartment,
-                    null, tint = color, modifier = Modifier.size(18.dp),
+                Image(
+                    painterResource(if (sport == Sport.Powerlifting) R.drawable.ic_sport_powerlifting else R.drawable.ic_sport_crossfit),
+                    null, modifier = Modifier.size(18.dp),
                 )
                 Spacer(Modifier.width(8.dp))
-                Text(sport.brandTitle.uppercase(), style = HitbosssType.bodySmallEmphasis, color = color)
+                Text(sport.title.uppercase(), style = HitbosssType.bodySmallEmphasis, color = color)
             }
-            val categories = RankingCategory.forSport(sport)
-                .filter { it != RankingCategory.PlOfficial && it != RankingCategory.CfOfficial }
             categories.forEach { cat ->
                 val best = bestMarkFor(state, cat)
-                val communityAvg = state.rankings[sport.apiValue]?.byCategory?.get(cat)
-                    ?.mapNotNull { it.lift?.value }?.takeIf { it.isNotEmpty() }?.average()
                 Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    tutorialCardDrawable(cat.apiKey)?.let { img ->
+                        Image(
+                            painterResource(img), null,
+                            contentScale = ContentScale.Crop, alignment = Alignment.CenterEnd,
+                            modifier = Modifier.size(width = 100.dp, height = 64.dp).clip(RoundedCornerShape(8.dp)),
+                        )
+                        Spacer(Modifier.width(12.dp))
+                    }
                     Text(stringResource(cat.titleRes()), style = HitbosssType.bodyDefaultRegular, color = Gray800, modifier = Modifier.weight(1f))
                     if (best == null) {
                         Text(stringResource(R.string.profile_no_mark), style = HitbosssType.bodySmallEmphasis, color = Gray500)
                     } else {
                         Column(horizontalAlignment = Alignment.End) {
                             Text("${formatNum(best)} ${state.weightUnit.uppercase()}", style = HitbosssType.bodyDefaultEmphasis, color = Gray800)
-                            val delta = communityAvg?.let { best - it }
+                            val delta = selectedBest?.let { it - best } // seleccionado − este ejercicio
                             if (delta != null) {
                                 Text(
                                     "${signed(delta)} ${state.weightUnit}",
@@ -466,7 +503,7 @@ private fun ExercisePickerSheet(
                 val color = if (sport == Sport.Powerlifting) Secondary500 else Error500
                 item(key = sport.apiValue) {
                     Text(
-                        sport.brandTitle.uppercase(),
+                        sport.title.uppercase(),
                         style = HitbosssType.bodySmallEmphasis, color = color,
                         modifier = Modifier.padding(horizontal = 24.dp, vertical = 10.dp),
                     )

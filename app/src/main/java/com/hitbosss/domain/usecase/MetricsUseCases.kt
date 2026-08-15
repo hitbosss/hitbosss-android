@@ -1,73 +1,107 @@
 package com.hitbosss.domain.usecase
 
-import com.hitbosss.domain.model.BodyLog
+import com.hitbosss.domain.model.BodyComposition
+import com.hitbosss.domain.model.BodyHistoryPoint
+import com.hitbosss.domain.model.BodyTrend
+import com.hitbosss.domain.model.GoalHistoryEntry
 import com.hitbosss.domain.model.MetricGoal
-import com.hitbosss.domain.model.MetricGoals
 import com.hitbosss.domain.model.ProgressPhoto
-import com.hitbosss.domain.model.StrengthEntry
-import com.hitbosss.domain.model.StrengthHistory
+import com.hitbosss.domain.model.StrengthStats
+import com.hitbosss.domain.model.StrengthMark
+import com.hitbosss.domain.model.TrainingEntry
 import com.hitbosss.domain.repository.MetricsRepository
 import java.io.File
 import javax.inject.Inject
 
-class GetBodyLogsUseCase @Inject constructor(private val repo: MetricsRepository) {
-    suspend operator fun invoke(userId: String, from: Long? = null, to: Long? = null): Result<List<BodyLog>> =
-        repo.getBodyLogs(userId, from, to)
+class GetBodyCompositionUseCase @Inject constructor(private val repo: MetricsRepository) {
+    suspend operator fun invoke(unit: String): Result<BodyComposition?> = repo.getBodyComposition(unit)
 }
 
-class AddBodyLogUseCase @Inject constructor(private val repo: MetricsRepository) {
-    suspend operator fun invoke(userId: String, weight: Double, bodyFatPct: Double?, muscleMass: Double?, unit: String): Result<BodyLog> =
-        repo.addBodyLog(userId, weight, bodyFatPct, muscleMass, unit)
+class GetBodyHistoryUseCase @Inject constructor(private val repo: MetricsRepository) {
+    suspend operator fun invoke(metric: String, range: String, unit: String): Result<List<BodyHistoryPoint>> =
+        repo.getBodyCompositionHistory(metric, range, unit)
 }
 
-class DeleteBodyLogUseCase @Inject constructor(private val repo: MetricsRepository) {
-    suspend operator fun invoke(userId: String, logId: Long): Result<Unit> = repo.deleteBodyLog(userId, logId)
+class GetBodyTrendUseCase @Inject constructor(private val repo: MetricsRepository) {
+    suspend operator fun invoke(period: String, unit: String, tzOffset: Int): Result<BodyTrend> =
+        repo.getBodyTrend(period, unit, tzOffset)
 }
 
-class GetMetricGoalsUseCase @Inject constructor(private val repo: MetricsRepository) {
-    suspend operator fun invoke(userId: String, type: String, exercise: String? = null): Result<MetricGoals> =
-        repo.getGoals(userId, type, exercise)
+class UpdateBodyCompositionUseCase @Inject constructor(private val repo: MetricsRepository) {
+    suspend operator fun invoke(
+        weight: Double? = null, height: Double? = null,
+        muscle: Double? = null, fat: Double? = null, unit: String,
+    ): Result<Unit> = repo.updateBodyComposition(weight, height, muscle, fat, unit)
 }
 
-class AddMetricGoalUseCase @Inject constructor(private val repo: MetricsRepository) {
-    suspend operator fun invoke(userId: String, type: String, exercise: String?, target: Double, unit: String): Result<MetricGoal> =
-        repo.addGoal(userId, type, exercise, target, unit)
+class GetMetricGoalUseCase @Inject constructor(private val repo: MetricsRepository) {
+    suspend operator fun invoke(metric: String, unit: String): Result<MetricGoal?> = repo.getGoal(metric, unit)
+}
+
+class CreateMetricGoalUseCase @Inject constructor(private val repo: MetricsRepository) {
+    suspend operator fun invoke(metric: String, target: Double, unit: String): Result<MetricGoal> =
+        repo.createGoal(metric, target, unit)
+}
+
+class GetGoalHistoryUseCase @Inject constructor(private val repo: MetricsRepository) {
+    suspend operator fun invoke(metric: String, unit: String): Result<List<GoalHistoryEntry>> = repo.getGoalHistory(metric, unit)
 }
 
 class DeleteMetricGoalUseCase @Inject constructor(private val repo: MetricsRepository) {
-    suspend operator fun invoke(userId: String, goalId: Long): Result<Unit> = repo.deleteGoal(userId, goalId)
-}
-
-class GetStrengthHistoryUseCase @Inject constructor(private val repo: MetricsRepository) {
-    suspend operator fun invoke(userId: String, exercise: String, from: Long? = null, to: Long? = null): Result<StrengthHistory> =
-        repo.getStrengthHistory(userId, exercise, from, to)
-}
-
-class AddStrengthLogUseCase @Inject constructor(private val repo: MetricsRepository) {
-    suspend operator fun invoke(userId: String, exercise: String, lift: Double, unit: String): Result<StrengthEntry> =
-        repo.addStrengthLog(userId, exercise, lift, unit)
-}
-
-class DeleteStrengthLogUseCase @Inject constructor(private val repo: MetricsRepository) {
-    suspend operator fun invoke(userId: String, logId: Long): Result<Unit> = repo.deleteStrengthLog(userId, logId)
+    suspend operator fun invoke(goalId: Long): Result<Unit> = repo.deleteGoal(goalId)
 }
 
 class GetProgressPhotosUseCase @Inject constructor(private val repo: MetricsRepository) {
-    suspend operator fun invoke(userId: String): Result<List<ProgressPhoto>> = repo.getProgressPhotos(userId)
+    suspend operator fun invoke(unit: String): Result<List<ProgressPhoto>> = repo.getProgressPhotos(unit)
 }
 
-class AddProgressPhotoUseCase @Inject constructor(private val repo: MetricsRepository) {
-    suspend operator fun invoke(
-        userId: String,
-        photo: File,
-        takenAt: Long? = null,
-        weight: Double? = null,
-        bodyFatPct: Double? = null,
-        muscleMass: Double? = null,
-        unit: String,
-    ): Result<ProgressPhoto> = repo.addProgressPhoto(userId, photo, takenAt, weight, bodyFatPct, muscleMass, unit)
+class UploadProgressPhotoUseCase @Inject constructor(private val repo: MetricsRepository) {
+    suspend operator fun invoke(photo: File, unit: String): Result<Unit> = repo.uploadProgressPhoto(photo, unit)
 }
 
 class DeleteProgressPhotoUseCase @Inject constructor(private val repo: MetricsRepository) {
-    suspend operator fun invoke(userId: String, photoId: Long): Result<Unit> = repo.deleteProgressPhoto(userId, photoId)
+    suspend operator fun invoke(photoId: Long): Result<Unit> = repo.deleteProgressPhoto(photoId)
+}
+
+class GetStrengthStatsUseCase @Inject constructor(private val repo: MetricsRepository) {
+    suspend operator fun invoke(exercise: String, unit: String): Result<StrengthStats> = repo.getStrengthStats(exercise, unit)
+}
+
+class CreateTrainingUseCase @Inject constructor(private val repo: MetricsRepository) {
+    suspend operator fun invoke(exercise: String, weight: Double, performedAt: Long, unit: String): Result<Unit> =
+        repo.createTraining(exercise, weight, performedAt, unit)
+}
+
+class GetTrainingsUseCase @Inject constructor(private val repo: MetricsRepository) {
+    suspend operator fun invoke(exercise: String, range: String, unit: String): Result<List<TrainingEntry>> =
+        repo.getTrainings(exercise, range, unit)
+}
+
+class GetStrengthEvolutionUseCase @Inject constructor(private val repo: MetricsRepository) {
+    suspend operator fun invoke(exercise: String, range: String, unit: String): Result<List<StrengthMark>> =
+        repo.getStrengthEvolution(exercise, range, unit)
+}
+
+class GetStrengthBestsUseCase @Inject constructor(private val repo: MetricsRepository) {
+    suspend operator fun invoke(unit: String): Result<Map<String, Double>> = repo.getStrengthBests(unit)
+}
+
+// --- Objetivo de fuerza por ejercicio ---
+
+class GetStrengthGoalUseCase @Inject constructor(private val repo: MetricsRepository) {
+    suspend operator fun invoke(exercise: String, unit: String): Result<MetricGoal?> = repo.getStrengthGoal(exercise, unit)
+}
+
+class CreateStrengthGoalUseCase @Inject constructor(private val repo: MetricsRepository) {
+    suspend operator fun invoke(exercise: String, target: Double, unit: String): Result<MetricGoal> =
+        repo.createStrengthGoal(exercise, target, unit)
+}
+
+class GetStrengthGoalHistoryUseCase @Inject constructor(private val repo: MetricsRepository) {
+    suspend operator fun invoke(exercise: String, unit: String): Result<List<GoalHistoryEntry>> =
+        repo.getStrengthGoalHistory(exercise, unit)
+}
+
+class DeleteStrengthGoalUseCase @Inject constructor(private val repo: MetricsRepository) {
+    suspend operator fun invoke(goalId: Long): Result<Unit> = repo.deleteStrengthGoal(goalId)
 }
