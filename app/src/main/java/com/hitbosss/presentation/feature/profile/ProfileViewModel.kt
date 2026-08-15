@@ -59,6 +59,7 @@ class ProfileViewModel @Inject constructor(
     private val getUserProfile: GetUserProfileUseCase,
     private val getRanking: GetRankingUseCase,
     private val deleteHitUseCase: DeleteHitUseCase,
+    private val toggleHitVisibilityUseCase: com.hitbosss.domain.usecase.ToggleHitVisibilityUseCase,
     private val reportUserUseCase: com.hitbosss.domain.usecase.ReportUserUseCase,
     private val refreshCoordinator: com.hitbosss.core.RefreshCoordinator,
     savedStateHandle: SavedStateHandle,
@@ -170,6 +171,21 @@ class ProfileViewModel @Inject constructor(
                     _state.update { it.copy(isProcessingHit = false) }
                 }
                 .onFailure { _state.update { it.copy(isProcessingHit = false, actionError = "delete") } }
+        }
+    }
+
+    /** Oculta/muestra un HIT propio (long-press → Ocultar). Recarga perfil + ranking al terminar. */
+    fun toggleHitVisibility(hitId: Int, hidden: Boolean) {
+        if (_state.value.isProcessingHit) return
+        viewModelScope.launch {
+            _state.update { it.copy(isProcessingHit = true, actionError = null) }
+            toggleHitVisibilityUseCase(hitId, hidden)
+                .onSuccess {
+                    refreshCoordinator.onHitUploaded()  // invalida ranking + perfil (el hit desaparece/reaparece)
+                    reloadAll(showRefreshing = false)
+                    _state.update { it.copy(isProcessingHit = false) }
+                }
+                .onFailure { _state.update { it.copy(isProcessingHit = false, actionError = "hide") } }
         }
     }
 

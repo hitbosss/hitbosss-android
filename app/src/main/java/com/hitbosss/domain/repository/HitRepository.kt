@@ -1,5 +1,6 @@
 package com.hitbosss.domain.repository
 
+import com.hitbosss.domain.model.Participation
 import java.io.File
 
 data class UploadHitResult(
@@ -20,6 +21,12 @@ interface HitRepository {
 
     /** Elimina un hit propio. */
     suspend fun deleteHit(hitId: Int): Result<Unit>
+
+    /** Oculta/muestra un hit propio (reversible; desaparece de ranking/perfil, sigue en su grupo/evento). */
+    suspend fun toggleHitVisibility(hitId: Int, hidden: Boolean): Result<Unit>
+
+    /** Lista los hits ocultos del usuario (misma forma que participations). */
+    suspend fun getHiddenHits(unit: String): Result<List<Participation>>
 
     /**
      * Edita un hit propio: nuevo performedAt y, opcionalmente, un vídeo recortado

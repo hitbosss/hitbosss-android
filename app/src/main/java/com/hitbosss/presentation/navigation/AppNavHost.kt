@@ -326,6 +326,7 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
                 onEditProfile = { navController.navigate(Routes.EDIT_PROFILE) },
                 onCommunityRules = { navController.navigate(Routes.COMMUNITY_RULES) },
                 onTutorials = { navController.navigate(Routes.TUTORIALS) },
+                onHiddenHits = { navController.navigate(Routes.HIDDEN_HITS) },
                 onPrivacyPolicy = { navController.navigate(Routes.PRIVACY_POLICY) },
                 onLoggedOut = {
                     navController.navigate(Routes.WELCOME) {
@@ -345,6 +346,10 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
 
         composable(Routes.COMMUNITY_RULES) {
             CommunityRulesScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(Routes.HIDDEN_HITS) {
+            com.hitbosss.presentation.feature.profile.HiddenHitsScreen(onBack = { navController.popBackStack() })
         }
 
         composable(Routes.TUTORIALS) {

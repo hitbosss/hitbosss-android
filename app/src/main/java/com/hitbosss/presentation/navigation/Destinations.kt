@@ -58,6 +58,7 @@ object Routes {
     const val CALCULATOR = "calculator"
     const val EDIT_PROFILE = "edit_profile"
     const val COMMUNITY_RULES = "community_rules"
+    const val HIDDEN_HITS = "hidden_hits"
     const val TUTORIALS = "tutorials"
     // Tutorial enfocado a un ejercicio (desde "Cómo grabar tu HIT" del modal de subir).
     const val TUTORIALS_EXERCISE = "tutorials/{apiKey}"

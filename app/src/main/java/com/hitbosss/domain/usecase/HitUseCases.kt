@@ -75,6 +75,20 @@ class DeleteHitUseCase @Inject constructor(
     suspend operator fun invoke(hitId: Int): Result<Unit> = hitRepository.deleteHit(hitId)
 }
 
+class ToggleHitVisibilityUseCase @Inject constructor(
+    private val hitRepository: HitRepository,
+) {
+    suspend operator fun invoke(hitId: Int, hidden: Boolean): Result<Unit> =
+        hitRepository.toggleHitVisibility(hitId, hidden)
+}
+
+class GetHiddenHitsUseCase @Inject constructor(
+    private val hitRepository: HitRepository,
+) {
+    suspend operator fun invoke(unit: String): Result<List<com.hitbosss.domain.model.Participation>> =
+        hitRepository.getHiddenHits(unit)
+}
+
 class EditHitUseCase @Inject constructor(
     private val hitRepository: HitRepository,
 ) {

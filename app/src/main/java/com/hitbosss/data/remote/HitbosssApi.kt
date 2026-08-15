@@ -212,6 +212,18 @@ interface HitbosssApi {
     @DELETE("ranking/hit/{hitId}")
     suspend fun deleteHit(@Path("hitId") hitId: Int): MessageResponseDto
 
+    /** PATCH /ranking/hit/{hitId}/visibility — ocultar/mostrar un hit propio (reversible). */
+    @PATCH("ranking/hit/{hitId}/visibility")
+    suspend fun toggleHitVisibility(@Path("hitId") hitId: Int, @Body body: HitVisibilityRequestDto): MessageResponseDto
+
+    /** GET /ranking/hits/hidden — hits ocultos del usuario (misma forma que participations). */
+    @GET("ranking/hits/hidden")
+    suspend fun getHiddenHits(
+        @Query("unit") unit: String? = null,
+        @Query("limit") limit: Int? = null,
+        @Query("offset") offset: Int? = null,
+    ): HiddenHitsResponseDto
+
     /**
      * PATCH /ranking/hit/{hitId} (multipart) — editar un hit propio: nuevo performedAt y,
      * opcionalmente, un vídeo recortado. Requiere auth.

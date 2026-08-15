@@ -104,6 +104,8 @@ fun ProfileScreen(
     var menuHit by remember { mutableStateOf<Participation?>(null) }
     // HIT pendiente de confirmar borrado (popup de confirmación antes de eliminar).
     var confirmDeleteHit by remember { mutableStateOf<Participation?>(null) }
+    // HIT pendiente de confirmar ocultado.
+    var confirmHideHit by remember { mutableStateOf<Participation?>(null) }
     // Menú ⋮ del perfil ajeno (Compartir / Denunciar) y diálogo de denuncia.
     var showProfileMenu by remember { mutableStateOf(false) }
     var showReportDialog by remember { mutableStateOf(false) }
@@ -171,9 +173,24 @@ fun ProfileScreen(
     // Menú de acciones del HIT (1:1 con el action sheet de iOS: Editar / Eliminar).
     menuHit?.let { hit ->
         HitActionSheet(
+            onHide = { menuHit = null; confirmHideHit = hit },
             onEdit = { menuHit = null; viewModel.startEditHit(hit) },
             onDelete = { menuHit = null; confirmDeleteHit = hit },
             onDismiss = { menuHit = null },
+        )
+    }
+
+    // Confirmación antes de ocultar un HIT (se restaura desde Ajustes > HITs ocultos).
+    confirmHideHit?.let { hit ->
+        HitPopup(
+            title = stringResource(R.string.hit_hide_confirm_title),
+            message = stringResource(R.string.hit_hide_confirm_msg),
+            confirmText = stringResource(R.string.hit_hide),
+            confirmType = com.hitbosss.presentation.designsystem.components.HitButtonType.Primary,
+            onConfirm = { val id = hit.hitId; confirmHideHit = null; id?.let { viewModel.toggleHitVisibility(it, true) } },
+            cancelText = stringResource(R.string.common_cancel),
+            onCancel = { confirmHideHit = null },
+            onDismissRequest = { confirmHideHit = null },
         )
     }
 
@@ -214,9 +231,14 @@ fun ProfileScreen(
 /** Action sheet inferior con Editar HIT / Eliminar HIT (equivalente al confirmationDialog de iOS). */
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-private fun HitActionSheet(onEdit: () -> Unit, onDelete: () -> Unit, onDismiss: () -> Unit) {
+private fun HitActionSheet(onHide: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit, onDismiss: () -> Unit) {
     androidx.compose.material3.ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Gray100) {
         Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
+            Text(
+                stringResource(R.string.hit_hide),
+                style = HitbosssType.bodyLargeRegular, color = Gray800,
+                modifier = Modifier.fillMaxWidth().clickable { onHide() }.padding(horizontal = 24.dp, vertical = 16.dp),
+            )
             Text(
                 stringResource(R.string.hit_edit),
                 style = HitbosssType.bodyLargeRegular, color = Gray800,
@@ -837,7 +859,7 @@ private fun StatRowLayout(name: String, weight: String, levelWeight: String?, ra
 // MARK: - HITS (grid 3 columnas)
 
 private enum class HitTab { Subidos, EnRanking }
-private enum class SportFilter(@androidx.annotation.StringRes val label: Int) { Todos(R.string.common_all), Powerlifting(R.string.sport_powerlifting), Crossfit(R.string.sport_crosshit) }
+enum class SportFilter(@androidx.annotation.StringRes val label: Int) { Todos(R.string.common_all), Powerlifting(R.string.sport_powerlifting), Crossfit(R.string.sport_crosshit) }
 
 @Composable
 private fun HitsSection(
@@ -942,7 +964,7 @@ private fun HitSubSegment(selected: HitTab, subidos: Int, enRanking: Int, onSele
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-private fun HitThumb(hit: Participation, isBest: Boolean, onLongPress: (() -> Unit)? = null, onClick: () -> Unit) {
+fun HitThumb(hit: Participation, isBest: Boolean, onLongPress: (() -> Unit)? = null, onClick: () -> Unit) {
     val context = LocalContext.current
     val isPl = hit.sport.equals("powerlifting", true)
     val exTitleThumb = rememberExerciseTitleResolver()
@@ -1005,7 +1027,7 @@ private fun HitThumb(hit: Participation, isBest: Boolean, onLongPress: (() -> Un
  * mapa para usarse después dentro de `.map {}` (no-composable) sin romper el matching del visor.
  */
 @Composable
-private fun rememberExerciseTitleResolver(): (String) -> String {
+fun rememberExerciseTitleResolver(): (String) -> String {
     val map = RankingCategory.entries.associate { it.apiKey.lowercase() to stringResource(it.titleRes()) }
     return { raw -> map[raw.lowercase()] ?: raw.replaceFirstChar { c -> c.uppercase() } }
 }
@@ -1042,7 +1064,7 @@ private fun formatWeight(value: Double): String =
     if (value % 1.0 == 0.0) value.toInt().toString() else "%.1f".format(value)
 
 /** Participation -> HitVideoData (requiere videoUrl no vacío). */
-private fun Participation.toHitVideo(title: String) = HitVideoData(
+fun Participation.toHitVideo(title: String) = HitVideoData(
     videoUrl = videoUrl.orEmpty(),
     seekSeconds = performedAt,
     exerciseTitle = title,

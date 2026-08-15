@@ -86,7 +86,7 @@ private fun SocialNetworkDto.toDomain(): SocialNetwork? {
     return SocialNetwork(name = name, url = url, username = username.orEmpty())
 }
 
-private fun ParticipationDto.toDomain() = Participation(
+fun ParticipationDto.toDomain() = Participation(
     exercise = exercise.orEmpty(),
     sport = sport.orEmpty(),
     context = context.orEmpty(),

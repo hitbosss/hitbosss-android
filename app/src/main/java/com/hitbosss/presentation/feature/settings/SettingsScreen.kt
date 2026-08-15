@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAddAlt1
 import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -76,6 +77,7 @@ fun SettingsScreen(
     onEditProfile: () -> Unit = {},
     onCommunityRules: () -> Unit = {},
     onTutorials: () -> Unit = {},
+    onHiddenHits: () -> Unit = {},
     onPrivacyPolicy: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
@@ -110,6 +112,8 @@ fun SettingsScreen(
                 SettingsRow(Icons.AutoMirrored.Filled.MenuBook, Primary500, stringResource(R.string.settings_community_rules), onCommunityRules)
                 RowDivider()
                 SettingsRow(Icons.Filled.Videocam, Primary500, stringResource(R.string.settings_exercise_tutorial), onTutorials)
+                RowDivider()
+                SettingsRow(Icons.Filled.VisibilityOff, Primary500, stringResource(R.string.settings_hidden_hits), onHiddenHits)
             }
             // 2 — calculadora
             SettingsCard {

@@ -86,3 +86,11 @@ data class ParticipationDto(
     val levelWilks: String? = null,
     val position: Int? = null,
 )
+
+/** PATCH /ranking/hit/{id}/visibility */
+@Serializable
+data class HitVisibilityRequestDto(val hidden: Boolean)
+
+/** GET /ranking/hits/hidden → hits con la misma forma que participations. */
+@Serializable
+data class HiddenHitsResponseDto(val hits: List<ParticipationDto>? = null)

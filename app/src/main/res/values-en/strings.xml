@@ -310,6 +310,7 @@
     <!-- HIT actions -->
     <string name="hit_edit">Edit HIT</string>
     <string name="hit_delete">Delete HIT</string>
+    <string name="hit_hide">Hide HIT</string>
 
     <!-- Profile -->
     <string name="profile_tab_marks">Scores</string>
@@ -411,6 +412,16 @@
     <string name="saved_hits_empty">No saved HITS yet</string>
     <string name="hit_delete_confirm_title">Delete this HIT?</string>
     <string name="hit_delete_confirm_msg">If you delete this HIT, it can\'t be undone.</string>
+    <string name="hit_hide_confirm_title">Hide HIT?</string>
+    <string name="hit_hide_confirm_msg">Are you sure you want to hide this HIT? You can restore it later from Settings &gt; Hidden HITs &gt; Restore.</string>
+    <string name="hidden_hits_title">Hidden HITs</string>
+    <string name="hidden_hits_empty">You have no hidden HITs.</string>
+    <string name="hit_restore">Restore</string>
+    <string name="hit_restore_confirm_title">Restore HIT</string>
+    <string name="hit_restore_confirm_msg">Are you sure you want to restore this HIT?\nIt will reappear on your profile and regain its visibility.</string>
+    <string name="hit_delete_hidden_confirm_title">Delete hidden HIT</string>
+    <string name="hit_delete_hidden_confirm_msg">Are you sure you want to delete this hidden HIT?\nThis action is permanent and you cannot recover it.</string>
+    <string name="settings_hidden_hits">Hidden HITs</string>
     <string name="common_exit">Exit</string>
     <string name="common_discard">Discard</string>
     <string name="hit_exit_edit_title">Exit editing?</string>

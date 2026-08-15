@@ -311,6 +311,7 @@
     <!-- Acciones de HIT -->
     <string name="hit_edit">Editar HIT</string>
     <string name="hit_delete">Eliminar HIT</string>
+    <string name="hit_hide">Ocultar HIT</string>
 
     <!-- Perfil -->
     <string name="profile_tab_marks">Marcas</string>
@@ -412,6 +413,16 @@
     <string name="saved_hits_empty">Aún no tienes HITS guardados</string>
     <string name="hit_delete_confirm_title">¿Borrar HIT?</string>
     <string name="hit_delete_confirm_msg">Si eliminas este HIT, no podrás recuperarlo jamás.</string>
+    <string name="hit_hide_confirm_title">¿Ocultar HIT?</string>
+    <string name="hit_hide_confirm_msg">¿Seguro que quieres ocultar este HIT? Podrás restaurarlo más tarde desde Ajustes &gt; HITs ocultos &gt; Restaurar.</string>
+    <string name="hidden_hits_title">HITs ocultos</string>
+    <string name="hidden_hits_empty">No tienes HITs ocultos.</string>
+    <string name="hit_restore">Restaurar</string>
+    <string name="hit_restore_confirm_title">Restaurar HIT</string>
+    <string name="hit_restore_confirm_msg">¿Seguro que quieres restaurar este HIT?\nVolverá a aparecer en tu perfil y recuperará su visibilidad.</string>
+    <string name="hit_delete_hidden_confirm_title">Eliminar HIT oculto</string>
+    <string name="hit_delete_hidden_confirm_msg">¿Seguro que quieres eliminar este HIT oculto?\nEsta acción es permanente y no podrás recuperarlo.</string>
+    <string name="settings_hidden_hits">HITs ocultos</string>
     <string name="common_exit">Salir</string>
     <string name="common_discard">Descartar</string>
     <string name="hit_exit_edit_title">¿Salir de la edición?</string>
