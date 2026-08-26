@@ -15,6 +15,8 @@ import com.hitbosss.domain.model.StrengthMark
 import com.hitbosss.domain.model.UserProfile
 import com.hitbosss.domain.usecase.CreateStrengthGoalUseCase
 import com.hitbosss.domain.usecase.CreateTrainingUseCase
+import com.hitbosss.domain.usecase.UpdateTrainingUseCase
+import com.hitbosss.domain.usecase.DeleteTrainingUseCase
 import com.hitbosss.domain.usecase.DeleteStrengthGoalUseCase
 import com.hitbosss.domain.usecase.GetCurrentUserUseCase
 import com.hitbosss.domain.usecase.GetPersonalInfoUseCase
@@ -64,6 +66,8 @@ class StrengthMetricsViewModel @Inject constructor(
     private val getStrengthEvolution: GetStrengthEvolutionUseCase,
     private val getStrengthBests: GetStrengthBestsUseCase,
     private val createTraining: CreateTrainingUseCase,
+    private val updateTraining: UpdateTrainingUseCase,
+    private val deleteTraining: DeleteTrainingUseCase,
     private val getStrengthGoal: GetStrengthGoalUseCase,
     private val createStrengthGoal: CreateStrengthGoalUseCase,
     private val getStrengthGoalHistory: GetStrengthGoalHistoryUseCase,
@@ -151,12 +155,12 @@ class StrengthMetricsViewModel @Inject constructor(
             val marks = marksD.await().getOrNull().orEmpty()
             val goal = goalD.await().getOrNull()
             val hist = histD.await().getOrNull().orEmpty()
-            val best = marks.maxOfOrNull { it.weightKg }
             _state.update {
                 it.copy(
                     stats = stats.getOrNull() ?: it.stats,
                     marks = marks,
-                    strengthGoal = goal?.withStrengthProgress(best),
+                    // current/progreso/reached vienen ya calculados del servidor (entrenos + HITs).
+                    strengthGoal = goal,
                     goalHistory = hist,
                 )
             }
@@ -167,6 +171,24 @@ class StrengthMetricsViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true) }
             createTraining(_state.value.selected.apiKey, lift, System.currentTimeMillis() / 1000, _state.value.unitSystem)
+                .onSuccess { _state.update { it.copy(isSaving = false) }; refreshCoordinator.invalidateMetrics() }
+                .onFailure { failSave() }
+        }
+    }
+
+    fun onEditTraining(trainingId: Long, weight: Double) {
+        viewModelScope.launch {
+            _state.update { it.copy(isSaving = true) }
+            updateTraining(trainingId, weight, _state.value.unitSystem)
+                .onSuccess { _state.update { it.copy(isSaving = false) }; refreshCoordinator.invalidateMetrics() }
+                .onFailure { failSave() }
+        }
+    }
+
+    fun onDeleteTraining(trainingId: Long) {
+        viewModelScope.launch {
+            _state.update { it.copy(isSaving = true) }
+            deleteTraining(trainingId)
                 .onSuccess { _state.update { it.copy(isSaving = false) }; refreshCoordinator.invalidateMetrics() }
                 .onFailure { failSave() }
         }
@@ -188,12 +210,6 @@ class StrengthMetricsViewModel @Inject constructor(
                 .onSuccess { loadExerciseData() }
                 .onFailure { _state.update { it.copy(actionError = appContext.getString(R.string.err_generic_action)) } }
         }
-    }
-
-    private fun MetricGoal.withStrengthProgress(best: Double?): MetricGoal {
-        val current = best ?: 0.0
-        val prog = if (targetValue > 0.0 && current > 0.0) (current / targetValue).coerceIn(0.0, 1.0) else 0.0
-        return copy(currentValue = current, progress = prog)
     }
 
     private fun failSave() = _state.update { it.copy(isSaving = false, actionError = appContext.getString(R.string.err_generic_action)) }

@@ -1,6 +1,7 @@
 package com.hitbosss.presentation.feature.metrics
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,6 +12,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
@@ -36,19 +40,20 @@ import com.hitbosss.R
 import com.hitbosss.domain.model.BodyHistoryPoint
 import com.hitbosss.domain.usecase.GetBodyHistoryUseCase
 import com.hitbosss.domain.usecase.GetCurrentUserUseCase
+import com.hitbosss.domain.usecase.GetMetricGoalUseCase
 import com.hitbosss.domain.usecase.GetPersonalInfoUseCase
 import com.hitbosss.presentation.designsystem.components.ChartMarker
 import com.hitbosss.presentation.designsystem.components.ChartSeries
+import com.hitbosss.presentation.designsystem.components.HitPopup
 import com.hitbosss.presentation.designsystem.components.HitTopBar
 import com.hitbosss.presentation.designsystem.components.LineChart
 import com.hitbosss.presentation.designsystem.theme.Gray100
-import com.hitbosss.presentation.designsystem.theme.Gray200
+import com.hitbosss.presentation.designsystem.theme.Gray400
 import com.hitbosss.presentation.designsystem.theme.Gray500
-import com.hitbosss.presentation.designsystem.theme.Gray800
 import com.hitbosss.presentation.designsystem.theme.HitbosssType
 import com.hitbosss.presentation.designsystem.theme.Primary500
 import com.hitbosss.presentation.designsystem.theme.Secondary500
-import com.hitbosss.presentation.designsystem.theme.Success400
+import com.hitbosss.presentation.designsystem.theme.Success500
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -64,12 +69,14 @@ data class MetricDetailUiState(
     val isLoading: Boolean = false,
     val unitSystem: String = "metric",
     val series: Map<Pair<PhysicalMetric, String>, List<BodyHistoryPoint>> = emptyMap(),
+    val goals: Map<PhysicalMetric, Double?> = emptyMap(), // objetivo (targetValue) por métrica; para la línea del gráfico
 )
 
 @HiltViewModel
 class MetricDetailViewModel @Inject constructor(
     private val getCurrentUser: GetCurrentUserUseCase,
     private val getHistory: GetBodyHistoryUseCase,
+    private val getGoal: GetMetricGoalUseCase,
     private val getPersonalInfo: GetPersonalInfoUseCase,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -93,6 +100,14 @@ class MetricDetailViewModel @Inject constructor(
     }
 
     fun load(metric: PhysicalMetric, range: String) {
+        // El objetivo (línea verde) se carga una vez por métrica.
+        if (!_state.value.goals.containsKey(metric)) {
+            viewModelScope.launch {
+                getGoal(metric.apiKey, _state.value.unitSystem).onSuccess { g ->
+                    _state.update { it.copy(goals = it.goals + (metric to g?.targetValue)) }
+                }
+            }
+        }
         val key = metric to range
         if (_state.value.series.containsKey(key)) return
         viewModelScope.launch {
@@ -133,7 +148,14 @@ fun MetricDetailScreen(
     val points = state.series[metric to range.apiRange] ?: emptyList()
     val unit = if (state.unitSystem == "imperial") "lbs" else "kg"
 
-    Column(Modifier.fillMaxSize().background(Gray200)) {
+    var showInfo by remember { mutableStateOf(false) }
+    val metricName = when (metric) {
+        PhysicalMetric.Weight -> stringResource(R.string.metrics_weight)
+        PhysicalMetric.Fat -> stringResource(R.string.metrics_fat)
+        PhysicalMetric.Muscle -> stringResource(R.string.metrics_muscle)
+    }
+
+    Column(Modifier.fillMaxSize().background(Gray100)) {
         HitTopBar(title = stringResource(R.string.metrics_evolution), onBack = onBack)
 
         Column(Modifier.fillMaxSize().padding(16.dp)) {
@@ -146,27 +168,32 @@ fun MetricDetailScreen(
                 selectedIndex = metric.ordinal,
                 onSelect = { metric = PhysicalMetric.entries[it] },
             )
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(16.dp))
 
+            // Chips de rango: seleccionado = contorno azul + texto azul; resto = contorno gris.
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 DetailRange.entries.forEachIndexed { i, r ->
+                    val sel = i == rangeIndex
                     Box(
-                        Modifier.clip(RoundedCornerShape(8.dp))
-                            .background(if (i == rangeIndex) Gray800 else Gray100)
+                        Modifier.clip(RoundedCornerShape(20.dp))
+                            .border(1.dp, if (sel) Secondary500 else Gray400, RoundedCornerShape(20.dp))
                             .clickable { rangeIndex = i }
-                            .padding(horizontal = 14.dp, vertical = 6.dp),
+                            .padding(horizontal = 16.dp, vertical = 7.dp),
                     ) {
-                        Text(r.label(), style = HitbosssType.bodySmallEmphasis, color = if (i == rangeIndex) Gray100 else Gray500)
+                        Text(r.label(), style = HitbosssType.bodySmallEmphasis, color = if (sel) Secondary500 else Gray500)
                     }
                 }
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(20.dp))
 
-            // Grasa ahora es masa (kg), no % → todas las métricas usan el eje en la unidad de peso.
-            Text(stringResource(R.string.metrics_axis_weight, unit), style = HitbosssType.bodySmallRegular, color = Gray500)
-            Spacer(Modifier.height(8.dp))
+            // Título del eje Y (unidad) + ⓘ. Grasa ahora es masa (kg) → todas usan la unidad de peso.
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.metrics_axis_weight, unit), style = HitbosssType.titleBody, color = Gray500, modifier = Modifier.weight(1f))
+                InfoIcon(onClick = { showInfo = true })
+            }
+            Spacer(Modifier.height(12.dp))
 
-            Column(Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(12.dp)).background(Gray100).padding(16.dp)) {
+            Box(Modifier.fillMaxWidth().weight(1f)) {
                 when {
                     state.isLoading && points.isEmpty() ->
                         Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = Primary500) }
@@ -185,16 +212,40 @@ fun MetricDetailScreen(
                             Instant.ofEpochSecond((minT + (span * frac).toLong())).atZone(zone).toLocalDate().format(fmt)
                         }
                         LineChart(
-                            // Color por métrica y clustering (los marcadores se ocultan solos si hay muchos puntos).
                             series = listOf(
                                 ChartSeries(chartPoints, color = metricColor(metric.apiKey), marker = ChartMarker.Circle, fill = true),
                             ),
                             xLabels = labels,
-                            modifier = Modifier.fillMaxWidth().weight(1f),
+                            modifier = Modifier.fillMaxSize(),
+                            goalLine = state.goals[metric],
                         )
                     }
                 }
             }
+            Spacer(Modifier.height(14.dp))
+
+            // Leyenda: métrica (círculo hueco de su color) + Objetivo (línea discontinua verde).
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(12.dp).clip(CircleShape).border(3.dp, metricColor(metric.apiKey), CircleShape))
+                Spacer(Modifier.width(8.dp))
+                Text(metricName, style = HitbosssType.bodySmallEmphasis, color = Gray500)
+                Spacer(Modifier.width(20.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    repeat(3) { Box(Modifier.size(width = 5.dp, height = 2.dp).clip(RoundedCornerShape(1.dp)).background(Success500)) }
+                }
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.metrics_goal), style = HitbosssType.bodySmallEmphasis, color = Gray500)
+            }
         }
+    }
+
+    if (showInfo) {
+        HitPopup(
+            title = stringResource(R.string.metrics_evolution),
+            message = stringResource(R.string.metrics_detail_info),
+            confirmText = stringResource(R.string.common_accept),
+            onConfirm = { showInfo = false },
+            onDismissRequest = { showInfo = false },
+        )
     }
 }

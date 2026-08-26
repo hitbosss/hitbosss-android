@@ -72,6 +72,24 @@ class CreateTrainingUseCase @Inject constructor(private val repo: MetricsReposit
         repo.createTraining(exercise, weight, performedAt, unit)
 }
 
+class UpdateTrainingUseCase @Inject constructor(private val repo: MetricsRepository) {
+    suspend operator fun invoke(trainingId: Long, weight: Double, unit: String): Result<Unit> =
+        repo.updateTraining(trainingId, weight, unit)
+}
+
+class UpdateBodyPointUseCase @Inject constructor(private val repo: MetricsRepository) {
+    suspend operator fun invoke(metric: String, pointId: Long, value: Double, unit: String): Result<Unit> =
+        repo.updateBodyPoint(metric, pointId, value, unit)
+}
+
+class DeleteBodyPointUseCase @Inject constructor(private val repo: MetricsRepository) {
+    suspend operator fun invoke(metric: String, pointId: Long): Result<Unit> = repo.deleteBodyPoint(metric, pointId)
+}
+
+class DeleteTrainingUseCase @Inject constructor(private val repo: MetricsRepository) {
+    suspend operator fun invoke(trainingId: Long): Result<Unit> = repo.deleteTraining(trainingId)
+}
+
 class GetTrainingsUseCase @Inject constructor(private val repo: MetricsRepository) {
     suspend operator fun invoke(exercise: String, range: String, unit: String): Result<List<TrainingEntry>> =
         repo.getTrainings(exercise, range, unit)

@@ -103,7 +103,7 @@ val Aqua500 = Color(0xFF01432E)
 // Orange
 val Orange100 = Color(0xFFF7EFE8)
 val Orange200 = Color(0xFFF6E3D5)
-val Orange300 = Color(0xFFFE7A15)
+val Orange300 = Color(0xFFFF8905)
 val Orange400 = Color(0xFFB24F06)
 val Orange500 = Color(0xFF7F3701)
 
@@ -120,4 +120,4 @@ val Purple500 = Color(0xFF33005A)
 
 // Red
 val Red100 = Color(0xFFFFD1CB)
-val Red500 = Color(0xFF520900)
+val Red500 = Color(0xFFBC0404)

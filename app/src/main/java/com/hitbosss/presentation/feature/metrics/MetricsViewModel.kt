@@ -23,6 +23,8 @@ import com.hitbosss.domain.usecase.GetMetricGoalUseCase
 import com.hitbosss.domain.usecase.GetPersonalInfoUseCase
 import com.hitbosss.domain.usecase.GetProgressPhotosUseCase
 import com.hitbosss.domain.usecase.UpdateBodyCompositionUseCase
+import com.hitbosss.domain.usecase.UpdateBodyPointUseCase
+import com.hitbosss.domain.usecase.DeleteBodyPointUseCase
 import com.hitbosss.domain.usecase.DeleteProgressPhotoUseCase
 import com.hitbosss.domain.usecase.UploadProgressPhotoUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -77,6 +79,8 @@ class MetricsViewModel @Inject constructor(
     private val getHistory: GetBodyHistoryUseCase,
     private val getTrend: GetBodyTrendUseCase,
     private val updateComposition: UpdateBodyCompositionUseCase,
+    private val updateBodyPoint: UpdateBodyPointUseCase,
+    private val deleteBodyPoint: DeleteBodyPointUseCase,
     private val getGoal: GetMetricGoalUseCase,
     private val createGoal: CreateMetricGoalUseCase,
     private val getGoalHistoryUseCase: GetGoalHistoryUseCase,
@@ -127,6 +131,11 @@ class MetricsViewModel @Inject constructor(
                 _state.update { it.copy(isLoading = false, isRefreshing = false, hasError = true) }
                 return@launch
             }
+            // Qué trend/history había cargado (lo que el usuario está viendo) para re-pedirlo tras vaciar:
+            // el composable los pide con LaunchedEffect(key), que NO se re-dispara al vaciar el mapa, así que
+            // si no los recargamos aquí la gráfica y los tiles se quedan vacíos hasta cambiar Semana/Mes.
+            val loadedTrend = _state.value.trend.keys.toList()
+            val loadedHistory = _state.value.history.keys.toList()
             _state.update {
                 it.copy(
                     isLoading = false, isRefreshing = false,
@@ -134,13 +143,14 @@ class MetricsViewModel @Inject constructor(
                     composition = comp.getOrNull() ?: it.composition,
                     goals = goals,
                     photos = photos.getOrNull() ?: it.photos,
-                    history = emptyMap(), // se recarga bajo demanda
+                    history = emptyMap(), // se recarga abajo
                     trend = emptyMap(), // idem
                     goalHistory = emptyMap(), // idem: se refresca al desplegar
                 )
             }
-            // Precarga la evolución semanal de peso (lo primero que se ve).
-            loadHistory(PhysicalMetric.Weight, "week")
+            // Precarga la evolución semanal de peso (lo primero que se ve) + re-pide lo que ya estaba cargado.
+            (loadedHistory + (PhysicalMetric.Weight to "week")).distinct().forEach { (m, tf) -> loadHistory(m, tf) }
+            (loadedTrend + "week").distinct().forEach { loadTrend(it) }
         }
     }
 
@@ -176,12 +186,50 @@ class MetricsViewModel @Inject constructor(
         }
     }
 
-    /** Borra una entrada del historial (pulsación larga → confirmación). Recarga tras borrar. */
-    fun onDeleteGoal(goalId: Long) {
+    /**
+     * Borra UNA entrada del historial (⋮ → Eliminar). Refresca en sitio solo esa métrica (objetivo activo +
+     * historial), SIN `invalidateMetrics()`: la recarga completa vacía `goalHistory` y, con la card desplegada,
+     * parecería que se borran TODOS los objetivos (bug reportado). Optimista: quita ya la fila borrada.
+     */
+    fun onDeleteGoal(metric: PhysicalMetric, goalId: Long) {
         viewModelScope.launch {
+            _state.update { s ->
+                s.goalHistory[metric]?.let { cur ->
+                    s.copy(goalHistory = s.goalHistory + (metric to cur.filterNot { it.id == goalId }))
+                } ?: s
+            }
             deleteGoalUseCase(goalId)
-                .onSuccess { refreshCoordinator.invalidateMetrics() }
+                .onSuccess {
+                    val unit = _state.value.unitSystem
+                    val active = getGoal(metric.apiKey, unit).getOrNull()?.withProgress(_state.value.composition)
+                    val hist = getGoalHistoryUseCase(metric.apiKey, unit).getOrNull()
+                    _state.update { s ->
+                        s.copy(
+                            goals = s.goals + (metric to active),
+                            goalHistory = if (hist != null) s.goalHistory + (metric to hist) else s.goalHistory,
+                        )
+                    }
+                }
                 .onFailure { _state.update { it.copy(actionError = appContext.getString(R.string.err_generic_action)) } }
+        }
+    }
+
+    /** Editar/borrar un punto concreto de la gráfica de físico (fila de body_log, solo esa métrica). */
+    fun onEditPoint(metric: PhysicalMetric, pointId: Long, value: Double) {
+        viewModelScope.launch {
+            _state.update { it.copy(isSaving = true) }
+            updateBodyPoint(metric.apiKey, pointId, value, _state.value.unitSystem)
+                .onSuccess { _state.update { it.copy(isSaving = false) }; refreshCoordinator.invalidateMetrics() }
+                .onFailure { failSave() }
+        }
+    }
+
+    fun onDeletePoint(metric: PhysicalMetric, pointId: Long) {
+        viewModelScope.launch {
+            _state.update { it.copy(isSaving = true) }
+            deleteBodyPoint(metric.apiKey, pointId)
+                .onSuccess { _state.update { it.copy(isSaving = false) }; refreshCoordinator.invalidateMetrics() }
+                .onFailure { failSave() }
         }
     }
 

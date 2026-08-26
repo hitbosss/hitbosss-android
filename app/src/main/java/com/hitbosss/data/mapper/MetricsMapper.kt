@@ -42,7 +42,7 @@ fun BodyCompositionDto.toDomain(): BodyComposition = BodyComposition(
 fun BodyHistoryPointDto.toDomain(): BodyHistoryPoint? {
     val v = value ?: return null
     val at = measuredAt ?: return null
-    return BodyHistoryPoint(v, at)
+    return BodyHistoryPoint(id ?: return null, v, at)
 }
 
 fun GoalDto.toDomain(): MetricGoal? {
@@ -51,10 +51,15 @@ fun GoalDto.toDomain(): MetricGoal? {
     return MetricGoal(metric = m, targetValue = t, reached = reached)
 }
 
-/** Objetivo de fuerza: la API devuelve {target, createdAt} sin metric → metric placeholder "strength". */
+/**
+ * Objetivo de fuerza: metric placeholder "strength". `current`/`reached` los da el SERVIDOR contando
+ * entrenos + HITs (getBestLift) → no se recalcula en cliente (fuente única, sin divergencia iOS/Android).
+ */
 fun GoalDto.toStrengthDomain(): MetricGoal? {
     val t = target.value() ?: return null
-    return MetricGoal(metric = "strength", targetValue = t)
+    val cur = current.value() ?: 0.0
+    val prog = if (t > 0.0 && cur > 0.0) (cur / t).coerceIn(0.0, 1.0) else 0.0
+    return MetricGoal(metric = "strength", targetValue = t, currentValue = cur, progress = prog, reached = reached)
 }
 
 fun GoalHistoryEntryDto.toDomain(): GoalHistoryEntry? {
@@ -63,14 +68,18 @@ fun GoalHistoryEntryDto.toDomain(): GoalHistoryEntry? {
     return GoalHistoryEntry(id = id, targetValue = t, createdAt = at, archivedAt = archivedAt, reached = reached)
 }
 
-private fun SeriesPointDto.toTrendPoint() = TrendPoint(date = date ?: weekStart ?: 0L, value = value ?: average)
+private fun SeriesPointDto.toTrendPoint(): TrendPoint = TrendPoint(
+    date = date ?: weekStart ?: 0L,
+    value = value ?: average,
+    days = days?.map { it.toTrendPoint() } ?: emptyList(),
+)
 private fun MetricSeriesDto?.toTrendPoints(): List<TrendPoint> = this?.points?.map { it.toTrendPoint() } ?: emptyList()
 
 fun TrendDto.toDomain(): BodyTrend = BodyTrend(
     period = period ?: "week",
-    weight = MetricTrend(current?.weight.toTrendPoints(), previous?.weight.toTrendPoints()),
-    fat = MetricTrend(current?.fat.toTrendPoints(), previous?.fat.toTrendPoints()),
-    muscle = MetricTrend(current?.muscle.toTrendPoints(), previous?.muscle.toTrendPoints()),
+    weight = MetricTrend(current?.weight.toTrendPoints(), previous?.weight.toTrendPoints(), current?.weight?.average, previous?.weight?.average),
+    fat = MetricTrend(current?.fat.toTrendPoints(), previous?.fat.toTrendPoints(), current?.fat?.average, previous?.fat?.average),
+    muscle = MetricTrend(current?.muscle.toTrendPoints(), previous?.muscle.toTrendPoints(), current?.muscle?.average, previous?.muscle?.average),
 )
 
 fun StrengthStatsDto.toDomain(): StrengthStats = StrengthStats(
@@ -88,8 +97,14 @@ fun TrainingEntryDto.toDomain(): TrainingEntry? {
 
 fun EvolutionPointDto.toDomain(): StrengthMark? {
     val w = weight.value() ?: return null
-    val at = performedAt ?: return null
-    return StrengthMark(weightKg = w, performedAt = at, isHit = type == "hit")
+    val at = createdAt ?: return null              // fecha (eje X) — convención de la API
+    return StrengthMark(
+        weightKg = w, performedAt = at, isHit = type == "hit",
+        trainingId = trainingId,
+        hitId = hitId, videoUrl = videoUrl,
+        videoSecond = performedAt,                 // seek = performedAt de la API (segundo del vídeo)
+        wilksScore = wilksScore, levelWeight = levelWeight, levelWilks = levelWilks,
+    )
 }
 
 /** [{exercise, best}] → mapa exercise(apiKey) → mejor marca (en la unidad pedida). */

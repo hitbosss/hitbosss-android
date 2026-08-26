@@ -24,6 +24,7 @@ import com.hitbosss.presentation.designsystem.theme.Gray400
 import com.hitbosss.presentation.designsystem.theme.Gray500
 import com.hitbosss.presentation.designsystem.theme.Gray800
 import com.hitbosss.presentation.designsystem.theme.HitbosssType
+import com.hitbosss.presentation.designsystem.theme.Success500
 
 enum class ChartMarker { None, Circle, Diamond }
 
@@ -55,11 +56,17 @@ fun LineChart(
     series: List<ChartSeries>,
     xLabels: List<String>,
     modifier: Modifier = Modifier,
-    yLabelCount: Int = 4,
+    yLabelCount: Int = 15,
     yFormatter: (Double) -> String = { v -> if (v % 1.0 == 0.0) "${v.toInt()}" else "%.1f".format(v) },
     selectedIndex: Int? = null,
     onSelect: ((Int?) -> Unit)? = null,
     pointLabel: ((Int) -> String)? = null,
+    // Si se indica, el tap busca el punto MÁS CERCANO (2D) de ESA serie y, si cae dentro del radio de toque,
+    // llama a onSelect(index) con su índice (para "abrir" al pulsar un marcador concreto, p.ej. un HIT).
+    tapSeriesIndex: Int? = null,
+    // Línea de objetivo: se dibuja como línea discontinua en su color y añade su valor como etiqueta en el eje Y.
+    goalLine: Double? = null,
+    goalColor: Color = Success500,
 ) {
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
@@ -68,27 +75,63 @@ fun LineChart(
     // Escala Y y gutter se calculan también fuera del Canvas para poder hacer hit-testing del tap.
     val allY = series.flatMap { s -> s.points.map { it.second } }
     val primary = series.firstOrNull { it.points.isNotEmpty() }
-    var yMin = allY.minOrNull() ?: 0.0
-    var yMax = allY.maxOrNull() ?: 1.0
+    // Eje Y centrado en los PUNTOS de datos: rango simétrico alrededor de su centro para que queden
+    // lo más centrados posible. Las líneas de referencia (objetivo/comunidad, dashed) no descentran;
+    // solo amplían el rango —de forma simétrica— si caen razonablemente cerca (si no, se ignoran).
+    val dataY = series.filterNot { it.dashed }.flatMap { s -> s.points.map { it.second } }.ifEmpty { allY }
+    var lo = dataY.minOrNull() ?: 0.0
+    var hi = dataY.maxOrNull() ?: 1.0
     // Rango degenerado (1 punto o todos iguales): abre una ventana proporcional al valor para que no quede pegado.
-    if (yMax == yMin) { val d = (kotlin.math.abs(yMax) * 0.05).coerceAtLeast(1.0); yMax += d; yMin -= d }
-    // Margen vertical amplio (antes 0.15, quedaba "apretado": el eje empezaba casi pegado al mínimo).
-    val padY = (yMax - yMin) * 0.25
-    yMin -= padY; yMax += padY
+    if (hi == lo) { val d = (kotlin.math.abs(hi) * 0.08).coerceAtLeast(1.0); hi += d; lo -= d }
+    val center = (lo + hi) / 2.0
+    var half = (hi - lo) / 2.0 * 1.6   // margen: los puntos ocupan ~el 60% central de la altura
+    series.filter { it.dashed }.flatMap { it.points }.forEach { (_, r) ->
+        val dist = kotlin.math.abs(r - center)
+        if (dist <= (hi - lo) + half) half = maxOf(half, dist)
+    }
+    // El objetivo siempre visible, con algo de margen por encima/debajo.
+    goalLine?.let { g -> half = maxOf(half, kotlin.math.abs(g - center) * 1.15) }
+    val yMin = center - half
+    val yMax = center + half
     val yLabelTexts = (0 until yLabelCount).map { i -> yFormatter(yMin + (yMax - yMin) * i / (yLabelCount - 1)) }
     val yGutter = with(density) { yLabelTexts.maxOf { textMeasurer.measure(it, labelStyle).size.width }.toFloat() + 8.dp.toPx() }
 
-    val tapModifier = if (onSelect != null && primary != null) {
-        Modifier.pointerInput(primary.points) {
-            detectTapGestures { offset ->
-                val plotWidth = (size.width - yGutter).coerceAtLeast(1f)
-                val frac = (offset.x - yGutter) / plotWidth
-                val pts = primary.points
-                val nearest = pts.indices.minByOrNull { kotlin.math.abs(pts[it].first - frac) } ?: return@detectTapGestures
-                onSelect(if (nearest == selectedIndex) null else nearest)
+    val xLabelHeightPx = with(density) { 18.dp.toPx() }
+    val touchRadiusPx = with(density) { 28.dp.toPx() }
+    val tapTarget = tapSeriesIndex?.let { series.getOrNull(it) }
+    val tapModifier = when {
+        // Modo "abrir al pulsar un marcador" (p.ej. HITs): punto más cercano en 2D de esa serie, con radio.
+        onSelect != null && tapTarget != null && tapTarget.points.isNotEmpty() -> {
+            Modifier.pointerInput(tapTarget.points) {
+                detectTapGestures { offset ->
+                    val plotW = (size.width - yGutter).coerceAtLeast(1f)
+                    val plotBottom = size.height - xLabelHeightPx
+                    val pts = tapTarget.points
+                    var best = -1; var bestD = Double.MAX_VALUE
+                    pts.forEachIndexed { i, (fx, v) ->
+                        val sx = yGutter + fx * plotW
+                        val sy = plotBottom - ((v - yMin) / (yMax - yMin)).toFloat() * plotBottom
+                        val d = kotlin.math.hypot((sx - offset.x).toDouble(), (sy - offset.y).toDouble())
+                        if (d < bestD) { bestD = d; best = i }
+                    }
+                    if (best >= 0 && bestD <= touchRadiusPx) onSelect(best)
+                }
             }
         }
-    } else Modifier
+        // Modo tooltip (Físico): punto más cercano en X de la serie principal, alterna selección.
+        onSelect != null && primary != null -> {
+            Modifier.pointerInput(primary.points) {
+                detectTapGestures { offset ->
+                    val plotWidth = (size.width - yGutter).coerceAtLeast(1f)
+                    val frac = (offset.x - yGutter) / plotWidth
+                    val pts = primary.points
+                    val nearest = pts.indices.minByOrNull { kotlin.math.abs(pts[it].first - frac) } ?: return@detectTapGestures
+                    onSelect(if (nearest == selectedIndex) null else nearest)
+                }
+            }
+        }
+        else -> Modifier
+    }
 
     Canvas(modifier.then(tapModifier)) {
         if (allY.isEmpty()) return@Canvas
@@ -154,6 +197,19 @@ fun LineChart(
 
             // Muchos puntos → solo línea (los marcadores se solaparían); pocos → se pintan.
             if (s.points.size <= MARKER_DENSITY_LIMIT) offsets.forEach { drawMarker(s.marker, it, s.color) }
+        }
+
+        // Línea de objetivo (discontinua) + su valor como etiqueta en el eje Y (en su color).
+        goalLine?.let { g ->
+            if (g in yMin..yMax) {
+                val gy = py(g)
+                drawLine(
+                    goalColor, Offset(plot.left, gy), Offset(plot.right, gy),
+                    strokeWidth = 2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 10f)),
+                )
+                val gl = textMeasurer.measure(yFormatter(g), labelStyle.copy(color = goalColor))
+                drawText(gl, topLeft = Offset(0f, (gy - gl.size.height / 2f).coerceIn(0f, size.height - gl.size.height)))
+            }
         }
 
         // Tooltip del punto seleccionado (serie principal): guía vertical + marcador + burbuja.

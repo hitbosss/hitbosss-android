@@ -2,6 +2,7 @@ package com.hitbosss.presentation.feature.metrics
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,10 +19,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
+import com.hitbosss.domain.model.RankingCategory
+import com.hitbosss.presentation.feature.hit.HitVideoData
+import com.hitbosss.presentation.feature.hit.HitVideoDialog
+import com.hitbosss.presentation.feature.hit.formatPointsText
+import com.hitbosss.presentation.feature.ranking.titleRes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -44,14 +51,16 @@ import com.hitbosss.domain.model.StrengthMark
 import com.hitbosss.domain.usecase.GetCurrentUserUseCase
 import com.hitbosss.domain.usecase.GetPersonalInfoUseCase
 import com.hitbosss.domain.usecase.GetStrengthEvolutionUseCase
+import com.hitbosss.domain.usecase.GetStrengthGoalUseCase
 import com.hitbosss.presentation.designsystem.components.ChartMarker
 import com.hitbosss.presentation.designsystem.components.ChartSeries
+import com.hitbosss.presentation.designsystem.components.HitPopup
 import com.hitbosss.presentation.designsystem.components.HitTopBar
 import com.hitbosss.presentation.designsystem.components.LineChart
 import com.hitbosss.presentation.designsystem.theme.Gray100
+import com.hitbosss.presentation.designsystem.theme.Gray400
 import com.hitbosss.presentation.designsystem.theme.Gray500
-import com.hitbosss.presentation.designsystem.theme.Gray800
-import com.hitbosss.presentation.designsystem.theme.Gray200
+import com.hitbosss.presentation.designsystem.theme.Secondary500
 import com.hitbosss.presentation.designsystem.theme.HitbosssType
 import com.hitbosss.presentation.designsystem.theme.Primary500
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -72,12 +81,14 @@ data class StrengthDetailUiState(
     val unitSystem: String = "metric",
     val isLoading: Boolean = false,
     val marks: Map<String, List<StrengthMark>> = emptyMap(), // evolución por "range-unit" (entrenos ∪ HITs, del servidor)
+    val goal: Double? = null, // objetivo del ejercicio (targetValue); para la línea verde del gráfico
 )
 
 @HiltViewModel
 class StrengthDetailViewModel @Inject constructor(
     private val getCurrentUser: GetCurrentUserUseCase,
     private val getStrengthEvolution: GetStrengthEvolutionUseCase,
+    private val getStrengthGoal: GetStrengthGoalUseCase,
     private val getPersonalInfo: GetPersonalInfoUseCase,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -91,6 +102,7 @@ class StrengthDetailViewModel @Inject constructor(
         viewModelScope.launch {
             val uid = getCurrentUser()?.uid ?: return@launch
             getPersonalInfo(uid).onSuccess { info -> _state.update { it.copy(unitSystem = info.measurementSystem) } }
+            getStrengthGoal(exercise, _state.value.unitSystem).onSuccess { g -> _state.update { it.copy(goal = g?.targetValue) } }
         }
     }
 
@@ -121,28 +133,38 @@ fun StrengthDetailScreen(
     // El servidor ya devuelve entrenos + HITs filtrados por rango; aquí solo separamos por tipo.
     val marks = state.marks["${range.apiRange}-${state.unitSystem}"] ?: emptyList()
     val trainings = marks.filter { !it.isHit }.map { it.performedAt to it.weightKg }
-    val hits = marks.filter { it.isHit }.map { it.performedAt to it.weightKg }
+    val hitMarks = marks.filter { it.isHit }.sortedBy { it.performedAt }   // se mantiene el mark para abrir el HIT
+    val hits = hitMarks.map { it.performedAt to it.weightKg }
 
-    Column(Modifier.fillMaxSize().background(Gray200)) {
+    var showInfo by remember { mutableStateOf(false) }
+    var viewerHit by remember { mutableStateOf<HitVideoData?>(null) }
+    val exTitle = RankingCategory.entries.firstOrNull { it.apiKey == viewModel.exercise }?.titleRes()?.let { stringResource(it) } ?: ""
+
+    Column(Modifier.fillMaxSize().background(Gray100)) {
         HitTopBar(title = stringResource(R.string.metrics_evolution), onBack = onBack)
         Column(Modifier.fillMaxSize().padding(16.dp)) {
+            // Chips de rango: seleccionado = contorno azul; resto = gris.
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 DetailRange.entries.forEachIndexed { i, r ->
+                    val sel = i == rangeIndex
                     Box(
-                        Modifier.clip(RoundedCornerShape(8.dp))
-                            .background(if (i == rangeIndex) Gray800 else Gray100)
+                        Modifier.clip(RoundedCornerShape(20.dp))
+                            .border(1.dp, if (sel) Secondary500 else Gray400, RoundedCornerShape(20.dp))
                             .clickable { rangeIndex = i }
-                            .padding(horizontal = 14.dp, vertical = 6.dp),
+                            .padding(horizontal = 16.dp, vertical = 7.dp),
                     ) {
-                        Text(r.label(), style = HitbosssType.bodySmallEmphasis, color = if (i == rangeIndex) Gray100 else Gray500)
+                        Text(r.label(), style = HitbosssType.bodySmallEmphasis, color = if (sel) Secondary500 else Gray500)
                     }
                 }
             }
-            Spacer(Modifier.height(16.dp))
-            Text(stringResource(R.string.metrics_axis_weight, unit), style = HitbosssType.bodySmallRegular, color = Gray500)
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(20.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.metrics_axis_weight, unit), style = HitbosssType.titleBody, color = Gray500, modifier = Modifier.weight(1f))
+                InfoIcon(onClick = { showInfo = true })
+            }
+            Spacer(Modifier.height(12.dp))
 
-            Column(Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(12.dp)).background(Gray100).padding(16.dp)) {
+            Box(Modifier.fillMaxWidth().weight(1f)) {
                 val all = trainings + hits
                 when {
                     state.isLoading && all.isEmpty() ->
@@ -161,24 +183,57 @@ fun StrengthDetailScreen(
                         val labels = listOf(0f, 0.5f, 1f).map { frac ->
                             Instant.ofEpochSecond(minT + (span * frac).toLong()).atZone(zone).toLocalDate().format(fmt)
                         }
+                        var hitSeriesIndex = -1
                         LineChart(
                             series = buildList {
                                 if (trainings.isNotEmpty()) add(ChartSeries(norm(trainings), color = Primary500, marker = ChartMarker.Circle, fill = true))
-                                if (hits.isNotEmpty()) add(ChartSeries(norm(hits), color = Primary500, marker = ChartMarker.Diamond, showLine = false))
+                                if (hits.isNotEmpty()) { hitSeriesIndex = size; add(ChartSeries(norm(hits), color = Primary500, marker = ChartMarker.Diamond, showLine = false)) }
                             },
                             xLabels = labels,
-                            modifier = Modifier.fillMaxWidth().weight(1f),
+                            modifier = Modifier.fillMaxSize(),
+                            goalLine = state.goal,
+                            // Tocar un HIT (rombo) abre su vídeo, con datos autocontenidos del propio punto.
+                            tapSeriesIndex = hitSeriesIndex.takeIf { it >= 0 },
+                            onSelect = if (hits.isNotEmpty()) {
+                                { i -> i?.let { hitMarks.getOrNull(it) }?.let { m ->
+                                    m.videoUrl?.let { url ->
+                                        viewerHit = HitVideoData(
+                                            videoUrl = url,
+                                            seekSeconds = m.videoSecond ?: 0.0,
+                                            exerciseTitle = exTitle,
+                                            dateText = if (m.performedAt > 0) java.text.SimpleDateFormat("dd/MM/yy", java.util.Locale.getDefault()).format(java.util.Date(m.performedAt * 1000)) else "",
+                                            weightText = "${formatNum(m.weightKg)} ${unit.uppercase()}",
+                                            levelWeight = m.levelWeight,
+                                            rankText = "",
+                                            pointsText = formatPointsText(m.wilksScore),
+                                            hitId = m.hitId,
+                                        )
+                                    }
+                                } }
+                            } else null,
                         )
-                        Spacer(Modifier.height(12.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            LegendMark(stringResource(R.string.metrics_legend_training), diamond = false)
-                            LegendMark(stringResource(R.string.metrics_legend_hit), diamond = true)
-                        }
                     }
                 }
             }
+            Spacer(Modifier.height(14.dp))
+            // Leyenda: Entrenamiento (círculo hueco) + HIT oficial (rombo relleno).
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                LegendMark(stringResource(R.string.metrics_legend_training), diamond = false)
+                LegendMark(stringResource(R.string.metrics_legend_hit), diamond = true)
+            }
         }
     }
+
+    if (showInfo) {
+        HitPopup(
+            title = stringResource(R.string.metrics_evolution),
+            message = stringResource(R.string.metrics_detail_info),
+            confirmText = stringResource(R.string.common_accept),
+            onConfirm = { showInfo = false },
+            onDismissRequest = { showInfo = false },
+        )
+    }
+    viewerHit?.let { HitVideoDialog(hits = listOf(it)) { viewerHit = null } }
 }
 
 /** Replica el marker de la gráfica: círculo hueco (entreno) / rombo relleno (HIT). */

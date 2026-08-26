@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.hitbosss.presentation.designsystem.theme.Error400
+import com.hitbosss.presentation.designsystem.theme.Red500
 import com.hitbosss.presentation.designsystem.theme.Gray100
 import com.hitbosss.presentation.designsystem.theme.Gray300
 import com.hitbosss.presentation.designsystem.theme.Gray400
@@ -42,6 +43,7 @@ import com.hitbosss.presentation.designsystem.theme.HitbosssType
 import com.hitbosss.presentation.designsystem.theme.Orange300
 import com.hitbosss.presentation.designsystem.theme.Secondary500
 import com.hitbosss.presentation.designsystem.theme.Success400
+import com.hitbosss.presentation.designsystem.theme.Success500
 
 /** Etiqueta de sección en mayúsculas (ESTADO FÍSICO, OBJETIVOS, ...). */
 @Composable
@@ -58,6 +60,7 @@ fun MetricsSectionLabel(text: String, modifier: Modifier = Modifier) {
 @Composable
 fun MetricsCard(
     modifier: Modifier = Modifier,
+    verticalArrangement: Arrangement.Vertical = Arrangement.Top,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
@@ -67,6 +70,7 @@ fun MetricsCard(
             .clip(RoundedCornerShape(12.dp))
             .background(Gray100)
             .padding(16.dp),
+        verticalArrangement = verticalArrangement,
         content = content,
     )
 }
@@ -82,7 +86,7 @@ fun MetricsSegmented(
     Row(
         modifier
             .clip(RoundedCornerShape(10.dp))
-            .background(Gray300)
+            .background(Gray400)
             .padding(4.dp),
     ) {
         options.forEachIndexed { i, label ->
@@ -135,6 +139,7 @@ fun StatTile(
             .background(Gray100)
             .padding(12.dp),
     ) {
+        // 1. Fila superior: Se mantiene intacta (Icono, Label con peso, InfoIcon)
         Row(verticalAlignment = Alignment.Top) {
             Box(
                 Modifier.size(28.dp).clip(RoundedCornerShape(6.dp)).background(iconBg),
@@ -144,11 +149,19 @@ fun StatTile(
             Text(label, style = HitbosssType.bodySmallRegular, color = Gray500, modifier = Modifier.weight(1f))
             InfoIcon(onInfo)
         }
+
         Spacer(Modifier.height(8.dp))
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text(value, style = HitbosssType.titleSubsection, color = Gray800)
-            Spacer(Modifier.width(4.dp))
-            Text(unit, style = HitbosssType.bodySmallRegular, color = Gray500, modifier = Modifier.padding(bottom = 4.dp))
+
+        // 2. Fila inferior: Envuelta en Box para centrar solo este contenido
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(value, style = HitbosssType.titleSubsection, color = Gray800)
+                Spacer(Modifier.width(4.dp))
+                Text(unit, style = HitbosssType.bodySmallRegular, color = Gray500, modifier = Modifier.padding(bottom = 4.dp))
+            }
         }
     }
 }
@@ -173,18 +186,18 @@ fun PagerDots(count: Int, current: Int, modifier: Modifier = Modifier) {
  * sobrepeso naranja / obesidad rojo) y marcador circular en el valor del usuario.
  */
 @Composable
-fun BmiSlider(bmi: Double, modifier: Modifier = Modifier) {
+fun BmiSlider(bmi: Double?, modifier: Modifier = Modifier) {
     val minBmi = 16f
     val maxBmi = 35f
     Column(modifier.fillMaxWidth()) {
         Canvas(Modifier.fillMaxWidth().height(16.dp)) {
-            val barH = 6.dp.toPx()
+            val barH = 9.dp.toPx()
             val y = size.height / 2f
             val bands = listOf(
                 Triple(minBmi, 18.5f, Secondary500),
-                Triple(18.5f, 25f, Success400),
+                Triple(18.5f, 25f, Success500),
                 Triple(25f, 30f, Orange300),
-                Triple(30f, maxBmi, Error400),
+                Triple(30f, maxBmi, Red500),
             )
             fun xOf(v: Float) = (v - minBmi) / (maxBmi - minBmi) * size.width
             bands.forEach { (from, to, color) ->
@@ -192,14 +205,16 @@ fun BmiSlider(bmi: Double, modifier: Modifier = Modifier) {
                     color,
                     topLeft = Offset(xOf(from), y - barH / 2),
                     size = Size(xOf(to) - xOf(from), barH),
-                    cornerRadius = CornerRadius(barH / 2),
+
                 )
             }
-            // Marcador del usuario: círculo blanco con borde del color de su franja
-            val clamped = bmi.toFloat().coerceIn(minBmi, maxBmi)
-            val bandColor = bands.first { clamped < it.second || it.second == maxBmi }.third
-            drawCircle(Color.White, radius = 7.dp.toPx(), center = Offset(xOf(clamped), y))
-            drawCircle(bandColor, radius = 7.dp.toPx(), center = Offset(xOf(clamped), y), style = Stroke(2.dp.toPx()))
+            // Marcador del usuario: círculo blanco con borde del color de su franja. Sin datos → sin marcador.
+            if (bmi != null) {
+                val clamped = bmi.toFloat().coerceIn(minBmi, maxBmi)
+                val bandColor = bands.first { clamped < it.second || it.second == maxBmi }.third
+                drawCircle(Color.White, radius = 7.dp.toPx(), center = Offset(xOf(clamped), y))
+                drawCircle(bandColor, radius = 7.dp.toPx(), center = Offset(xOf(clamped), y), style = Stroke(2.dp.toPx()))
+            }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             listOf("16", "20", "25", "30", "35").forEach {

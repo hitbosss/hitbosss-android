@@ -156,6 +156,7 @@ fun MainScreen(
                     )
                     MainTab.Metrics -> com.hitbosss.presentation.feature.metrics.MetricsScreen(
                         onOpenDetail = onOpenMetricDetail,
+                        onOpenUserProfile = onOpenUserProfile,
                         viewModel = metricsVM,
                     )
                     MainTab.Profile -> ProfileScreen(onOpenSettings = onOpenSettings, onEditProfile = onEditProfile, onEditHit = onEditHit, viewModel = profileVM)

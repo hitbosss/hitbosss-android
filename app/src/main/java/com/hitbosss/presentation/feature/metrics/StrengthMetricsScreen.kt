@@ -1,9 +1,13 @@
 package com.hitbosss.presentation.feature.metrics
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,9 +24,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Percent
 import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material.icons.filled.TrendingUp
@@ -51,6 +58,7 @@ import androidx.compose.ui.res.painterResource
 import com.hitbosss.presentation.feature.settings.tutorialCardDrawable
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -64,11 +72,16 @@ import com.hitbosss.presentation.designsystem.components.ChartSeries
 import com.hitbosss.presentation.designsystem.components.ErrorConnectionView
 import com.hitbosss.presentation.designsystem.components.HitPopup
 import com.hitbosss.presentation.designsystem.components.LineChart
+import com.hitbosss.domain.model.StrengthMark
+import com.hitbosss.presentation.feature.hit.HitVideoData
+import com.hitbosss.presentation.feature.hit.HitVideoDialog
+import com.hitbosss.presentation.feature.hit.formatPointsText
 import com.hitbosss.presentation.designsystem.components.placeholderPainter
 import com.hitbosss.presentation.designsystem.theme.Error500
 import com.hitbosss.presentation.designsystem.theme.Gray100
 import com.hitbosss.presentation.designsystem.theme.Gray200
 import com.hitbosss.presentation.designsystem.theme.Gray300
+import com.hitbosss.presentation.designsystem.theme.Gray400
 import com.hitbosss.presentation.designsystem.theme.Gray500
 import com.hitbosss.presentation.designsystem.theme.Gray800
 import com.hitbosss.presentation.designsystem.theme.HitbosssType
@@ -94,12 +107,14 @@ private data class StrengthPoint(val performedAt: Long, val value: Double)
 @Composable
 fun StrengthContent(
     onOpenDetail: (String) -> Unit = {},
+    onOpenUserProfile: (String) -> Unit = {},
     viewModel: StrengthMetricsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var showPicker by remember { mutableStateOf(false) }
     var showAddGoal by remember { mutableStateOf(false) }
     var showAddTraining by remember { mutableStateOf(false) }
+    var editTraining by remember { mutableStateOf<StrengthMark?>(null) }
     var infoPopup by remember { mutableStateOf<Pair<Int, Int>?>(null) } // (titleRes, msgRes)
 
     // Rival: on-device del ranking del ejercicio (igual que iOS). ownBest = mejor marca del servidor (/bests).
@@ -108,10 +123,9 @@ fun StrengthContent(
     val rival = ownEntry?.let { own -> entries.firstOrNull { it.rank == own.rank - 1 } }
     val ownBest = bestMarkFor(state, state.selected)
 
-    // Series de la gráfica: entrenos (círculo) + HITs (rombo), del servidor ya etiquetados por tipo
-    // (endpoint /evolution → strength_log ∪ hits con fechas correctas; no depende de participations).
-    val trainingPoints = state.marks.filter { !it.isHit }.map { StrengthPoint(it.performedAt, it.weightKg) }
-    val hitPoints = state.marks.filter { it.isHit }.map { StrengthPoint(it.performedAt, it.weightKg) }
+    val exTitle = stringResource(state.selected.titleRes())
+    val unitLabel = state.weightUnit
+    var viewerHit by remember { mutableStateOf<HitVideoData?>(null) }
 
     when {
         state.isLoading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = Primary500) }
@@ -149,21 +163,37 @@ fun StrengthContent(
                     ownBest = ownBest,
                     rival = rival,
                     onInfo = { title, msg -> infoPopup = title to msg },
+                    onVisitProfile = onOpenUserProfile,
                 )
 
                 MetricsSectionLabel(stringResource(R.string.metrics_section_stats))
                 StrengthEvolutionCard(
-                    trainings = trainingPoints,
-                    hits = hitPoints,
+                    marks = state.marks,
+                    unitLabel = unitLabel,
+                    onEditTraining = { editTraining = it },
+                    // Al pulsar un HIT (rombo) se abre el vídeo, con datos autocontenidos del propio punto.
+                    onHitTap = { m ->
+                        m.videoUrl?.let { url ->
+                            viewerHit = HitVideoData(
+                                videoUrl = url,
+                                seekSeconds = m.videoSecond ?: 0.0,
+                                exerciseTitle = exTitle,
+                                dateText = if (m.performedAt > 0) java.text.SimpleDateFormat("dd/MM/yy", java.util.Locale.getDefault()).format(java.util.Date(m.performedAt * 1000)) else "",
+                                weightText = "${formatNum(m.weightKg)} ${unitLabel.uppercase()}",
+                                levelWeight = m.levelWeight,
+                                rankText = "",   // sin rank: solo el mejor HIT está en el ranking
+                                pointsText = formatPointsText(m.wilksScore),
+                                hitId = m.hitId,
+                            )
+                        }
+                    },
                     // media de comunidad = miMejor − ventaja (del servidor); robusto y escalable, no depende de las rankings en cliente.
                     communityAvg = state.stats?.communityAdvantageKg?.let { adv -> ownBest?.let { it - adv } },
                     goal = null,
                     onAddTraining = { showAddTraining = true },
                     onOpenDetail = { onOpenDetail(state.selected.apiKey) },
                 )
-
-                MetricsSectionLabel(stringResource(R.string.metrics_comparison))
-                ComparisonCard(state)
+                viewerHit?.let { HitVideoDialog(hits = listOf(it)) { viewerHit = null } }
 
                 Spacer(Modifier.height(24.dp))
             }
@@ -201,6 +231,18 @@ fun StrengthContent(
             onSave = { viewModel.onAddTraining(it); showAddTraining = false },
         )
     }
+    editTraining?.let { m ->
+        m.trainingId?.let { id ->
+            EditTrainingSheet(
+                initialWeight = m.weightKg,
+                unit = state.weightUnit,
+                isSaving = state.isSaving,
+                onDismiss = { editTraining = null },
+                onSave = { w -> viewModel.onEditTraining(id, w); editTraining = null },
+                onDelete = { viewModel.onDeleteTraining(id); editTraining = null },
+            )
+        }
+    }
     infoPopup?.let { (title, msg) ->
         HitPopup(
             title = stringResource(title),
@@ -234,6 +276,7 @@ private fun CompetitiveSection(
     ownBest: Double?,
     rival: RankingEntry?,
     onInfo: (Int, Int) -> Unit,
+    onVisitProfile: (String) -> Unit = {},
 ) {
     val stats = state.stats
     val unit = state.weightUnit
@@ -275,6 +318,11 @@ private fun CompetitiveSection(
 
         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Gray100).padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier.size(28.dp).clip(RoundedCornerShape(6.dp)).background(Error100),
+                    contentAlignment = Alignment.Center,
+                ) { Icon(Icons.Filled.Person, null, tint = Error500, modifier = Modifier.size(16.dp)) }
+                Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.metrics_next_rival), style = HitbosssType.titleGroup, color = Gray800, modifier = Modifier.weight(1f))
                 InfoIcon(onClick = { onInfo(R.string.metrics_next_rival, R.string.metrics_next_rival_info) })
             }
@@ -282,11 +330,18 @@ private fun CompetitiveSection(
             if (rival == null) {
                 Text(stringResource(R.string.metrics_no_rival), style = HitbosssType.bodyDefaultRegular, color = Gray500)
             } else {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                // Card interna con borde, que abre el perfil del rival (salvo usuario eliminado, no tocable).
+                val canVisit = !rival.isDeleted
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).border(1.dp, Gray400, RoundedCornerShape(12.dp))
+                        .then(if (canVisit) Modifier.clickable { onVisitProfile(rival.userId) } else Modifier)
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     AsyncImage(
                         model = rival.profilePicUrl, contentDescription = null, contentScale = ContentScale.Crop,
                         placeholder = placeholderPainter(), error = placeholderPainter(), fallback = placeholderPainter(),
-                        modifier = Modifier.size(44.dp).clip(CircleShape).background(Gray300),
+                        modifier = Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)).background(Gray300),
                     )
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
@@ -300,11 +355,15 @@ private fun CompetitiveSection(
                 }
                 val gap = rival.lift?.value?.let { r -> ownBest?.let { r - it } }
                 if (gap != null && gap > 0) {
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        stringResource(R.string.metrics_rival_gap, "${formatNum(gap)} ${state.weightUnit}"),
-                        style = HitbosssType.bodySmallRegular, color = Secondary500,
-                    )
+                    Spacer(Modifier.height(10.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Outlined.Info, null, tint = Success500, modifier = Modifier.size(15.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            stringResource(R.string.metrics_rival_gap, "${formatNum(gap)} ${state.weightUnit}"),
+                            style = HitbosssType.bodySmallRegular, color = Success500,
+                        )
+                    }
                 }
             }
         }
@@ -317,8 +376,10 @@ private fun signed(v: Double): String = (if (v >= 0) "+" else "") + formatNum(v)
 
 @Composable
 private fun StrengthEvolutionCard(
-    trainings: List<StrengthPoint>,
-    hits: List<StrengthPoint>,
+    marks: List<StrengthMark>,
+    unitLabel: String,
+    onHitTap: (StrengthMark) -> Unit,
+    onEditTraining: (StrengthMark) -> Unit,
     communityAvg: Double?,
     goal: Double?,
     onAddTraining: () -> Unit,
@@ -332,22 +393,38 @@ private fun StrengthEvolutionCard(
     val startSec = start.atStartOfDay(zone).toEpochSecond()
     val endSec = end.atStartOfDay(zone).toEpochSecond()
     val span = (endSec - startSec).toFloat().coerceAtLeast(1f)
-    val xLabels = if (monthly) listOf("1", "2", "3", "4")
+    val week = stringResource(R.string.metrics_week)
+    val xLabels = if (monthly) List(4) { "$week ${it + 1}" }
     else stringResource(R.string.metrics_week_days).split(",")
     val slots = xLabels.size
 
-    // Cada punto se ancla a su columna (día en semana, semana en mes) para caer bajo su etiqueta;
-    // las etiquetas se pintan equiespaciadas, así que el x debe ser slot/(slots-1), no la fracción continua.
-    fun List<StrengthPoint>.toPoints() = mapNotNull { e ->
-        if (e.performedAt < startSec || e.performedAt >= endSec) null
-        else {
-            val slot = (((e.performedAt - startSec) / span) * slots).toInt().coerceIn(0, slots - 1)
-            (if (slots > 1) slot.toFloat() / (slots - 1) else 0.5f) to e.value
-        }
-    }
+    // Igual que iOS (workoutDataPoints): UNA marca por bucket (día en Semana, semana en Mes) = la MEJOR
+    // (más peso; el HIT gana el empate). Se dibuja una línea con esos puntos y un marcador por punto
+    // (círculo=entreno, rombo=HIT clicable). Los buckets vacíos no pintan.
+    val bestPoints = marks
+        .filter { it.performedAt in startSec until endSec }
+        .groupBy { (((it.performedAt - startSec).toFloat() / span) * slots).toInt().coerceIn(0, slots - 1) }
+        .mapValues { (_, ms) -> ms.maxWith(compareBy({ it.weightKg }, { it.isHit })) }
+        .toSortedMap()
+        .map { (slot, m) -> Triple(if (slots > 1) slot.toFloat() / (slots - 1) else 0.5f, m.weightKg, m) }
+    val linePoints = bestPoints.map { it.first to it.second }
+    val trainingPoints = bestPoints.filter { !it.third.isHit }.map { it.first to it.second }
+    val hitMarkerMarks = bestPoints.filter { it.third.isHit }
+    val hitPoints = hitMarkerMarks.map { it.first to it.second }
 
-    val trainingPoints = trainings.toPoints()
-    val hitPoints = hits.toPoints()
+    // Tiles "Semana actual/pasada": MEDIA de la mejor marca POR DÍA de cada semana (ojo: por medias, no la mejor
+    // marca a secas). Se calcula en cliente desde marks (no hay endpoint trend para fuerza).
+    val thisMon = today.with(java.time.DayOfWeek.MONDAY)
+    fun weekAvg(fromWeeksAgo: Int): Double? {
+        val from = thisMon.minusWeeks(fromWeeksAgo.toLong()).atStartOfDay(zone).toEpochSecond()
+        val to = thisMon.minusWeeks((fromWeeksAgo - 1).toLong()).atStartOfDay(zone).toEpochSecond()
+        val inWk = marks.filter { it.performedAt in from until to }
+        if (inWk.isEmpty()) return null
+        return inWk.groupBy { java.time.Instant.ofEpochSecond(it.performedAt).atZone(zone).toLocalDate() }
+            .values.map { day -> day.maxOf { m -> m.weightKg } }.average()
+    }
+    val curWeekAvg = weekAvg(0)
+    val prevWeekAvg = weekAvg(1)
 
     MetricsCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -366,23 +443,88 @@ private fun StrengthEvolutionCard(
         )
         Spacer(Modifier.height(16.dp))
 
-        if (trainings.isEmpty() && hits.isEmpty()) {
+        if (bestPoints.isEmpty()) {
             Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
                 Text(stringResource(R.string.metrics_empty_logs), style = HitbosssType.bodyDefaultRegular, color = Gray500)
             }
         } else {
+            // Selección de un ENTRENO (para editar): tooltip + link "Editar entrenamiento" debajo.
+            var selectedTraining by remember(monthly, marks) { mutableStateOf<StrengthMark?>(null) }
+            var selectedIdx by remember(monthly, marks) { mutableStateOf<Int?>(null) }
+            val dayFmt = remember { java.time.format.DateTimeFormatter.ofPattern("EEEE d", java.util.Locale("es")) }
             val series = buildList {
-                if (trainingPoints.isNotEmpty()) add(ChartSeries(trainingPoints, color = Primary500, marker = ChartMarker.Circle, fill = true))
+                // Índice 0 = línea con TODOS los puntos (mejor por bucket) → es la serie clicable.
+                add(ChartSeries(linePoints, color = Primary500, marker = ChartMarker.None, fill = true))
+                if (trainingPoints.isNotEmpty()) add(ChartSeries(trainingPoints, color = Primary500, marker = ChartMarker.Circle, showLine = false))
                 if (hitPoints.isNotEmpty()) add(ChartSeries(hitPoints, color = Primary500, marker = ChartMarker.Diamond, showLine = false))
                 communityAvg?.let { add(ChartSeries(listOf(0f to it, 1f to it), color = Gray500, dashed = true)) }
                 goal?.let { add(ChartSeries(listOf(0f to it, 1f to it), color = Success500, dashed = true)) }
             }
-            LineChart(series = series, xLabels = xLabels, modifier = Modifier.fillMaxWidth().height(160.dp))
+            LineChart(
+                series = series, xLabels = xLabels, modifier = Modifier.fillMaxWidth().aspectRatio(1f),
+                tapSeriesIndex = 0,                 // la línea con todos los puntos
+                selectedIndex = selectedIdx,        // tooltip del entreno seleccionado
+                onSelect = { i ->
+                    val m = i?.let { bestPoints.getOrNull(it)?.third }
+                    when {
+                        m == null -> { selectedTraining = null; selectedIdx = null }
+                        m.isHit -> { selectedTraining = null; selectedIdx = null; onHitTap(m) }   // HIT → abre vídeo
+                        selectedIdx == i -> { selectedTraining = null; selectedIdx = null }        // re-toque → deselecciona
+                        else -> { selectedTraining = m; selectedIdx = i }                          // entreno → selecciona
+                    }
+                },
+                pointLabel = { i ->
+                    val m = bestPoints[i].third
+                    val d = java.time.Instant.ofEpochSecond(m.performedAt).atZone(zone).toLocalDate()
+                        .format(dayFmt).replaceFirstChar { it.uppercase() }
+                    "$d\n${formatNum(m.weightKg)} $unitLabel"
+                },
+            )
+            // Link "Editar entrenamiento" cuando hay un entreno seleccionado (con id del servidor).
+            selectedTraining?.takeIf { it.trainingId != null }?.let { m ->
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    stringResource(R.string.metrics_edit_training),
+                    style = HitbosssType.bodySmallLink, color = Primary500,
+                    modifier = Modifier.clickable { onEditTraining(m) },
+                )
+            }
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 LegendMark(LegendKind.Training, stringResource(R.string.metrics_legend_training))
                 LegendMark(LegendKind.Hit, stringResource(R.string.metrics_legend_hit))
                 LegendMark(LegendKind.Community, stringResource(R.string.metrics_legend_community))
+            }
+
+            // Tiles "Semana actual/pasada" (media de la semana) + diferencia.
+            var showTileInfo by remember { mutableStateOf(false) }
+            Spacer(Modifier.height(16.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                StrengthWeekTile(stringResource(R.string.metrics_current_week), curWeekAvg, unitLabel, { showTileInfo = true }, Modifier.weight(1f))
+                StrengthWeekTile(stringResource(R.string.metrics_past_week), prevWeekAvg, unitLabel, { showTileInfo = true }, Modifier.weight(1f))
+            }
+            if (curWeekAvg != null && prevWeekAvg != null) {
+                val delta = curWeekAvg - prevWeekAvg
+                if (kotlin.math.abs(delta) > 0.001) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        (if (delta < 0) "↓ " else "↑ ") + stringResource(
+                            if (delta < 0) R.string.metrics_strength_lost else R.string.metrics_strength_gained,
+                            "${formatNum(kotlin.math.abs(delta))} $unitLabel",
+                        ),
+                        style = HitbosssType.bodySmallRegular,
+                        color = if (delta >= 0) Success500 else Error500,   // más fuerza = mejor (verde)
+                    )
+                }
+            }
+            if (showTileInfo) {
+                HitPopup(
+                    title = stringResource(R.string.metrics_records),
+                    message = stringResource(R.string.metrics_strength_week_info),
+                    confirmText = stringResource(R.string.common_accept),
+                    onConfirm = { showTileInfo = false },
+                    onDismissRequest = { showTileInfo = false },
+                )
             }
         }
 
@@ -433,61 +575,6 @@ private fun LegendMark(kind: LegendKind, label: String) {
     }
 }
 
-// ============================ COMPARATIVA ============================
-
-@Composable
-private fun ComparisonCard(state: StrengthMetricsUiState) {
-    // Comparación desde el punto de vista del ejercicio seleccionado (que se excluye de la lista).
-    // Diferencia = cuánto más/menos levantas en el seleccionado respecto a ese ejercicio.
-    val selectedBest = bestMarkFor(state, state.selected)
-    MetricsCard {
-        Sport.entries.forEachIndexed { sportIndex, sport ->
-            val color = if (sport == Sport.Powerlifting) Secondary500 else Error500
-            val categories = RankingCategory.forSport(sport)
-                .filter { it != RankingCategory.PlOfficial && it != RankingCategory.CfOfficial && it != state.selected }
-            if (categories.isEmpty()) return@forEachIndexed
-            if (sportIndex > 0) Spacer(Modifier.height(16.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Image(
-                    painterResource(if (sport == Sport.Powerlifting) R.drawable.ic_sport_powerlifting else R.drawable.ic_sport_crossfit),
-                    null, modifier = Modifier.size(18.dp),
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(sport.title.uppercase(), style = HitbosssType.bodySmallEmphasis, color = color)
-            }
-            categories.forEach { cat ->
-                val best = bestMarkFor(state, cat)
-                Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    tutorialCardDrawable(cat.apiKey)?.let { img ->
-                        Image(
-                            painterResource(img), null,
-                            contentScale = ContentScale.Crop, alignment = Alignment.CenterEnd,
-                            modifier = Modifier.size(width = 100.dp, height = 64.dp).clip(RoundedCornerShape(8.dp)),
-                        )
-                        Spacer(Modifier.width(12.dp))
-                    }
-                    Text(stringResource(cat.titleRes()), style = HitbosssType.bodyDefaultRegular, color = Gray800, modifier = Modifier.weight(1f))
-                    if (best == null) {
-                        Text(stringResource(R.string.profile_no_mark), style = HitbosssType.bodySmallEmphasis, color = Gray500)
-                    } else {
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text("${formatNum(best)} ${state.weightUnit.uppercase()}", style = HitbosssType.bodyDefaultEmphasis, color = Gray800)
-                            val delta = selectedBest?.let { it - best } // seleccionado − este ejercicio
-                            if (delta != null) {
-                                Text(
-                                    "${signed(delta)} ${state.weightUnit}",
-                                    style = HitbosssType.bodySmallRegular,
-                                    color = if (delta >= 0) Success500 else Error500,
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 // ============================ PICKER DE EJERCICIO ============================
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -522,6 +609,99 @@ private fun ExercisePickerSheet(
                         if (cat == selected) Icon(Icons.Filled.Check, null, tint = Success500, modifier = Modifier.size(18.dp))
                     }
                 }
+            }
+        }
+    }
+}
+
+/** Sheet de editar/eliminar un entrenamiento manual (peso + Guardar cambios + Eliminar con confirmación). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EditTrainingSheet(
+    initialWeight: Double,
+    unit: String,
+    isSaving: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (Double) -> Unit,
+    onDelete: () -> Unit,
+) {
+    var value by remember { mutableStateOf(formatNum(initialWeight)) }
+    var confirmDelete by remember { mutableStateOf(false) }
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Gray100) {
+        Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
+            Text(stringResource(R.string.metrics_edit_training), style = HitbosssType.titleBody, color = Gray800)
+            Spacer(Modifier.height(6.dp))
+            Text(stringResource(R.string.metrics_edit_training_desc), style = HitbosssType.bodySmallRegular, color = Gray500)
+            Spacer(Modifier.height(16.dp))
+            Text(stringResource(R.string.metrics_training_weight), style = HitbosssType.bodySmallEmphasis, color = Gray800, modifier = Modifier.padding(bottom = 6.dp))
+            Row(
+                Modifier.fillMaxWidth().height(52.dp).clip(RoundedCornerShape(8.dp)).background(Gray200).padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                BasicTextField(
+                    value = value,
+                    onValueChange = { new -> val n = new.replace(',', '.'); if (new.isEmpty() || n.toDoubleOrNull() != null) value = n },
+                    singleLine = true, textStyle = HitbosssType.bodyLargeEmphasis.copy(color = Gray800),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.weight(1f),
+                )
+                Text(unit, style = HitbosssType.bodyDefaultRegular, color = Gray500)
+            }
+            Spacer(Modifier.height(20.dp))
+            val canSave = value.toDoubleOrNull()?.let { it > 0 } == true && !isSaving
+            Box(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(if (canSave) Secondary800 else Gray300)
+                    .then(if (canSave) Modifier.clickable { onSave(value.toDouble()) } else Modifier).padding(vertical = 14.dp),
+                contentAlignment = Alignment.Center,
+            ) { Text(stringResource(R.string.common_save_changes), style = HitbosssType.bodyDefaultEmphasis, color = if (canSave) Gray100 else Gray500) }
+            Spacer(Modifier.height(10.dp))
+            Box(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Error500)
+                    .clickable { confirmDelete = true }.padding(vertical = 14.dp),
+                contentAlignment = Alignment.Center,
+            ) { Text(stringResource(R.string.common_delete), style = HitbosssType.bodyDefaultEmphasis, color = Gray100) }
+        }
+    }
+    if (confirmDelete) {
+        HitPopup(
+            title = stringResource(R.string.metrics_delete_training_title),
+            message = stringResource(R.string.metrics_delete_training_msg),
+            confirmText = stringResource(R.string.common_delete),
+            cancelText = stringResource(R.string.common_cancel),
+            onConfirm = { confirmDelete = false; onDelete() },
+            onCancel = { confirmDelete = false },
+            onDismissRequest = { confirmDelete = false },
+        )
+    }
+}
+
+/** Tile "Semana actual/pasada" del card de Fuerza: etiqueta + ⓘ arriba, media grande abajo. */
+@Composable
+private fun StrengthWeekTile(label: String, value: Double?, unit: String, onInfo: () -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(Gray100)
+            .border(1.dp, Gray400, RoundedCornerShape(8.dp))
+            .padding(12.dp)
+    ) {
+        // 1. Fila superior: Se mantiene igual (Título a la izquierda, icono a la derecha)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(label, style = HitbosssType.bodySmallRegular, color = Gray500, modifier = Modifier.weight(1f))
+            InfoIcon(onClick = onInfo)
+        }
+
+        Spacer(Modifier.height(4.dp))
+
+        // 2. Fila inferior: Envuelta en un Box para centrarla horizontalmente
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(value?.let { formatNum(it) } ?: "--", style = HitbosssType.titleBody, color = Gray800)
+                Spacer(Modifier.width(4.dp))
+                Text(unit, style = HitbosssType.bodySmallRegular, color = Gray500, modifier = Modifier.padding(bottom = 2.dp))
             }
         }
     }

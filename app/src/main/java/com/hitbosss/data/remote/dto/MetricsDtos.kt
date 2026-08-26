@@ -21,7 +21,7 @@ data class BodyCompositionDto(
 )
 
 @Serializable
-data class BodyHistoryPointDto(val value: Double? = null, val unit: String? = null, val measuredAt: Long? = null)
+data class BodyHistoryPointDto(val id: Long? = null, val value: Double? = null, val unit: String? = null, val measuredAt: Long? = null)
 
 /** POST /metrics/body-composition: campos planos (solo los provistos) + unit. */
 @Serializable
@@ -33,9 +33,13 @@ data class UpdateBodyCompositionDto(
     val unit: String,
 )
 
+/** PATCH /metrics/body-composition/{metric}/points/{id}: edita el valor de un punto. */
+@Serializable
+data class UpdateBodyPointDto(val value: Double, val unit: String)
+
 // ===== Tendencia (body-composition/trend) =====
 
-/** Punto de serie: semana → {date, value}; mes → {weekStart, weekEnd, average}. */
+/** Punto de serie: semana → {date, value}; mes → {weekStart, weekEnd, average, days}. */
 @Serializable
 data class SeriesPointDto(
     val date: Long? = null,
@@ -43,10 +47,11 @@ data class SeriesPointDto(
     val weekStart: Long? = null,
     val weekEnd: Long? = null,
     val average: Double? = null,
+    val days: List<SeriesPointDto>? = null,   // solo en mes: desglose diario (7 puntos) del bucket semanal
 )
 
 @Serializable
-data class MetricSeriesDto(val unit: String? = null, val points: List<SeriesPointDto> = emptyList())
+data class MetricSeriesDto(val unit: String? = null, val average: Double? = null, val points: List<SeriesPointDto> = emptyList())
 
 @Serializable
 data class TrendPeriodDto(
@@ -63,7 +68,7 @@ data class TrendDto(val period: String? = null, val current: TrendPeriodDto? = n
 // ===== Objetivos =====
 
 @Serializable
-data class GoalDto(val metric: String? = null, val target: MeasurementDto? = null, val createdAt: Long? = null, val reached: Boolean? = null)
+data class GoalDto(val metric: String? = null, val target: MeasurementDto? = null, val current: MeasurementDto? = null, val createdAt: Long? = null, val reached: Boolean? = null)
 
 @Serializable
 data class CreateGoalRequestDto(val metric: String, val target: Double, val unit: String)
@@ -93,7 +98,19 @@ data class TrainingEntryDto(val weight: MeasurementDto? = null, val performedAt:
 
 /** Punto de evolución: entreno manual o HIT real, etiquetado por `type` (training|hit). */
 @Serializable
-data class EvolutionPointDto(val weight: MeasurementDto? = null, val performedAt: Long? = null, val type: String? = null)
+data class EvolutionPointDto(
+    val weight: MeasurementDto? = null,
+    val createdAt: Long? = null,       // fecha de la marca (eje X) — convención de la API (antes venía como performedAt)
+    val type: String? = null,
+    val trainingId: Long? = null,      // solo en type=training: id del entreno (para editar/borrar)
+    // Solo en type=hit: para abrir/pintar el HIT sin depender del ranking/perfil.
+    val hitId: Int? = null,
+    val videoUrl: String? = null,
+    val performedAt: Double? = null,   // segundo del vídeo (seek), como en ranking/perfil; null en training
+    val wilksScore: Double? = null,    // "POINTS" del overlay
+    val levelWeight: String? = null,   // badge de nivel por peso
+    val levelWilks: String? = null,    // badge de nivel por Wilks
+)
 
 /** Mejor marca (HIT) por ejercicio — para la comparativa y el ownBest sin cruzar participations. */
 @Serializable

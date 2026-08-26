@@ -8,6 +8,7 @@ import com.hitbosss.data.remote.dto.CreateGoalRequestDto
 import com.hitbosss.data.remote.dto.CreateStrengthGoalRequestDto
 import com.hitbosss.data.remote.dto.CreateTrainingRequestDto
 import com.hitbosss.data.remote.dto.UpdateBodyCompositionDto
+import com.hitbosss.data.remote.dto.UpdateBodyPointDto
 import com.hitbosss.domain.model.BodyComposition
 import com.hitbosss.domain.model.BodyHistoryPoint
 import com.hitbosss.domain.model.BodyTrend
@@ -52,6 +53,14 @@ class MetricsRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun updateBodyPoint(metric: String, pointId: Long, value: Double, unit: String): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            runCatching { api.updateBodyPoint(metric, pointId, UpdateBodyPointDto(value, unit)); Unit }
+        }
+
+    override suspend fun deleteBodyPoint(metric: String, pointId: Long): Result<Unit> =
+        withContext(Dispatchers.IO) { runCatching { api.deleteBodyPoint(metric, pointId) } }
+
     override suspend fun getGoal(metric: String, unit: String): Result<MetricGoal?> =
         withContext(Dispatchers.IO) { runCatching { api.getGoal(metric, unit)?.toDomain() } }
 
@@ -91,6 +100,14 @@ class MetricsRepositoryImpl @Inject constructor(
         withContext(Dispatchers.IO) {
             runCatching { api.createTraining(exercise, CreateTrainingRequestDto(weight, unit, performedAt)); Unit }
         }
+
+    override suspend fun updateTraining(trainingId: Long, weight: Double, unit: String): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            runCatching { api.updateTraining(trainingId, CreateTrainingRequestDto(weight, unit, null)); Unit }
+        }
+
+    override suspend fun deleteTraining(trainingId: Long): Result<Unit> =
+        withContext(Dispatchers.IO) { runCatching { api.deleteTraining(trainingId) } }
 
     override suspend fun getTrainings(exercise: String, range: String, unit: String): Result<List<TrainingEntry>> =
         withContext(Dispatchers.IO) { runCatching { api.getTrainings(exercise, range, unit).mapNotNull { it.toDomain() } } }

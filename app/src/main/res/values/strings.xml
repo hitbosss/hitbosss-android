@@ -503,6 +503,8 @@
     <string name="metrics_bmi_over_msg">Tu IMC está entre 25 y 30. Considera ajustar tu alimentación y tu actividad física.</string>
     <string name="metrics_bmi_obese">IMC de obesidad</string>
     <string name="metrics_bmi_obese_msg">Tu IMC está por encima de 30. Te recomendamos consultar con un especialista.</string>
+    <string name="metrics_bmi_nodata">No se puede calcular IMC</string>
+    <string name="metrics_bmi_nodata_msg">Para poder calcular tu IMC, debes ingresar tu altura y peso.</string>
     <string name="metrics_weight_goal">Objetivo de Peso</string>
     <string name="metrics_fat_goal">Objetivo de Grasa</string>
     <string name="metrics_your_goal">Tu objetivo</string>
@@ -519,10 +521,13 @@
     <string name="metrics_other_info_msg">Incluye los componentes del cuerpo que no forman parte de la masa muscular ni de la grasa corporal, como el agua, los huesos, los órganos y otros tejidos.</string>
     <string name="metrics_goal">Objetivo</string>
     <string name="metrics_progress">Progreso</string>
-    <string name="metrics_goal_remaining">Te faltan %1$s para alcanzar tu objetivo</string>
-    <string name="metrics_goal_reached">¡Has alcanzado tu objetivo!</string>
+    <string name="metrics_goal_remaining_up">↑ Te faltan %1$s por subir para alcanzar tu objetivo</string>
+    <string name="metrics_goal_remaining_down">↓ Te faltan %1$s por bajar para alcanzar tu objetivo</string>
+    <string name="metrics_goal_reached">¡Enhorabuena! Has alcanzado tu objetivo.</string>
     <string name="metrics_goal_history">Historial de objetivos</string>
-    <string name="metrics_goal_empty">Todavía no tienes ningún objetivo. Añade uno con el botón +.</string>
+    <string name="metrics_goal_empty">Todavía no tienes ningún objetivo</string>
+    <string name="metrics_goal_empty_subtitle">¡Define tu primer objetivo y empieza tu camino al éxito!</string>
+    <string name="metrics_goal_history_empty">No has completado ningún objetivo. Puedes añadir uno nuevo, pero el actual se marcará como no completado.</string>
     <string name="metrics_goal_add_title">Añadir objetivo</string>
     <string name="metrics_goal_add_hint">Tu próximo objetivo</string>
     <string name="metrics_goal_add_title_fmt">Añadir objetivo de %1$s</string>
@@ -547,6 +552,7 @@
     <string name="metrics_evolution">Evolución</string>
     <string name="metrics_more_details">Más detalles</string>
     <string name="metrics_week">Semana</string>
+    <string name="metrics_week_of">Semana del %1$s</string>
     <string name="metrics_month">Mes</string>
     <string name="metrics_week_days">L,M,X,J,V,S,D</string>
     <string name="metrics_month_end_label">fin</string>
@@ -567,6 +573,7 @@
     <string name="metrics_range_1y">1A</string>
     <string name="metrics_range_total">Todo</string>
     <string name="metrics_axis_weight">Kilogramos (%1$s)</string>
+    <string name="metrics_detail_info">Muestra la evolución de tus registros a lo largo del tiempo. La línea verde discontinua marca tu objetivo. Toca un punto para ver su fecha y valor.</string>
     <string name="metrics_axis_pct" formatted="false">Porcentaje (%)</string>
     <string name="metrics_competitive">Datos competitivos</string>
     <string name="metrics_improvement">Mejora acumulada</string>
@@ -584,6 +591,18 @@
     <string name="metrics_add_training">Añadir entrenamiento</string>
     <string name="metrics_training_weight">Peso levantado</string>
     <string name="metrics_training_add_desc">Ingresa un entrenamiento para seguir de forma visual tu progreso y alcanzar tus objetivos.</string>
+    <string name="metrics_strength_week_info">Es la media de tus mejores marcas por día en la semana.</string>
+    <string name="metrics_strength_gained">Has ganado %1$s esta semana</string>
+    <string name="metrics_strength_lost">Has perdido %1$s esta semana</string>
+    <string name="metrics_edit_training">Editar entrenamiento</string>
+    <string name="metrics_edit_training_desc">Puedes ajustar o eliminar un entrenamiento para que se adapte mejor a tu progreso y objetivos.</string>
+    <string name="metrics_delete_training_title">Eliminar entrenamiento</string>
+    <string name="metrics_delete_training_msg">¿Estás seguro de que deseas eliminar el entrenamiento? Ten en cuenta que, una vez eliminado, no podrás revertir esta acción.</string>
+    <string name="metrics_edit_record">Editar registro</string>
+    <string name="metrics_edit_record_desc">Puedes ajustar o eliminar un registro para que se adapte mejor a tu progreso.</string>
+    <string name="metrics_record_value">Valor</string>
+    <string name="metrics_delete_record_title">Eliminar registro</string>
+    <string name="metrics_delete_record_msg">¿Estás seguro de que deseas eliminar el registro? Ten en cuenta que, una vez eliminado, no podrás revertir esta acción.</string>
     <string name="metrics_strength_goal_desc">Define un objetivo de fuerza que te impulse a mejorar en tu entrenamiento.</string>
     <!-- Fotos de progreso: opción 1 (actualizar antes de subir) + límite diario. Copy provisional (pendiente de Samuel). -->
     <string name="metrics_photo_needs_update_title">Actualiza tus métricas</string>

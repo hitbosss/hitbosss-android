@@ -30,7 +30,7 @@ data class BodyComposition(
 }
 
 /** Punto de la serie temporal de una métrica (weight/fat/muscle). */
-data class BodyHistoryPoint(val value: Double, val measuredAt: Long)
+data class BodyHistoryPoint(val id: Long, val value: Double, val measuredAt: Long)
 
 /**
  * Objetivo de una body-metric (weight/fat/muscle). La API solo da `targetValue`; `currentValue` y
@@ -57,13 +57,24 @@ data class GoalHistoryEntry(
  * Tendencia (M5): punto unificado (semana → día+valor; mes → inicio-de-semana+promedio) y comparación
  * período actual vs anterior por métrica. Las medias las calcula mobile ignorando los huecos.
  */
-data class TrendPoint(val date: Long, val value: Double?)
+data class TrendPoint(val date: Long, val value: Double?, val days: List<TrendPoint> = emptyList())
 
-data class MetricTrend(val current: List<TrendPoint>, val previous: List<TrendPoint>) {
+data class MetricTrend(
+    val current: List<TrendPoint>,
+    val previous: List<TrendPoint>,
+    // Media que ya calcula el API (tile "Semana actual/pasada"). Fallback a cálculo local si no llega.
+    val currentAvgServer: Double? = null,
+    val previousAvgServer: Double? = null,
+) {
     private fun List<TrendPoint>.avg(): Double? =
         mapNotNull { it.value }.let { if (it.isEmpty()) null else it.average() }
-    val currentAvg: Double? get() = current.avg()
-    val previousAvg: Double? get() = previous.avg()
+    val currentAvg: Double? get() = currentAvgServer ?: current.avg()
+    val previousAvg: Double? get() = previousAvgServer ?: previous.avg()
+    // Última lectura no nula del período (igual que iOS lastReading): semana → último día con dato,
+    // mes → última semana con media. Es lo que muestran los tiles "actual/pasado".
+    private fun List<TrendPoint>.lastReading(): Double? = lastOrNull { it.value != null }?.value
+    val currentLast: Double? get() = current.lastReading()
+    val previousLast: Double? get() = previous.lastReading()
 }
 
 data class BodyTrend(val period: String, val weight: MetricTrend, val fat: MetricTrend, val muscle: MetricTrend) {
@@ -86,7 +97,19 @@ data class StrengthStats(
 data class TrainingEntry(val weightKg: Double, val performedAt: Long)
 
 /** Marca de evolución del ejercicio (del servidor): entreno manual (isHit=false) o HIT real (isHit=true). */
-data class StrengthMark(val weightKg: Double, val performedAt: Long, val isHit: Boolean)
+data class StrengthMark(
+    val weightKg: Double,
+    val performedAt: Long,
+    val isHit: Boolean,
+    val trainingId: Long? = null,      // solo en entrenos manuales: id para editar/borrar
+    // Solo en HITs: datos para abrir el vídeo del HIT al pulsarlo en la gráfica.
+    val hitId: Int? = null,
+    val videoUrl: String? = null,
+    val videoSecond: Double? = null,   // segundo del vídeo (seek)
+    val wilksScore: Double? = null,    // POINTS del overlay
+    val levelWeight: String? = null,   // badge de nivel por peso
+    val levelWilks: String? = null,    // badge de nivel por Wilks
+)
 
 /** Foto de progreso con snapshot de medidas (masa). El % de grasa se deriva. */
 data class ProgressPhoto(

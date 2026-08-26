@@ -15,6 +15,7 @@ import com.hitbosss.data.remote.dto.StrengthBestDto
 import com.hitbosss.data.remote.dto.TrainingEntryDto
 import com.hitbosss.data.remote.dto.TrendDto
 import com.hitbosss.data.remote.dto.UpdateBodyCompositionDto
+import com.hitbosss.data.remote.dto.UpdateBodyPointDto
 import com.hitbosss.data.remote.dto.CreateUserRequestDto
 import com.hitbosss.data.remote.dto.CreateUserResponseDto
 import com.hitbosss.data.remote.dto.EventDetailDto
@@ -254,6 +255,18 @@ interface HitbosssApi {
     @POST("metrics/body-composition")
     suspend fun updateBodyComposition(@Body body: UpdateBodyCompositionDto, @Query("tzOffset") tzOffset: Int? = null): MessageResponseDto
 
+    /** PATCH /metrics/body-composition/{metric}/points/{pointId} — edita el valor de un punto de la gráfica. */
+    @PATCH("metrics/body-composition/{metric}/points/{pointId}")
+    suspend fun updateBodyPoint(
+        @Path("metric") metric: String,
+        @Path("pointId") pointId: Long,
+        @Body body: UpdateBodyPointDto,
+    ): BodyHistoryPointDto
+
+    /** DELETE /metrics/body-composition/{metric}/points/{pointId} — borra un punto de la gráfica. */
+    @DELETE("metrics/body-composition/{metric}/points/{pointId}")
+    suspend fun deleteBodyPoint(@Path("metric") metric: String, @Path("pointId") pointId: Long)
+
     /** GET /metrics/body-composition/trend — período actual vs anterior (weight/fat/muscle) para la Tendencia. */
     @GET("metrics/body-composition/trend")
     suspend fun getBodyTrend(
@@ -303,6 +316,14 @@ interface HitbosssApi {
         @Query("range") range: String,
         @Query("unit") unit: String? = null,
     ): List<TrainingEntryDto>
+
+    /** PATCH /metrics/strength/trainings/{trainingId} — edita un entrenamiento por id. */
+    @PATCH("metrics/strength/trainings/{trainingId}")
+    suspend fun updateTraining(@Path("trainingId") trainingId: Long, @Body body: CreateTrainingRequestDto): TrainingEntryDto
+
+    /** DELETE /metrics/strength/trainings/{trainingId} — borra un entrenamiento por id. */
+    @DELETE("metrics/strength/trainings/{trainingId}")
+    suspend fun deleteTraining(@Path("trainingId") trainingId: Long)
 
     /** GET /metrics/strength/{exercise}/evolution — entrenos + HITs etiquetados (para la gráfica). */
     @GET("metrics/strength/{exercise}/evolution")

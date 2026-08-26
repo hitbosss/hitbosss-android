@@ -502,6 +502,8 @@
     <string name="metrics_bmi_over_msg">Your BMI is between 25 and 30. Consider adjusting your diet and physical activity.</string>
     <string name="metrics_bmi_obese">Obese BMI</string>
     <string name="metrics_bmi_obese_msg">Your BMI is above 30. We recommend consulting a specialist.</string>
+    <string name="metrics_bmi_nodata">Can\'t calculate BMI</string>
+    <string name="metrics_bmi_nodata_msg">To calculate your BMI, you need to enter your height and weight.</string>
     <string name="metrics_bmi_low_badge">UNDERWEIGHT</string>
     <string name="metrics_bmi_normal_badge">HEALTHY</string>
     <string name="metrics_bmi_over_badge">OVERWEIGHT</string>
@@ -510,10 +512,13 @@
     <string name="metrics_your_goal">Your goal</string>
     <string name="metrics_goal">Goal</string>
     <string name="metrics_progress">Progress</string>
-    <string name="metrics_goal_remaining">You are %1$s away from your goal</string>
-    <string name="metrics_goal_reached">You\'ve reached your goal!</string>
+    <string name="metrics_goal_remaining_up">↑ You need to gain %1$s to reach your goal</string>
+    <string name="metrics_goal_remaining_down">↓ You need to lose %1$s to reach your goal</string>
+    <string name="metrics_goal_reached">Congratulations! You\'ve reached your goal.</string>
     <string name="metrics_goal_history">Goal history</string>
-    <string name="metrics_goal_empty">You don\'t have any goal yet. Add one with the + button.</string>
+    <string name="metrics_goal_empty">You don\'t have any goal yet</string>
+    <string name="metrics_goal_empty_subtitle">Set your first goal and start your journey to success!</string>
+    <string name="metrics_goal_history_empty">You haven\'t completed any goal. You can add a new one, but the current one will be marked as not completed.</string>
     <string name="metrics_goal_add_title">Add goal</string>
     <string name="metrics_goal_add_hint">Your next goal</string>
     <string name="metrics_goal_delete_title">Delete goal</string>
@@ -524,6 +529,7 @@
     <string name="metrics_evolution">Evolution</string>
     <string name="metrics_more_details">More details</string>
     <string name="metrics_week">Week</string>
+    <string name="metrics_week_of">Week of %1$s</string>
     <string name="metrics_month">Month</string>
     <string name="metrics_week_days">M,T,W,T,F,S,S</string>
     <string name="metrics_month_end_label">end</string>
@@ -542,6 +548,7 @@
     <string name="metrics_range_1y">1Y</string>
     <string name="metrics_range_total">Total</string>
     <string name="metrics_axis_weight">Kilograms (%1$s)</string>
+    <string name="metrics_detail_info">Shows how your records evolve over time. The dashed green line marks your target. Tap a point to see its date and value.</string>
     <string name="metrics_axis_pct" formatted="false">Percentage (%)</string>
     <string name="metrics_competitive">Competitive data</string>
     <string name="metrics_improvement">Accumulated improvement</string>
@@ -557,6 +564,18 @@
     <string name="metrics_no_rival">No rival above you. You\'re number 1!</string>
     <string name="metrics_rival_gap">They lead you by %1$s</string>
     <string name="metrics_add_training">Add training</string>
+    <string name="metrics_strength_week_info">It\'s the average of your best marks per day in the week.</string>
+    <string name="metrics_strength_gained">You have gained %1$s this week</string>
+    <string name="metrics_strength_lost">You have lost %1$s this week</string>
+    <string name="metrics_edit_training">Edit training</string>
+    <string name="metrics_edit_training_desc">You can adjust or delete a training so it fits your progress and goals better.</string>
+    <string name="metrics_delete_training_title">Delete training</string>
+    <string name="metrics_delete_training_msg">Are you sure you want to delete the training? Note that once deleted, you won\'t be able to undo this action.</string>
+    <string name="metrics_edit_record">Edit record</string>
+    <string name="metrics_edit_record_desc">You can adjust or delete a record so it fits your progress better.</string>
+    <string name="metrics_record_value">Value</string>
+    <string name="metrics_delete_record_title">Delete record</string>
+    <string name="metrics_delete_record_msg">Are you sure you want to delete the record? Note that once deleted, you won\'t be able to undo this action.</string>
     <string name="metrics_training_weight">Weight lifted</string>
     <string name="metrics_photo_needs_update_title">Update your metrics</string>
     <string name="metrics_photo_needs_update">Update your weight or body composition before uploading photos, so you can compare them consistently.</string>
@@ -571,6 +590,7 @@
     <string name="metrics_photo_add">Add photo</string>
     <string name="metrics_photos_individual">Individual</string>
     <string name="metrics_photos_compare">Compared</string>
+    <string name="metrics_no_data">NO DATA</string>
     <string name="metrics_photos_empty">Add your first progress photo with the + button</string>
     <string name="metrics_photo_delete_title">Delete photo</string>
     <string name="metrics_photo_delete_msg">Are you sure you want to delete this progress photo? This action cannot be undone.</string>

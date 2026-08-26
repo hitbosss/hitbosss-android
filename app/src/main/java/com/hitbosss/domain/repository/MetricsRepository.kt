@@ -20,6 +20,8 @@ interface MetricsRepository {
         weight: Double? = null, height: Double? = null,
         muscle: Double? = null, fat: Double? = null, unit: String,
     ): Result<Unit>
+    suspend fun updateBodyPoint(metric: String, pointId: Long, value: Double, unit: String): Result<Unit>
+    suspend fun deleteBodyPoint(metric: String, pointId: Long): Result<Unit>
 
     suspend fun getGoal(metric: String, unit: String): Result<MetricGoal?>
     suspend fun createGoal(metric: String, target: Double, unit: String): Result<MetricGoal>
@@ -33,6 +35,8 @@ interface MetricsRepository {
     suspend fun getStrengthStats(exercise: String, unit: String): Result<StrengthStats>
     suspend fun createTraining(exercise: String, weight: Double, performedAt: Long, unit: String): Result<Unit>
     suspend fun getTrainings(exercise: String, range: String, unit: String): Result<List<TrainingEntry>>
+    suspend fun updateTraining(trainingId: Long, weight: Double, unit: String): Result<Unit>
+    suspend fun deleteTraining(trainingId: Long): Result<Unit>
     suspend fun getStrengthEvolution(exercise: String, range: String, unit: String): Result<List<StrengthMark>>
     suspend fun getStrengthBests(unit: String): Result<Map<String, Double>>
 

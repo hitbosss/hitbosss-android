@@ -677,18 +677,21 @@ private fun ExerciseMarkRow(name: String, weight: String?, levelWeight: String?,
         )
         Spacer(Modifier.weight(1f))
         if (weight != null) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            // Slot fijo para el tag (aunque falte) + columna fija para el valor → todos los tags y valores
+            // quedan en la misma columna, sin desplazarse por el ancho del valor.
+            Box(Modifier.width(40.dp), contentAlignment = Alignment.Center) {
                 levelStyle(levelWeight)?.let { lvl ->
                     Text(
                         levelBadgeShort(levelWeight), style = HitbosssType.bodySmallRegular, color = lvl.text,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.width(36.dp).clip(RoundedCornerShape(6.dp)).background(lvl.bg).padding(vertical = 2.dp),
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(lvl.bg).padding(vertical = 2.dp),
                     )
                 }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text("$weight", style = HitbosssType.bodyLargeEmphasis, color = Gray800)
-                    topPercent?.let { Text(it, style = HitbosssType.bodySmallRegular, color = Primary500) }
-                }
+            }
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.width(55.dp), horizontalAlignment = Alignment.End) {
+                Text("$weight", style = HitbosssType.bodyLargeEmphasis, color = Gray800, maxLines = 1)
+                topPercent?.let { Text(it, style = HitbosssType.bodySmallRegular, color = Primary500) }
             }
         } else {
             Text(stringResource(R.string.profile_no_mark), style = HitbosssType.bodySmallRegular, color = Gray500)
