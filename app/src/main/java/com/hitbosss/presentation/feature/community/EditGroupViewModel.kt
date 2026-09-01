@@ -6,8 +6,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hitbosss.domain.model.Exercise
+import com.hitbosss.domain.repository.CommunityRepository
 import com.hitbosss.domain.usecase.CreateGroupParams
-import com.hitbosss.domain.usecase.GetGroupUseCase
 import com.hitbosss.domain.usecase.UpdateGroupUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -41,8 +41,8 @@ data class EditGroupUiState(
 
 @HiltViewModel
 class EditGroupViewModel @Inject constructor(
+    private val communityRepository: CommunityRepository,
     @ApplicationContext private val context: Context,
-    private val getGroup: GetGroupUseCase,
     private val updateGroup: UpdateGroupUseCase,
     private val refreshCoordinator: com.hitbosss.core.RefreshCoordinator,
     savedStateHandle: SavedStateHandle,
@@ -59,7 +59,7 @@ class EditGroupViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            getGroup(groupId).onSuccess { g ->
+            communityRepository.getGroup(groupId).onSuccess { g ->
                 _state.update {
                     it.copy(
                         name = g.name,

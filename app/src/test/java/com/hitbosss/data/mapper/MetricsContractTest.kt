@@ -72,11 +72,13 @@ class MetricsContractTest {
         assertTrue(near(s.rankingPercentage, 68.0))
     }
 
-    @Test fun training_dropsExercise_keepsWeight() {
+    // El mapper a dominio se borró con GetTrainingsUseCase (nadie lo llamaba); el DTO sigue vivo
+    // porque PATCH /metrics/strength/trainings/{id} devuelve uno.
+    @Test fun training_decodesWeightAndDate() {
         val t = json.decodeFromString<List<TrainingEntryDto>>(
             """[{"weight":{"value":117.5,"unit":"kg"},"performedAt":1782000000}]""",
-        ).mapNotNull { it.toDomain() }
-        assertEquals(1, t.size); assertTrue(near(t[0].weightKg, 117.5)); assertEquals(1782000000L, t[0].performedAt)
+        )
+        assertEquals(1, t.size); assertTrue(near(t[0].weight?.value, 117.5)); assertEquals(1782000000L, t[0].performedAt)
     }
 
     @Test fun progressPhoto_fatPercentDerived() {
@@ -88,10 +90,13 @@ class MetricsContractTest {
         assertTrue("fat% = 16/80*100 = 20", near(p[0].fatPercent, 20.0))
     }
 
+    // El `id` (fila de body_log) es obligatorio: sin él no se puede editar ni borrar el punto
+    // desde la gráfica (PATCH/DELETE /body-composition/{metric}/points/{pointId}).
     @Test fun history_point_ignoresUnitKeepsValue() {
         val h = json.decodeFromString<List<BodyHistoryPointDto>>(
-            """[{"value":78.5,"unit":"kg","measuredAt":1782000000}]""",
+            """[{"id":91,"value":78.5,"unit":"kg","measuredAt":1782000000}]""",
         ).mapNotNull { it.toDomain() }
-        assertEquals(1, h.size); assertTrue(near(h[0].value, 78.5)); assertEquals(1782000000L, h[0].measuredAt)
+        assertEquals(1, h.size)
+        assertEquals(91L, h[0].id); assertTrue(near(h[0].value, 78.5)); assertEquals(1782000000L, h[0].measuredAt)
     }
 }

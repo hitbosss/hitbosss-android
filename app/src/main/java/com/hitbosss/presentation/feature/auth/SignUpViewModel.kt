@@ -2,7 +2,7 @@ package com.hitbosss.presentation.feature.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.hitbosss.domain.usecase.CreateUserWithEmailPasswordUseCase
+import com.hitbosss.domain.repository.AuthRepository
 import com.hitbosss.domain.usecase.PostLoginDestination
 import com.hitbosss.domain.usecase.ResolvePostLoginUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -17,7 +17,6 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import com.hitbosss.R
 import android.content.Context
-import com.hitbosss.domain.usecase.SignInWithGoogleUseCase
 import dagger.hilt.android.qualifiers.ApplicationContext
 
 data class SignUpUiState(
@@ -39,9 +38,8 @@ data class SignUpUiState(
 
 @HiltViewModel
 class SignUpViewModel @Inject constructor(
+    private val authRepository: AuthRepository,
     @ApplicationContext private val appContext: Context,
-    private val createUser: CreateUserWithEmailPasswordUseCase,
-    private val signInWithGoogle: SignInWithGoogleUseCase,
     private val resolvePostLogin: ResolvePostLoginUseCase,
 ) : ViewModel() {
 
@@ -63,7 +61,7 @@ class SignUpViewModel @Inject constructor(
         if (!s.isFormValid) return
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
-            createUser(s.email, s.password)
+            authRepository.createUserWithEmailPassword(s.email, s.password)
                 .onFailure { e -> _state.update { it.copy(isLoading = false, error = e.toAuthMessage(appContext)) } }
                 .onSuccess { resolveDestination() }
         }
@@ -72,7 +70,7 @@ class SignUpViewModel @Inject constructor(
     fun onGoogleIdToken(idToken: String) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
-            signInWithGoogle(idToken)
+            authRepository.signInWithGoogle(idToken)
                 .onFailure { e -> _state.update { it.copy(isLoading = false, error = e.toAuthMessage(appContext)) } }
                 .onSuccess { resolveDestination() }
         }

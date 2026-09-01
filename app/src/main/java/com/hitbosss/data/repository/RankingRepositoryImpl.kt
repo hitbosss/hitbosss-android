@@ -4,8 +4,6 @@ import com.hitbosss.data.mapper.toDomain
 import com.hitbosss.data.remote.HitbosssApi
 import com.hitbosss.domain.model.SportRanking
 import com.hitbosss.domain.repository.RankingRepository
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 class RankingRepositoryImpl @Inject constructor(
@@ -13,9 +11,5 @@ class RankingRepositoryImpl @Inject constructor(
 ) : RankingRepository {
 
     override suspend fun getRanking(sport: String, unit: String?): Result<SportRanking> =
-        withContext(Dispatchers.IO) {
-            runCatching {
-                api.getRanking(sport, unit).toDomain(sport)
-            }
-        }
+        runCatching { api.getRanking(sport, unit).toDomain(sport) }
 }

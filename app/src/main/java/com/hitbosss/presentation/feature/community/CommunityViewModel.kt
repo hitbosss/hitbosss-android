@@ -4,9 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hitbosss.domain.model.EventsResult
 import com.hitbosss.domain.model.GroupsResult
+import com.hitbosss.domain.repository.CommunityRepository
 import com.hitbosss.domain.usecase.GetCurrentUserUseCase
-import com.hitbosss.domain.usecase.GetUserEventsUseCase
-import com.hitbosss.domain.usecase.GetUserGroupsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -31,10 +30,9 @@ data class CommunityUiState(
 
 @HiltViewModel
 class CommunityViewModel @Inject constructor(
+    private val communityRepository: CommunityRepository,
     @ApplicationContext private val context: Context,
     private val getCurrentUser: GetCurrentUserUseCase,
-    private val getUserGroups: GetUserGroupsUseCase,
-    private val getUserEvents: GetUserEventsUseCase,
     private val refreshCoordinator: com.hitbosss.core.RefreshCoordinator,
 ) : ViewModel() {
 
@@ -75,8 +73,8 @@ class CommunityViewModel @Inject constructor(
         viewModelScope.launch {
             if (firstLoad) _state.update { it.copy(isLoading = true, error = null) }
             if (showRefreshing) _state.update { it.copy(isRefreshing = true) }
-            val groups = getUserGroups(uid).getOrNull()
-            val events = getUserEvents(uid).getOrNull()
+            val groups = communityRepository.getUserGroups(uid).getOrNull()
+            val events = communityRepository.getUserEvents(uid).getOrNull()
             _state.update {
                 it.copy(
                     isLoading = false,

@@ -2,8 +2,8 @@ package com.hitbosss.presentation.feature.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hitbosss.domain.repository.UserRepository
 import com.hitbosss.domain.usecase.GetCurrentUserUseCase
-import com.hitbosss.domain.usecase.GetPersonalInfoUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,7 +15,7 @@ import javax.inject.Inject
 @HiltViewModel
 class TutorialViewModel @Inject constructor(
     getCurrentUser: GetCurrentUserUseCase,
-    getPersonalInfo: GetPersonalInfoUseCase,
+    userRepository: UserRepository,
 ) : ViewModel() {
     private val _isMetric = MutableStateFlow(true)
     val isMetric: StateFlow<Boolean> = _isMetric.asStateFlow()
@@ -23,7 +23,7 @@ class TutorialViewModel @Inject constructor(
     init {
         getCurrentUser()?.uid?.let { uid ->
             viewModelScope.launch {
-                getPersonalInfo(uid).onSuccess { info ->
+                userRepository.getPersonalInfo(uid).onSuccess { info ->
                     _isMetric.value = !info.measurementSystem.equals("imperial", true)
                 }
             }

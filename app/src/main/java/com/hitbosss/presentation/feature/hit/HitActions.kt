@@ -20,7 +20,6 @@ import androidx.media3.transformer.ExportException
 import androidx.media3.transformer.ExportResult
 import androidx.media3.transformer.Transformer
 import com.google.common.collect.ImmutableList
-import com.hitbosss.domain.usecase.ReportHitUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.Dispatchers
@@ -34,11 +33,12 @@ import java.io.File
 import java.net.URL
 import javax.inject.Inject
 import kotlin.coroutines.resume
+import com.hitbosss.domain.repository.HitRepository
 
 /** Acciones del visor de un HIT: denunciar y exportar/compartir el vídeo con marca (como iOS). */
 @HiltViewModel
 class HitActionsViewModel @Inject constructor(
-    private val reportHit: ReportHitUseCase,
+    private val hitRepository: HitRepository,
 ) : ViewModel() {
 
     private val _exporting = MutableStateFlow(false)
@@ -46,7 +46,7 @@ class HitActionsViewModel @Inject constructor(
 
     fun report(hitId: Int, comment: String, onDone: (Boolean) -> Unit) {
         viewModelScope.launch {
-            onDone(reportHit(hitId, comment).isSuccess)
+            onDone(hitRepository.reportHit(hitId, comment).isSuccess)
         }
     }
 

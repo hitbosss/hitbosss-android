@@ -10,8 +10,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hitbosss.domain.model.Exercise
 import com.hitbosss.domain.model.PersonalInfo
+import com.hitbosss.domain.repository.UserRepository
 import com.hitbosss.domain.usecase.GetCurrentUserUseCase
-import com.hitbosss.domain.usecase.GetPersonalInfoUseCase
 import com.hitbosss.domain.usecase.UploadHitParams
 import com.hitbosss.domain.usecase.UploadHitUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -39,9 +39,9 @@ data class RecordHitUiState(
 
 @HiltViewModel
 class RecordHitViewModel @Inject constructor(
+    private val userRepository: UserRepository,
     @ApplicationContext private val context: Context,
     private val getCurrentUser: GetCurrentUserUseCase,
-    private val getPersonalInfo: GetPersonalInfoUseCase,
     private val uploadHit: UploadHitUseCase,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -63,7 +63,7 @@ class RecordHitViewModel @Inject constructor(
             _state.update { it.copy(error = context.getString(R.string.err_identify_user)) }
         } else {
             viewModelScope.launch {
-                getPersonalInfo(uid)
+                userRepository.getPersonalInfo(uid)
                     .onSuccess { personalInfo = it; pendingFile?.let(::doUpload) }
                     .onFailure { e -> if (pendingFile != null) _state.update { it.copy(isUploading = false, error = context.getString(R.string.err_load_data)) } }
             }

@@ -49,7 +49,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -70,12 +69,13 @@ import com.hitbosss.presentation.designsystem.theme.Primary500
 import com.hitbosss.presentation.designsystem.theme.Secondary500
 import com.hitbosss.presentation.designsystem.theme.Secondary800
 import com.hitbosss.presentation.feature.ranking.countryFlag
-import java.text.SimpleDateFormat
 import java.util.Calendar
-import java.util.Locale
 import androidx.compose.ui.res.stringResource
 import com.hitbosss.presentation.designsystem.components.HitPopup
 import kotlinx.coroutines.launch
+import com.hitbosss.presentation.designsystem.components.Counter
+import com.hitbosss.presentation.designsystem.components.FieldLabel
+import com.hitbosss.presentation.designsystem.components.formatMillisDate
 
 @Composable
 fun EditProfileScreen(onBack: () -> Unit, onSaved: () -> Unit = onBack, viewModel: EditProfileViewModel = hiltViewModel()) {
@@ -147,7 +147,7 @@ fun EditProfileScreen(onBack: () -> Unit, onSaved: () -> Unit = onBack, viewMode
                     Modifier.clip(RoundedCornerShape(8.dp)).background(Gray200).clickable { showDate = true }
                         .padding(horizontal = 16.dp, vertical = 10.dp),
                 ) {
-                    Text(state.birthDate?.let { formatDate(it) } ?: stringResource(R.string.common_select), style = HitbosssType.bodyDefaultEmphasis, color = Gray800)
+                    Text(state.birthDate?.let { formatMillisDate(it, "d MMM yyyy") } ?: stringResource(R.string.common_select), style = HitbosssType.bodyDefaultEmphasis, color = Gray800)
                 }
             }
             Spacer(Modifier.height(24.dp))
@@ -218,16 +218,6 @@ private fun LabelEditRow(label: String, onEdit: () -> Unit) {
         Text(stringResource(R.string.common_edit), style = HitbosssType.bodySmallEmphasis, color = Secondary500, modifier = Modifier.clickable { onEdit() })
     }
 }
-
-@Composable
-private fun FieldLabel(text: String) =
-    Text(text, style = HitbosssType.bodyDefaultEmphasis, color = Gray500, modifier = Modifier.padding(bottom = 8.dp))
-
-@Composable
-private fun Counter(count: Int, max: Int) = Text(
-    "$count/$max", style = HitbosssType.bodySmallRegular, color = Gray500,
-    textAlign = TextAlign.End, modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-)
 
 @Composable
 private fun ProfileTextField(value: String, onChange: (String) -> Unit) {
@@ -382,5 +372,3 @@ private fun CountryPickerDialog(onPick: (String) -> Unit, onDismiss: () -> Unit)
     }
 }
 
-private fun formatDate(millis: Long): String =
-    SimpleDateFormat("d MMM yyyy", Locale("es")).format(java.util.Date(millis))

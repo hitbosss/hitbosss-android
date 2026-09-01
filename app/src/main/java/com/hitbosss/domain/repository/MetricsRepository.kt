@@ -8,7 +8,6 @@ import com.hitbosss.domain.model.MetricGoal
 import com.hitbosss.domain.model.ProgressPhoto
 import com.hitbosss.domain.model.StrengthStats
 import com.hitbosss.domain.model.StrengthMark
-import com.hitbosss.domain.model.TrainingEntry
 import java.io.File
 
 /** Métricas (contrato /api/metrics). Usuario = token; unidad = measurementSystem del usuario. */
@@ -34,7 +33,6 @@ interface MetricsRepository {
 
     suspend fun getStrengthStats(exercise: String, unit: String): Result<StrengthStats>
     suspend fun createTraining(exercise: String, weight: Double, performedAt: Long, unit: String): Result<Unit>
-    suspend fun getTrainings(exercise: String, range: String, unit: String): Result<List<TrainingEntry>>
     suspend fun updateTraining(trainingId: Long, weight: Double, unit: String): Result<Unit>
     suspend fun deleteTraining(trainingId: Long): Result<Unit>
     suspend fun getStrengthEvolution(exercise: String, range: String, unit: String): Result<List<StrengthMark>>

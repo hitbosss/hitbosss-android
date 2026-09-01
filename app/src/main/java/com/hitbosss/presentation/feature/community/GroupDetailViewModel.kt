@@ -4,14 +4,9 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hitbosss.domain.model.GroupDetail
+import com.hitbosss.domain.repository.CommunityRepository
+import com.hitbosss.domain.repository.UserRepository
 import com.hitbosss.domain.usecase.GetCurrentUserUseCase
-import com.hitbosss.domain.usecase.DeleteGroupUseCase
-import com.hitbosss.domain.usecase.GetGroupUseCase
-import com.hitbosss.domain.usecase.GetUserProfileUseCase
-import com.hitbosss.domain.usecase.LeaveGroupUseCase
-import com.hitbosss.domain.usecase.MakeGroupAdminUseCase
-import com.hitbosss.domain.usecase.RemoveGroupMemberUseCase
-import com.hitbosss.domain.usecase.ReportGroupUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -57,15 +52,10 @@ data class GroupDetailUiState(
 
 @HiltViewModel
 class GroupDetailViewModel @Inject constructor(
+    private val communityRepository: CommunityRepository,
+    private val userRepository: UserRepository,
     @ApplicationContext private val context: Context,
-    private val getGroup: GetGroupUseCase,
-    private val leaveGroup: LeaveGroupUseCase,
-    private val deleteGroup: DeleteGroupUseCase,
-    private val makeGroupAdmin: MakeGroupAdminUseCase,
-    private val removeGroupMember: RemoveGroupMemberUseCase,
-    private val reportGroup: ReportGroupUseCase,
     private val getCurrentUser: GetCurrentUserUseCase,
-    private val getUserProfile: GetUserProfileUseCase,
     private val refreshCoordinator: com.hitbosss.core.RefreshCoordinator,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -78,7 +68,7 @@ class GroupDetailViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
-            getGroup(groupId)
+            communityRepository.getGroup(groupId)
                 .onSuccess { g ->
                     // Abrir un grupo te auto-une (backend) → refresca "Mis grupos".
                     refreshCoordinator.invalidateCommunity()
@@ -88,7 +78,7 @@ class GroupDetailViewModel @Inject constructor(
         }
         getCurrentUser()?.uid?.let { uid ->
             viewModelScope.launch {
-                getUserProfile(uid).onSuccess { p -> _state.update { it.copy(currentUserCountry = p.countryCode, currentUserPicUrl = p.profilePicUrl) } }
+                userRepository.getUserProfile(uid).onSuccess { p -> _state.update { it.copy(currentUserCountry = p.countryCode, currentUserPicUrl = p.profilePicUrl) } }
             }
         }
         // Recarga el ranking de ESTE grupo tras subir un HIT en su contexto.
@@ -99,7 +89,7 @@ class GroupDetailViewModel @Inject constructor(
 
     private fun reloadGroup() {
         viewModelScope.launch {
-            getGroup(groupId).onSuccess { g -> _state.update { it.copy(group = g) } }
+            communityRepository.getGroup(groupId).onSuccess { g -> _state.update { it.copy(group = g) } }
         }
     }
 
@@ -107,7 +97,7 @@ class GroupDetailViewModel @Inject constructor(
     fun retry() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
-            getGroup(groupId)
+            communityRepository.getGroup(groupId)
                 .onSuccess { g -> refreshCoordinator.invalidateCommunity(); _state.update { it.copy(isLoading = false, group = g) } }
                 .onFailure { e -> _state.update { it.copy(isLoading = false, error = context.getString(R.string.common_unexpected_error_msg)) } }
         }
@@ -116,7 +106,7 @@ class GroupDetailViewModel @Inject constructor(
     fun leave() {
         viewModelScope.launch {
             _state.update { it.copy(leaving = true) }
-            leaveGroup(groupId)
+            communityRepository.leaveGroup(groupId)
                 .onSuccess { refreshCoordinator.invalidateCommunity(); _state.update { it.copy(leaving = false, left = true) } }
                 .onFailure { e -> _state.update { it.copy(leaving = false, error = context.getString(R.string.err_leave)) } }
         }
@@ -125,7 +115,7 @@ class GroupDetailViewModel @Inject constructor(
     fun delete() {
         viewModelScope.launch {
             _state.update { it.copy(leaving = true) }
-            deleteGroup(groupId)
+            communityRepository.deleteGroup(groupId)
                 .onSuccess { refreshCoordinator.invalidateCommunity(); _state.update { it.copy(leaving = false, deleted = true) } }
                 .onFailure { e -> _state.update { it.copy(leaving = false, error = context.getString(R.string.err_delete)) } }
         }
@@ -134,7 +124,7 @@ class GroupDetailViewModel @Inject constructor(
     /** Denuncia el grupo (comentario opcional). Silencioso, igual que el report de HIT. */
     fun report(comment: String) {
         viewModelScope.launch {
-            reportGroup(groupId, comment.ifBlank { null })
+            communityRepository.reportGroup(groupId, comment.ifBlank { null })
                 .onSuccess { _state.update { it.copy(reportSent = true) } }
                 .onFailure { _state.update { it.copy(reportFailed = true) } }
         }
@@ -145,7 +135,7 @@ class GroupDetailViewModel @Inject constructor(
     /** Da admin a un miembro (solo admin) y recarga la lista. */
     fun makeAdmin(userId: String) {
         viewModelScope.launch {
-            makeGroupAdmin(groupId, userId)
+            communityRepository.makeGroupAdmin(groupId, userId)
                 .onSuccess { refreshCoordinator.invalidateCommunity(); reloadGroup() }
                 .onFailure { e -> _state.update { it.copy(error = context.getString(R.string.err_generic_action)) } }
         }
@@ -154,7 +144,7 @@ class GroupDetailViewModel @Inject constructor(
     /** Expulsa a un miembro (solo admin) y recarga la lista. */
     fun removeMember(userId: String) {
         viewModelScope.launch {
-            removeGroupMember(groupId, userId)
+            communityRepository.removeGroupMember(groupId, userId)
                 .onSuccess { refreshCoordinator.invalidateCommunity(); reloadGroup() }
                 .onFailure { e -> _state.update { it.copy(error = context.getString(R.string.err_generic_action)) } }
         }

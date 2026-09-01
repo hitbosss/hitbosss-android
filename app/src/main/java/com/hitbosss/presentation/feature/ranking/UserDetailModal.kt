@@ -65,11 +65,9 @@ import com.hitbosss.presentation.designsystem.theme.Gray300
 import com.hitbosss.presentation.designsystem.theme.Gray800
 import com.hitbosss.presentation.designsystem.theme.HitbosssType
 import com.hitbosss.presentation.designsystem.theme.Primary500
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import androidx.compose.ui.res.stringResource
 import okio.buffer
+import com.hitbosss.presentation.designsystem.components.formatEpochDate
 
 /**
  * Modal con los hits del usuario (paginador) — equivale a UserDetailModal de iOS, que se presenta
@@ -194,7 +192,7 @@ private fun HitPage(
                 }
                 // Fila fecha | points (bodySmallRegular)
                 Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp).padding(top = 2.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(formatHitDate(entry.createdAt), style = HitbosssType.bodySmallRegular, color = Gray800, modifier = Modifier.weight(1f))
+                    Text(formatEpochDate(entry.createdAt), style = HitbosssType.bodySmallRegular, color = Gray800, modifier = Modifier.weight(1f))
                     Text("${formatPointsModal(entry.score)} POINTS", style = HitbosssType.bodySmallRegular, color = Gray500)
                 }
             }
@@ -209,7 +207,7 @@ private fun HitPage(
                                 videoUrl = url,
                                 seekSeconds = entry.performedAt,
                                 exerciseTitle = category.title,
-                                dateText = formatHitDate(entry.createdAt),
+                                dateText = formatEpochDate(entry.createdAt),
                                 weightText = entry.lift?.let { "${it.value.toInt()} ${it.unit.uppercase()}" } ?: "",
                                 levelWeight = entry.levelWeight,
                                 rankText = "#${entry.rank}",
@@ -337,8 +335,6 @@ internal fun VideoPlayer(url: String, seekSeconds: Double, isActive: Boolean) {
     }
 }
 
-private fun formatHitDate(unixSeconds: Long): String =
-    if (unixSeconds <= 0) "" else SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(unixSeconds * 1000))
 
 private fun formatPointsModal(points: Double): String =
     if (points % 1.0 == 0.0) points.toInt().toString() else "%.2f".format(points)

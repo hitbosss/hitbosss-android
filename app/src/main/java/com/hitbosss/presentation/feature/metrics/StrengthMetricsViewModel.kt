@@ -10,23 +10,13 @@ import com.hitbosss.domain.model.MetricGoal
 import com.hitbosss.domain.model.RankingCategory
 import com.hitbosss.domain.model.Sport
 import com.hitbosss.domain.model.SportRanking
-import com.hitbosss.domain.model.StrengthStats
 import com.hitbosss.domain.model.StrengthMark
+import com.hitbosss.domain.model.StrengthStats
 import com.hitbosss.domain.model.UserProfile
-import com.hitbosss.domain.usecase.CreateStrengthGoalUseCase
-import com.hitbosss.domain.usecase.CreateTrainingUseCase
-import com.hitbosss.domain.usecase.UpdateTrainingUseCase
-import com.hitbosss.domain.usecase.DeleteTrainingUseCase
-import com.hitbosss.domain.usecase.DeleteStrengthGoalUseCase
+import com.hitbosss.domain.repository.MetricsRepository
+import com.hitbosss.domain.repository.RankingRepository
+import com.hitbosss.domain.repository.UserRepository
 import com.hitbosss.domain.usecase.GetCurrentUserUseCase
-import com.hitbosss.domain.usecase.GetPersonalInfoUseCase
-import com.hitbosss.domain.usecase.GetRankingUseCase
-import com.hitbosss.domain.usecase.GetStrengthGoalHistoryUseCase
-import com.hitbosss.domain.usecase.GetStrengthGoalUseCase
-import com.hitbosss.domain.usecase.GetStrengthStatsUseCase
-import com.hitbosss.domain.usecase.GetStrengthBestsUseCase
-import com.hitbosss.domain.usecase.GetStrengthEvolutionUseCase
-import com.hitbosss.domain.usecase.GetUserProfileUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.async
@@ -60,21 +50,11 @@ data class StrengthMetricsUiState(
 /** ViewModel de la sub-pestaña FUERZA: stats del servidor, objetivo por ejercicio y rival on-device. */
 @HiltViewModel
 class StrengthMetricsViewModel @Inject constructor(
+    private val metricsRepository: MetricsRepository,
+    private val rankingRepository: RankingRepository,
+    private val userRepository: UserRepository,
     @ApplicationContext private val appContext: Context,
     private val getCurrentUser: GetCurrentUserUseCase,
-    private val getStrengthStats: GetStrengthStatsUseCase,
-    private val getStrengthEvolution: GetStrengthEvolutionUseCase,
-    private val getStrengthBests: GetStrengthBestsUseCase,
-    private val createTraining: CreateTrainingUseCase,
-    private val updateTraining: UpdateTrainingUseCase,
-    private val deleteTraining: DeleteTrainingUseCase,
-    private val getStrengthGoal: GetStrengthGoalUseCase,
-    private val createStrengthGoal: CreateStrengthGoalUseCase,
-    private val getStrengthGoalHistory: GetStrengthGoalHistoryUseCase,
-    private val deleteStrengthGoal: DeleteStrengthGoalUseCase,
-    private val getRanking: GetRankingUseCase,
-    private val getPersonalInfo: GetPersonalInfoUseCase,
-    private val getUserProfile: GetUserProfileUseCase,
     private val refreshCoordinator: RefreshCoordinator,
 ) : ViewModel() {
 
@@ -109,10 +89,10 @@ class StrengthMetricsViewModel @Inject constructor(
         viewModelScope.launch {
             val unit = _state.value.unitSystem
             // Compartido: perfil (participations), rankings, sistema de medidas.
-            val infoD = async { getPersonalInfo(uid) }
-            val profileD = async { getUserProfile(uid) }
-            val plD = async { getRanking(Sport.Powerlifting.apiValue) }
-            val cfD = async { getRanking(Sport.Crossfit.apiValue) }
+            val infoD = async { userRepository.getPersonalInfo(uid) }
+            val profileD = async { userRepository.getUserProfile(uid) }
+            val plD = async { rankingRepository.getRanking(Sport.Powerlifting.apiValue) }
+            val cfD = async { rankingRepository.getRanking(Sport.Crossfit.apiValue) }
             val info = infoD.await()
             val profile = profileD.await()
             val rankings = buildMap {
@@ -120,7 +100,7 @@ class StrengthMetricsViewModel @Inject constructor(
                 cfD.await().getOrNull()?.let { put(Sport.Crossfit.apiValue, it) }
             }
             // Mejor por ejercicio (todos): con la unidad ya resuelta de info, no la del estado (puede ser stale).
-            val bests = getStrengthBests(info.getOrNull()?.measurementSystem ?: unit).getOrNull()
+            val bests = metricsRepository.getStrengthBests(info.getOrNull()?.measurementSystem ?: unit).getOrNull()
             lastLoadedAt = System.currentTimeMillis()
             reloading = false
             if (profile.isFailure) {
@@ -145,12 +125,12 @@ class StrengthMetricsViewModel @Inject constructor(
         val exercise = _state.value.selected.apiKey
         val unit = _state.value.unitSystem
         viewModelScope.launch {
-            val statsD = async { getStrengthStats(exercise, unit) }
+            val statsD = async { metricsRepository.getStrengthStats(exercise, unit) }
             // "all": la gráfica hace su propia ventana (semana/mes) en cliente, y el "actual" del objetivo
             // = mejor marca histórica (entrenos ∪ HITs del servidor → escalable, sin depender de participations).
-            val marksD = async { getStrengthEvolution(exercise, "all", unit) }
-            val goalD = async { getStrengthGoal(exercise, unit) }
-            val histD = async { getStrengthGoalHistory(exercise, unit) }
+            val marksD = async { metricsRepository.getStrengthEvolution(exercise, "all", unit) }
+            val goalD = async { metricsRepository.getStrengthGoal(exercise, unit) }
+            val histD = async { metricsRepository.getStrengthGoalHistory(exercise, unit) }
             val stats = statsD.await()
             val marks = marksD.await().getOrNull().orEmpty()
             val goal = goalD.await().getOrNull()
@@ -170,7 +150,7 @@ class StrengthMetricsViewModel @Inject constructor(
     fun onAddTraining(lift: Double) {
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true) }
-            createTraining(_state.value.selected.apiKey, lift, System.currentTimeMillis() / 1000, _state.value.unitSystem)
+            metricsRepository.createTraining(_state.value.selected.apiKey, lift, System.currentTimeMillis() / 1000, _state.value.unitSystem)
                 .onSuccess { _state.update { it.copy(isSaving = false) }; refreshCoordinator.invalidateMetrics() }
                 .onFailure { failSave() }
         }
@@ -179,7 +159,7 @@ class StrengthMetricsViewModel @Inject constructor(
     fun onEditTraining(trainingId: Long, weight: Double) {
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true) }
-            updateTraining(trainingId, weight, _state.value.unitSystem)
+            metricsRepository.updateTraining(trainingId, weight, _state.value.unitSystem)
                 .onSuccess { _state.update { it.copy(isSaving = false) }; refreshCoordinator.invalidateMetrics() }
                 .onFailure { failSave() }
         }
@@ -188,7 +168,7 @@ class StrengthMetricsViewModel @Inject constructor(
     fun onDeleteTraining(trainingId: Long) {
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true) }
-            deleteTraining(trainingId)
+            metricsRepository.deleteTraining(trainingId)
                 .onSuccess { _state.update { it.copy(isSaving = false) }; refreshCoordinator.invalidateMetrics() }
                 .onFailure { failSave() }
         }
@@ -198,7 +178,7 @@ class StrengthMetricsViewModel @Inject constructor(
     fun onAddStrengthGoal(target: Double) {
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true) }
-            createStrengthGoal(_state.value.selected.apiKey, target, _state.value.unitSystem)
+            metricsRepository.createStrengthGoal(_state.value.selected.apiKey, target, _state.value.unitSystem)
                 .onSuccess { _state.update { it.copy(isSaving = false) }; loadExerciseData() }
                 .onFailure { failSave() }
         }
@@ -206,7 +186,7 @@ class StrengthMetricsViewModel @Inject constructor(
 
     fun onDeleteStrengthGoal(goalId: Long) {
         viewModelScope.launch {
-            deleteStrengthGoal(goalId)
+            metricsRepository.deleteStrengthGoal(goalId)
                 .onSuccess { loadExerciseData() }
                 .onFailure { _state.update { it.copy(actionError = appContext.getString(R.string.err_generic_action)) } }
         }

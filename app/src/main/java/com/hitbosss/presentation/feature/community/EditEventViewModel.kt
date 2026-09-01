@@ -5,7 +5,7 @@ import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.hitbosss.domain.usecase.GetEventUseCase
+import com.hitbosss.domain.repository.CommunityRepository
 import com.hitbosss.domain.usecase.UpdateEventUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -43,8 +43,8 @@ data class EditEventUiState(
  */
 @HiltViewModel
 class EditEventViewModel @Inject constructor(
+    private val communityRepository: CommunityRepository,
     @ApplicationContext private val context: Context,
-    private val getEvent: GetEventUseCase,
     private val updateEvent: UpdateEventUseCase,
     private val refreshCoordinator: com.hitbosss.core.RefreshCoordinator,
     savedStateHandle: SavedStateHandle,
@@ -60,7 +60,7 @@ class EditEventViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            getEvent(eventId).onSuccess { e ->
+            communityRepository.getEvent(eventId).onSuccess { e ->
                 _state.update {
                     it.copy(
                         name = e.name,

@@ -12,21 +12,9 @@ import com.hitbosss.domain.model.GoalHistoryEntry
 import com.hitbosss.domain.model.MetricGoal
 import com.hitbosss.domain.model.PersonalInfo
 import com.hitbosss.domain.model.ProgressPhoto
-import com.hitbosss.domain.usecase.CreateMetricGoalUseCase
-import com.hitbosss.domain.usecase.DeleteMetricGoalUseCase
-import com.hitbosss.domain.usecase.GetGoalHistoryUseCase
-import com.hitbosss.domain.usecase.GetBodyCompositionUseCase
-import com.hitbosss.domain.usecase.GetBodyHistoryUseCase
-import com.hitbosss.domain.usecase.GetBodyTrendUseCase
+import com.hitbosss.domain.repository.MetricsRepository
+import com.hitbosss.domain.repository.UserRepository
 import com.hitbosss.domain.usecase.GetCurrentUserUseCase
-import com.hitbosss.domain.usecase.GetMetricGoalUseCase
-import com.hitbosss.domain.usecase.GetPersonalInfoUseCase
-import com.hitbosss.domain.usecase.GetProgressPhotosUseCase
-import com.hitbosss.domain.usecase.UpdateBodyCompositionUseCase
-import com.hitbosss.domain.usecase.UpdateBodyPointUseCase
-import com.hitbosss.domain.usecase.DeleteBodyPointUseCase
-import com.hitbosss.domain.usecase.DeleteProgressPhotoUseCase
-import com.hitbosss.domain.usecase.UploadProgressPhotoUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.async
@@ -72,22 +60,10 @@ data class MetricsUiState(
 /** ViewModel de la sub-pestaña FÍSICO (composición, objetivos, evolución, fotos). */
 @HiltViewModel
 class MetricsViewModel @Inject constructor(
+    private val metricsRepository: MetricsRepository,
+    private val userRepository: UserRepository,
     @ApplicationContext private val appContext: Context,
     private val getCurrentUser: GetCurrentUserUseCase,
-    private val getPersonalInfo: GetPersonalInfoUseCase,
-    private val getComposition: GetBodyCompositionUseCase,
-    private val getHistory: GetBodyHistoryUseCase,
-    private val getTrend: GetBodyTrendUseCase,
-    private val updateComposition: UpdateBodyCompositionUseCase,
-    private val updateBodyPoint: UpdateBodyPointUseCase,
-    private val deleteBodyPoint: DeleteBodyPointUseCase,
-    private val getGoal: GetMetricGoalUseCase,
-    private val createGoal: CreateMetricGoalUseCase,
-    private val getGoalHistoryUseCase: GetGoalHistoryUseCase,
-    private val deleteGoalUseCase: DeleteMetricGoalUseCase,
-    private val getPhotos: GetProgressPhotosUseCase,
-    private val uploadPhoto: UploadProgressPhotoUseCase,
-    private val deletePhoto: DeleteProgressPhotoUseCase,
     private val refreshCoordinator: RefreshCoordinator,
 ) : ViewModel() {
 
@@ -116,12 +92,12 @@ class MetricsViewModel @Inject constructor(
             // La unidad la manda el servidor en personalInfo (measurement_system). Hay que traer info
             // PRIMERO y derivar la unidad de ahí; si no, composición/objetivos se piden con la unidad
             // vieja (o "metric") mientras altura/gráfica usan la nueva → valores en kg con etiqueta lbs.
-            val info = getPersonalInfo(uid)
+            val info = userRepository.getPersonalInfo(uid)
             val unit = info.getOrNull()?.measurementSystem
                 ?: _state.value.personalInfo?.measurementSystem ?: "metric"
-            val compD = async { getComposition(unit) }
-            val goalsD = PhysicalMetric.entries.associateWith { m -> async { getGoal(m.apiKey, unit) } }
-            val photosD = async { getPhotos(unit) }
+            val compD = async { metricsRepository.getBodyComposition(unit) }
+            val goalsD = PhysicalMetric.entries.associateWith { m -> async { metricsRepository.getGoal(m.apiKey, unit) } }
+            val photosD = async { metricsRepository.getProgressPhotos(unit) }
             val comp = compD.await()
             val goals = goalsD.mapValues { it.value.await().getOrNull()?.withProgress(comp.getOrNull()) }
             val photos = photosD.await()
@@ -159,7 +135,7 @@ class MetricsViewModel @Inject constructor(
         val key = metric to timeframe
         if (_state.value.history.containsKey(key)) return
         viewModelScope.launch {
-            getHistory(metric.apiKey, timeframe, _state.value.unitSystem).onSuccess { points ->
+            metricsRepository.getBodyCompositionHistory(metric.apiKey, timeframe, _state.value.unitSystem).onSuccess { points ->
                 _state.update { it.copy(history = it.history + (key to points)) }
             }
         }
@@ -170,7 +146,7 @@ class MetricsViewModel @Inject constructor(
         if (_state.value.trend.containsKey(period)) return
         val tzOffset = java.util.TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 60000
         viewModelScope.launch {
-            getTrend(period, _state.value.unitSystem, tzOffset).onSuccess { bt ->
+            metricsRepository.getBodyTrend(period, _state.value.unitSystem, tzOffset).onSuccess { bt ->
                 _state.update { it.copy(trend = it.trend + (period to bt)) }
             }
         }
@@ -180,7 +156,7 @@ class MetricsViewModel @Inject constructor(
     fun loadGoalHistory(metric: PhysicalMetric) {
         if (_state.value.goalHistory.containsKey(metric)) return
         viewModelScope.launch {
-            getGoalHistoryUseCase(metric.apiKey, _state.value.unitSystem).onSuccess { list ->
+            metricsRepository.getGoalHistory(metric.apiKey, _state.value.unitSystem).onSuccess { list ->
                 _state.update { it.copy(goalHistory = it.goalHistory + (metric to list)) }
             }
         }
@@ -198,11 +174,11 @@ class MetricsViewModel @Inject constructor(
                     s.copy(goalHistory = s.goalHistory + (metric to cur.filterNot { it.id == goalId }))
                 } ?: s
             }
-            deleteGoalUseCase(goalId)
+            metricsRepository.deleteGoal(goalId)
                 .onSuccess {
                     val unit = _state.value.unitSystem
-                    val active = getGoal(metric.apiKey, unit).getOrNull()?.withProgress(_state.value.composition)
-                    val hist = getGoalHistoryUseCase(metric.apiKey, unit).getOrNull()
+                    val active = metricsRepository.getGoal(metric.apiKey, unit).getOrNull()?.withProgress(_state.value.composition)
+                    val hist = metricsRepository.getGoalHistory(metric.apiKey, unit).getOrNull()
                     _state.update { s ->
                         s.copy(
                             goals = s.goals + (metric to active),
@@ -218,7 +194,7 @@ class MetricsViewModel @Inject constructor(
     fun onEditPoint(metric: PhysicalMetric, pointId: Long, value: Double) {
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true) }
-            updateBodyPoint(metric.apiKey, pointId, value, _state.value.unitSystem)
+            metricsRepository.updateBodyPoint(metric.apiKey, pointId, value, _state.value.unitSystem)
                 .onSuccess { _state.update { it.copy(isSaving = false) }; refreshCoordinator.invalidateMetrics() }
                 .onFailure { failSave() }
         }
@@ -227,7 +203,7 @@ class MetricsViewModel @Inject constructor(
     fun onDeletePoint(metric: PhysicalMetric, pointId: Long) {
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true) }
-            deleteBodyPoint(metric.apiKey, pointId)
+            metricsRepository.deleteBodyPoint(metric.apiKey, pointId)
                 .onSuccess { _state.update { it.copy(isSaving = false) }; refreshCoordinator.invalidateMetrics() }
                 .onFailure { failSave() }
         }
@@ -238,9 +214,9 @@ class MetricsViewModel @Inject constructor(
             _state.update { it.copy(isSaving = true) }
             val unit = _state.value.unitSystem
             val result = when (metric) {
-                PhysicalMetric.Weight -> updateComposition(weight = value, unit = unit)
-                PhysicalMetric.Fat -> updateComposition(fat = value, unit = unit)
-                PhysicalMetric.Muscle -> updateComposition(muscle = value, unit = unit)
+                PhysicalMetric.Weight -> metricsRepository.updateBodyComposition(weight = value, unit = unit)
+                PhysicalMetric.Fat -> metricsRepository.updateBodyComposition(fat = value, unit = unit)
+                PhysicalMetric.Muscle -> metricsRepository.updateBodyComposition(muscle = value, unit = unit)
             }
             finishSave(result, alsoProfile = metric == PhysicalMetric.Weight)
         }
@@ -250,14 +226,14 @@ class MetricsViewModel @Inject constructor(
     fun onEditComposition(fat: Double?, muscle: Double?) {
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true) }
-            finishSave(updateComposition(fat = fat, muscle = muscle, unit = _state.value.unitSystem))
+            finishSave(metricsRepository.updateBodyComposition(fat = fat, muscle = muscle, unit = _state.value.unitSystem))
         }
     }
 
     fun onCreateGoal(metric: PhysicalMetric, target: Double) {
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true) }
-            createGoal(metric.apiKey, target, _state.value.unitSystem)
+            metricsRepository.createGoal(metric.apiKey, target, _state.value.unitSystem)
                 .onSuccess { _state.update { it.copy(isSaving = false) }; refreshCoordinator.invalidateMetrics() }
                 .onFailure { failSave() }
         }
@@ -268,7 +244,7 @@ class MetricsViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true) }
             val unit = _state.value.unitSystem
-            val result = updateComposition(
+            val result = metricsRepository.updateBodyComposition(
                 weight = weight?.takeIf { it > 0 }, height = height?.takeIf { it > 0 }, unit = unit,
             )
             _state.update { it.copy(isSaving = false) }
@@ -288,7 +264,7 @@ class MetricsViewModel @Inject constructor(
                 }.getOrNull()
             }
             if (file == null) { failSave(); return@launch }
-            uploadPhoto(file, _state.value.unitSystem)
+            metricsRepository.uploadProgressPhoto(file, _state.value.unitSystem)
                 .onSuccess { _state.update { it.copy(isSaving = false) }; refreshCoordinator.invalidateMetrics() }
                 .onFailure { e ->
                     // El backend responde 409 con {error} para dos casos de la subida de fotos (Retrofit no
@@ -307,7 +283,7 @@ class MetricsViewModel @Inject constructor(
     fun onDeletePhoto(photoId: Long) {
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true) }
-            deletePhoto(photoId)
+            metricsRepository.deleteProgressPhoto(photoId)
                 .onSuccess { _state.update { it.copy(isSaving = false) }; refreshCoordinator.invalidateMetrics() }
                 .onFailure { failSave() }
         }

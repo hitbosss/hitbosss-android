@@ -113,6 +113,7 @@ import com.hitbosss.presentation.feature.ranking.VideoPlayer
 import androidx.compose.ui.res.stringResource
 import com.hitbosss.R
 import com.hitbosss.presentation.feature.ranking.titleRes
+import com.hitbosss.presentation.designsystem.components.formatEpochDate
 
 @Composable
 fun EventRankingScreen(
@@ -178,9 +179,9 @@ fun EventRankingScreen(
                         val exerciseTitle = e.exercises.firstOrNull()?.let { eventExerciseLabel(it) } ?: ""
                         val detailRows = buildList {
                             if (exerciseTitle.isNotBlank()) add(CommunityDetailRowData(Icons.Filled.FitnessCenter, R.string.event_exercise, exerciseTitle))
-                            add(CommunityDetailRowData(Icons.Filled.EventAvailable, R.string.detail_start_date, formatDate(e.startTime)))
-                            add(CommunityDetailRowData(Icons.Filled.EventBusy, R.string.detail_end_date, formatDate(e.endTime)))
-                            e.joinedAt?.let { add(CommunityDetailRowData(Icons.Filled.Flag, R.string.detail_admission_date, formatDate(it))) }
+                            add(CommunityDetailRowData(Icons.Filled.EventAvailable, R.string.detail_start_date, formatEpochDate(e.startTime, blank = "—")))
+                            add(CommunityDetailRowData(Icons.Filled.EventBusy, R.string.detail_end_date, formatEpochDate(e.endTime, blank = "—")))
+                            e.joinedAt?.let { add(CommunityDetailRowData(Icons.Filled.Flag, R.string.detail_admission_date, formatEpochDate(it, blank = "—"))) }
                             add(CommunityDetailRowData(Icons.Filled.Lock, R.string.visibility_title, visibilityValue))
                         }
                         CommunityInformationTab(
@@ -450,70 +451,6 @@ private fun SheetItem(text: String, color: Color, onClick: () -> Unit) {
     )
 }
 
-@Composable
-private fun EventHeader(e: EventDetail, sportTitle: String, onBack: () -> Unit, onInfo: () -> Unit) {
-    Box(Modifier.fillMaxWidth().height(200.dp)) {
-        AsyncImage(model = e.coverImageUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().background(Gray400))
-        // Degradado para legibilidad
-        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.4f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.75f))))
-
-        Row(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.common_back), tint = Color.White, modifier = Modifier.size(24.dp).clickable { onBack() })
-            Spacer(Modifier.weight(1f))
-            // Los tres puntos abren directamente la info del evento (igual que iOS), sin desplegable.
-            Box(Modifier.size(32.dp).clip(CircleShape).background(Gray100).clickable { onInfo() }, contentAlignment = Alignment.Center) {
-                Icon(Icons.Filled.MoreVert, stringResource(R.string.event_info_title), tint = Gray800, modifier = Modifier.size(20.dp))
-            }
-        }
-
-        Column(Modifier.align(Alignment.BottomStart).padding(16.dp)) {
-            // Badge estado
-            Row(
-                Modifier.clip(RoundedCornerShape(8.dp)).background(Secondary500).padding(horizontal = 10.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Icon(Icons.Filled.Info, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                Text(stringResource(eventStatus(e)), style = HitbosssType.bodySmallEmphasis, color = Color.White)
-            }
-            Spacer(Modifier.height(8.dp))
-            // Fechas
-            Row(
-                Modifier.clip(RoundedCornerShape(8.dp)).background(Gray100).padding(horizontal = 10.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = Gray500, modifier = Modifier.size(16.dp))
-                Text("${formatDate(e.startTime)} — ${formatDate(e.endTime)}", style = HitbosssType.bodySmallRegular, color = Gray800)
-            }
-            Spacer(Modifier.height(8.dp))
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(e.name, style = HitbosssType.titleSection, color = Color.White)
-                    Text(sportTitle.uppercase(), style = HitbosssType.bodySmallEmphasis, color = Color.White)
-                }
-                Row(
-                    Modifier.clip(RoundedCornerShape(8.dp)).background(Gray100).padding(horizontal = 10.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Icon(Icons.Filled.Person, contentDescription = null, tint = Gray800, modifier = Modifier.size(16.dp))
-                    Text("${e.stats.memberCount}", style = HitbosssType.bodyDefaultRegular, color = Gray800)
-                }
-            }
-        }
-    }
-}
-
-@androidx.annotation.StringRes
-private fun eventStatus(e: EventDetail): Int {
-    val now = System.currentTimeMillis()
-    return when {
-        e.endTime * 1000 < now -> R.string.event_state_finished
-        e.startTime * 1000 > now -> R.string.event_state_upcoming
-        else -> R.string.event_state_active
-    }
-}
-
-private fun formatDate(s: Long): String =
-    if (s <= 0) "—" else java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()).format(java.util.Date(s * 1000))
 
 /** Etiqueta localizada del ejercicio de un evento. */
 @Composable

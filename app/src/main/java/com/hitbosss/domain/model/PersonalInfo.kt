@@ -1,5 +1,4 @@
 package com.hitbosss.domain.model
-import androidx.compose.foundation.layout.height
 
 data class PersonalInfo(
     val gender: String,

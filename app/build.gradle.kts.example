@@ -12,12 +12,12 @@ plugins {
 
 android {
     namespace = "com.hitbosss"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.hitbosss"
         minSdk = 26          // equivalente práctico a iOS 18 target (cubre el grueso del parque)
-        targetSdk = 35
+        targetSdk = 36       // Android 16: obligatorio por Google Play desde 31-ago-2026
         versionCode = 1
         versionName = "2.1.0"   // >= MINIMUM_VERSION de la API (evita el force-update en dev)
         vectorDrawables { useSupportLibrary = true }
@@ -50,15 +50,6 @@ android {
             // localhost de la máquina anfitrión (donde corre `docker compose up`).
             buildConfigField("String", "API_BASE_URL", "API_HOST_DEV"")
             buildConfigField("String", "ENV_NAME", "\"development\"")
-        }
-
-        // === development · backend de desarrollo desplegado en Render ===
-        create("render") {
-            initWith(getByName("debug"))
-            signingConfig = signingConfigs.getByName("debug")
-            buildConfigField("String", "API_BASE_URL", "API_HOST_RENDER")
-            buildConfigField("String", "ENV_NAME", "\"development\"")
-            matchingFallbacks += listOf("debug")
         }
 
         // === testflight/pre · preproducción (debuggable para test interno). (installStaging) ===
@@ -139,6 +130,4 @@ dependencies {
     implementation(libs.google.id)
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services)
-
-    implementation(libs.androidx.datastore.preferences)
 }

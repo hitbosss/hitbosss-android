@@ -34,10 +34,13 @@ Deportes: **Powerlifting** y **Crossfit**. Núcleo = subida de hits (vídeo + st
 
 ```
 // Lectura
-API → DTO → Mapper → Model(dominio) → UseCase → ViewModel → Composable
+API → DTO → Mapper → Model(dominio) → Repository → ViewModel → Composable
 
 // Escritura (subida vídeo, crear grupos, registro…)
-Composable → ViewModel → UseCase → Repository → API
+Composable → ViewModel → Repository → API
+
+// UseCase solo se intercala cuando hay lógica propia (ver convenciones)
+… → ViewModel → UseCase → Repository → …
 ```
 
 | Capa iOS | Capa Android | Paquete |
@@ -61,12 +64,12 @@ com.hitbosss
 
 - **Composables de pantalla**: `XxxScreen`. View pasiva, sin lógica de negocio. Estado vía `ViewModel`.
 - **ViewModels**: `XxxViewModel` con `@HiltViewModel`, exponen `StateFlow<XxxUiState>`. Lógica aquí, nunca en el Composable.
-- **Use Cases**: clase con `@Inject constructor`, un `operator fun invoke(...)`. Dependen de interfaces de repositorio (`domain/repository/`).
-- **Repositorios**: interfaz en `domain/repository/`, impl `XxxRepositoryImpl` en `data/repository/`, bind en `core/di/RepositoryModule`.
+- **Use Cases**: SOLO si tienen lógica propia (combinan fuentes, transforman parámetros, calculan, reintentan). Clase con `@Inject constructor` y un `operator fun invoke(...)`. **Un use case que solo hace `= repository.metodo(args)` no se escribe**: el ViewModel inyecta el repositorio y llama directo (se borraron 55 así).
+- **Repositorios**: interfaz en `domain/repository/`, impl `XxxRepositoryImpl` en `data/repository/`, bind en `core/di/RepositoryModule`. Son la dependencia normal de un ViewModel.
 - **DTOs**: `@Serializable`, sufijo `Dto`, en `data/remote/dto/`. Mappers en `data/mapper/` (`fun XxxDto.toDomain()`).
 - **Colores y tipografía**: SIEMPRE desde `presentation/designsystem/theme/` (`Color.kt`, `HitbosssType`). Nunca `Color(0x...)` suelto en UI.
 - **Navegación**: la gestiona el `NavHost` (`presentation/navigation/`), no las pantallas.
-- **Concurrencia**: `suspend` + Coroutines; IO en `Dispatchers.IO` dentro del repositorio. UI state en el main thread vía `StateFlow`.
+- **Concurrencia**: `suspend` + Coroutines. **Sin `withContext(Dispatchers.IO)` alrededor de llamadas Retrofit** — sus `suspend fun` ya salen del hilo principal solas; envolver solo trabajo bloqueante de verdad (`Tasks.await` de Firebase, ficheros grandes). UI state en el main thread vía `StateFlow`.
 - Comentarios en inglés/español cortos, solo cuando aportan.
 
 ## Decisiones tomadas (no abrir a debate)

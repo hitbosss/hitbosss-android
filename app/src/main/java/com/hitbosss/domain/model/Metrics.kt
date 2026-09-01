@@ -62,20 +62,11 @@ data class TrendPoint(val date: Long, val value: Double?, val days: List<TrendPo
 data class MetricTrend(
     val current: List<TrendPoint>,
     val previous: List<TrendPoint>,
-    // Media que ya calcula el API (tile "Semana actual/pasada"). Fallback a cálculo local si no llega.
-    val currentAvgServer: Double? = null,
-    val previousAvgServer: Double? = null,
-) {
-    private fun List<TrendPoint>.avg(): Double? =
-        mapNotNull { it.value }.let { if (it.isEmpty()) null else it.average() }
-    val currentAvg: Double? get() = currentAvgServer ?: current.avg()
-    val previousAvg: Double? get() = previousAvgServer ?: previous.avg()
-    // Última lectura no nula del período (igual que iOS lastReading): semana → último día con dato,
-    // mes → última semana con media. Es lo que muestran los tiles "actual/pasado".
-    private fun List<TrendPoint>.lastReading(): Double? = lastOrNull { it.value != null }?.value
-    val currentLast: Double? get() = current.lastReading()
-    val previousLast: Double? get() = previous.lastReading()
-}
+    // Media del período que YA calcula el API (`series.average`), tanto en semana como en mes.
+    // El tile "actual/pasado" la lee tal cual; el cliente NO recalcula nada (fuente única = servidor).
+    val currentAvg: Double? = null,
+    val previousAvg: Double? = null,
+)
 
 data class BodyTrend(val period: String, val weight: MetricTrend, val fat: MetricTrend, val muscle: MetricTrend) {
     fun forMetric(key: String): MetricTrend = when (key) {
@@ -94,7 +85,6 @@ data class StrengthStats(
 )
 
 /** Entrenamiento manual (sin vídeo) para la evolución de fuerza. El ejercicio lo da el contexto (path). */
-data class TrainingEntry(val weightKg: Double, val performedAt: Long)
 
 /** Marca de evolución del ejercicio (del servidor): entreno manual (isHit=false) o HIT real (isHit=true). */
 data class StrengthMark(

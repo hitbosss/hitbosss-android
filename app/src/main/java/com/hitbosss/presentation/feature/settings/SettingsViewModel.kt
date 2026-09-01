@@ -2,7 +2,7 @@ package com.hitbosss.presentation.feature.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.hitbosss.domain.usecase.DeleteAccountUseCase
+import com.hitbosss.domain.repository.UserRepository
 import com.hitbosss.domain.usecase.GetCurrentUserUseCase
 import com.hitbosss.domain.usecase.SignOutUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -21,10 +21,10 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
+    private val userRepository: UserRepository,
     @ApplicationContext private val context: Context,
     private val signOut: SignOutUseCase,
     private val getCurrentUser: GetCurrentUserUseCase,
-    private val deleteAccount: DeleteAccountUseCase,
 ) : ViewModel() {
 
     private val _loggedOut = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
@@ -47,7 +47,7 @@ class SettingsViewModel @Inject constructor(
         val uid = getCurrentUser()?.uid ?: return
         viewModelScope.launch {
             _deleting.update { true }
-            deleteAccount(uid)
+            userRepository.deleteAccount(uid)
                 .onSuccess {
                     signOut()
                     _deleting.update { false }

@@ -87,6 +87,7 @@ import com.hitbosss.presentation.feature.ranking.RequiredExercise
 import androidx.compose.ui.res.stringResource
 import com.hitbosss.R
 import com.hitbosss.presentation.feature.ranking.titleRes
+import com.hitbosss.presentation.designsystem.components.formatEpochDate
 
 @Composable
 fun GroupRankingScreen(
@@ -150,8 +151,8 @@ fun GroupRankingScreen(
                     CommunityTabs.Information -> {
                         val visibilityValue = stringResource(if (g.isPublic) R.string.visibility_public else R.string.visibility_private)
                         val detailRows = buildList {
-                            g.createdAt?.let { add(CommunityDetailRowData(Icons.Filled.CalendarToday, R.string.detail_creation_date, formatCommDate(it))) }
-                            g.joinedAt?.let { add(CommunityDetailRowData(Icons.Filled.Flag, R.string.detail_admission_date, formatCommDate(it))) }
+                            g.createdAt?.let { add(CommunityDetailRowData(Icons.Filled.CalendarToday, R.string.detail_creation_date, formatEpochDate(it))) }
+                            g.joinedAt?.let { add(CommunityDetailRowData(Icons.Filled.Flag, R.string.detail_admission_date, formatEpochDate(it))) }
                             add(CommunityDetailRowData(Icons.Filled.Lock, R.string.visibility_title, visibilityValue))
                         }
                         // Claves disponibles = ejercicios del grupo + oficiales activos.
@@ -229,8 +230,6 @@ private fun shareGroup(context: Context, groupId: Int) {
     runCatching { context.startActivity(Intent.createChooser(intent, context.getString(R.string.group_share))) }
 }
 
-private fun formatCommDate(unixSeconds: Long): String =
-    java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()).format(java.util.Date(unixSeconds * 1000))
 
 @Composable
 private fun GroupRankingContent(

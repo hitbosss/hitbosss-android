@@ -92,7 +92,6 @@
     <string name="err_weak_password">The password is too weak.</string>
     <string name="err_network">No connection. Check your internet and try again.</string>
     <string name="err_too_many_requests">Too many attempts. Wait a few minutes and try again.</string>
-    <string name="err_unknown_with_msg">Unknown error: %1$s</string>
     <string name="err_recover_no_account">We couldn\'t find any account with that email address</string>
     <string name="err_recover_missing_email">You must enter an email address</string>
     <string name="err_recover_send_failed">We could not send the email, please try again later</string>
@@ -183,10 +182,7 @@
     <string name="community_events_empty_discover">There are no events right now. Go ahead and organize one!</string>
     <string name="community_events_empty_past">You haven\'t participated in any finished events yet.</string>
     <string name="community_search_event">Search event</string>
-    <string name="community_rank_none">Rank: --</string>
     <string name="community_see_list">see list</string>
-    <string name="community_no_members">No members yet.</string>
-    <string name="community_members_count">Members (%1$d)</string>
 
     <!-- Event countdown -->
     <string name="event_days_left">%1$d days left</string>
@@ -196,7 +192,6 @@
     <string name="event_ends_one_day">1 day left until the event ends.</string>
     <string name="event_ends_today">The event ends today.</string>
     <string name="event_state_finished">Finished</string>
-    <string name="event_state_upcoming">Upcoming</string>
     <string name="event_state_active">Active</string>
 
     <!-- Create group / event -->
@@ -257,7 +252,6 @@
     <!-- Event detail -->
     <string name="event_info_title">Event information</string>
     <string name="event_share">Share event</string>
-    <string name="event_participants_title">Participants</string>
     <string name="event_leave">Leave event</string>
     <string name="event_leave_confirm_title">Are you sure you want to leave the event?</string>
     <string name="event_leave_confirm_msg">If you leave the event, it can\'t be undone.</string>
@@ -283,7 +277,6 @@
     <string name="common_save_changes">Save Changes</string>
     <string name="common_search">Search</string>
     <string name="event_members_screen_title">Event participants</string>
-    <string name="edit_event_started_note">The event has already started and the exercises can\'t be modified.</string>
     <string name="member_options_title">Options for %1$s</string>
     <string name="member_view_profile">View profile</string>
     <string name="member_make_admin">Select as administrator</string>
@@ -293,7 +286,6 @@
     <string name="member_remove_title">Remove member</string>
     <string name="member_remove_msg">You are about to remove %1$s. This action can\'t be undone. Do you want to continue?</string>
 
-    <string name="community_load_failed">Couldn\'t load</string>
     <string name="exercise_deadlift">Deadlift</string>
     <string name="exercise_sumo">Sumo Deadlift</string>
     <string name="category_official">Official</string>
@@ -394,7 +386,6 @@
     <string name="hit_saved_msg">The upload has been cancelled. Your hit has been saved in Saved HITS so you can upload it later.</string>
     <string name="hit_failed_title">HIT could not be uploaded</string>
     <string name="hit_failed_msg">The HIT was not uploaded, but it has been saved in Saved HITS. To upload it, try again from there whenever you want.</string>
-    <string name="hit_uploading_progress">Uploading hit...</string>
     <string name="hit_rot1">🔥 Preparing your HIT for the ranking...</string>
     <string name="hit_rot2">🏆 Your mark enters the competition...</string>
     <string name="hit_rot3">💪 Your sporting career keeps growing in HitBosss...</string>
@@ -532,15 +523,10 @@
     <string name="metrics_week_of">Week of %1$s</string>
     <string name="metrics_month">Month</string>
     <string name="metrics_week_days">M,T,W,T,F,S,S</string>
-    <string name="metrics_month_end_label">end</string>
     <string name="metrics_current_week">Current week</string>
     <string name="metrics_past_week">Past week</string>
     <string name="metrics_lost_msg">You lost %1$s this week</string>
     <string name="metrics_gained_msg">You gained %1$s this week</string>
-    <string name="metrics_add_log">Add record</string>
-    <string name="metrics_add">Add</string>
-    <string name="metrics_fat_pct" formatted="false">Body fat % (optional)</string>
-    <string name="metrics_muscle_mass">Muscle mass (optional)</string>
     <string name="metrics_empty_logs">No records yet</string>
     <string name="metrics_range_1m">1M</string>
     <string name="metrics_range_3m">3M</string>
@@ -549,7 +535,6 @@
     <string name="metrics_range_total">Total</string>
     <string name="metrics_axis_weight">Kilograms (%1$s)</string>
     <string name="metrics_detail_info">Shows how your records evolve over time. The dashed green line marks your target. Tap a point to see its date and value.</string>
-    <string name="metrics_axis_pct" formatted="false">Percentage (%)</string>
     <string name="metrics_competitive">Competitive data</string>
     <string name="metrics_improvement">Accumulated improvement</string>
     <string name="metrics_improvement_info">Extra kilos lifted since your first session in the app. It reflects your strength progress from day one.</string>
@@ -580,12 +565,10 @@
     <string name="metrics_photo_needs_update_title">Update your metrics</string>
     <string name="metrics_photo_needs_update">Update your weight or body composition before uploading photos, so you can compare them consistently.</string>
     <string name="metrics_photo_limit">You can only upload 10 photos per day.</string>
-    <string name="metrics_comparison">Comparison by exercise</string>
     <string name="metrics_per_month">%1$s/month</string>
     <string name="metrics_legend_training">Training</string>
     <string name="metrics_legend_hit">Official HIT</string>
     <string name="metrics_legend_community">Community</string>
-    <string name="metrics_legend_goal">Goal</string>
     <string name="metrics_progress_photos">Progress Photos</string>
     <string name="metrics_photo_add">Add photo</string>
     <string name="metrics_photos_individual">Individual</string>
@@ -597,7 +580,6 @@
     <string name="upload_notif_title">Uploading HIT…</string>
     <string name="upload_notif_done">HIT uploaded successfully!</string>
     <string name="upload_notif_failed">HIT upload failed</string>
-    <string name="upload_notif_failed_msg">Saved to Saved HITS to retry.</string>
     <string name="upload_channel_name">HIT uploads</string>
     <string name="upload_in_progress">An upload is already in progress. Wait for it to finish.</string>
     <string name="profile_share_action">Share profile</string>

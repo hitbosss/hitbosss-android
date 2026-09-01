@@ -98,6 +98,7 @@ import com.hitbosss.presentation.feature.ranking.countryFlag
 import com.hitbosss.presentation.feature.ranking.titleRes
 import java.time.LocalDate
 import java.time.ZoneId
+import com.hitbosss.presentation.designsystem.components.formatEpochDate
 
 /** Un punto de la gráfica de fuerza (valor ya en unidad del usuario). */
 private data class StrengthPoint(val performedAt: Long, val value: Double)
@@ -178,7 +179,7 @@ fun StrengthContent(
                                 videoUrl = url,
                                 seekSeconds = m.videoSecond ?: 0.0,
                                 exerciseTitle = exTitle,
-                                dateText = if (m.performedAt > 0) java.text.SimpleDateFormat("dd/MM/yy", java.util.Locale.getDefault()).format(java.util.Date(m.performedAt * 1000)) else "",
+                                dateText = formatEpochDate(m.performedAt, "dd/MM/yy"),
                                 weightText = "${formatNum(m.weightKg)} ${unitLabel.uppercase()}",
                                 levelWeight = m.levelWeight,
                                 rankText = "",   // sin rank: solo el mejor HIT está en el ranking

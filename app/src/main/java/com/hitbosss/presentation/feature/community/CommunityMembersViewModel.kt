@@ -5,13 +5,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hitbosss.domain.model.Member
+import com.hitbosss.domain.repository.CommunityRepository
 import com.hitbosss.domain.usecase.GetCurrentUserUseCase
-import com.hitbosss.domain.usecase.GetEventUseCase
-import com.hitbosss.domain.usecase.GetGroupUseCase
-import com.hitbosss.domain.usecase.MakeEventAdminUseCase
-import com.hitbosss.domain.usecase.MakeGroupAdminUseCase
-import com.hitbosss.domain.usecase.RemoveEventMemberUseCase
-import com.hitbosss.domain.usecase.RemoveGroupMemberUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,13 +31,8 @@ data class CommunityMembersUiState(
 /** Lista de miembros de un grupo o participantes de un evento (1:1 con CommunityMembersView de iOS). */
 @HiltViewModel
 class CommunityMembersViewModel @Inject constructor(
+    private val communityRepository: CommunityRepository,
     @ApplicationContext private val context: Context,
-    private val getGroup: GetGroupUseCase,
-    private val getEvent: GetEventUseCase,
-    private val makeGroupAdmin: MakeGroupAdminUseCase,
-    private val removeGroupMember: RemoveGroupMemberUseCase,
-    private val makeEventAdmin: MakeEventAdminUseCase,
-    private val removeEventMember: RemoveEventMemberUseCase,
     private val getCurrentUser: GetCurrentUserUseCase,
     private val refreshCoordinator: com.hitbosss.core.RefreshCoordinator,
     savedStateHandle: SavedStateHandle,
@@ -59,16 +49,16 @@ class CommunityMembersViewModel @Inject constructor(
 
     private fun reload() {
         viewModelScope.launch {
-            if (isGroup) getGroup(id).onSuccess { g -> _state.update { it.copy(isLoading = false, members = g.members, creatorId = g.createdBy?.id) } }
+            if (isGroup) communityRepository.getGroup(id).onSuccess { g -> _state.update { it.copy(isLoading = false, members = g.members, creatorId = g.createdBy?.id) } }
                 .onFailure { e -> _state.update { it.copy(isLoading = false, error = context.getString(R.string.common_unexpected_error_msg)) } }
-            else getEvent(id).onSuccess { e -> _state.update { it.copy(isLoading = false, members = e.members, creatorId = e.createdBy?.id) } }
+            else communityRepository.getEvent(id).onSuccess { e -> _state.update { it.copy(isLoading = false, members = e.members, creatorId = e.createdBy?.id) } }
                 .onFailure { e -> _state.update { it.copy(isLoading = false, error = context.getString(R.string.common_unexpected_error_msg)) } }
         }
     }
 
     fun makeAdmin(userId: String) {
         viewModelScope.launch {
-            val result = if (isGroup) makeGroupAdmin(id, userId) else makeEventAdmin(id, userId)
+            val result = if (isGroup) communityRepository.makeGroupAdmin(id, userId) else communityRepository.makeEventAdmin(id, userId)
             result.onSuccess { refreshCoordinator.invalidateCommunity(); reload() }
                 .onFailure { e -> _state.update { it.copy(error = context.getString(R.string.err_generic_action)) } }
         }
@@ -76,7 +66,7 @@ class CommunityMembersViewModel @Inject constructor(
 
     fun removeMember(userId: String) {
         viewModelScope.launch {
-            val result = if (isGroup) removeGroupMember(id, userId) else removeEventMember(id, userId)
+            val result = if (isGroup) communityRepository.removeGroupMember(id, userId) else communityRepository.removeEventMember(id, userId)
             result.onSuccess { refreshCoordinator.invalidateCommunity(); reload() }
                 .onFailure { e -> _state.update { it.copy(error = context.getString(R.string.err_generic_action)) } }
         }

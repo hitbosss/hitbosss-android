@@ -2,8 +2,8 @@ package com.hitbosss.presentation.feature.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hitbosss.domain.repository.UserRepository
 import com.hitbosss.domain.usecase.GetCurrentUserUseCase
-import com.hitbosss.domain.usecase.GetPersonalInfoUseCase
 import com.hitbosss.domain.util.WilksCalculator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,8 +27,8 @@ data class CalculatorUiState(
  */
 @HiltViewModel
 class CalculatorViewModel @Inject constructor(
+    private val userRepository: UserRepository,
     private val getCurrentUser: GetCurrentUserUseCase,
-    private val getPersonalInfo: GetPersonalInfoUseCase,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(CalculatorUiState())
@@ -37,7 +37,7 @@ class CalculatorViewModel @Inject constructor(
     init {
         getCurrentUser()?.uid?.let { uid ->
             viewModelScope.launch {
-                getPersonalInfo(uid).onSuccess { info ->
+                userRepository.getPersonalInfo(uid).onSuccess { info ->
                     val u = if (info.measurementSystem.equals("imperial", true)) "lbs" else "kg"
                     _state.update { it.copy(unit = u) }
                 }

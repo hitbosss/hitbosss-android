@@ -57,64 +57,6 @@ import com.hitbosss.presentation.designsystem.theme.Secondary100
 import androidx.compose.ui.res.stringResource
 import com.hitbosss.R
 
-@Composable
-fun DetailCover(url: String?) {
-    AsyncImage(
-        model = url,
-        contentDescription = null,
-        contentScale = ContentScale.Crop,
-        modifier = Modifier.fillMaxWidth().height(170.dp).background(Gray400),
-    )
-}
-
-@Composable
-fun ExerciseChips(exercises: List<String>) {
-    if (exercises.isEmpty()) return
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        exercises.take(6).forEach { ex ->
-            Text(
-                ex.replaceFirstChar { it.uppercase() },
-                style = HitbosssType.bodySmallEmphasis,
-                color = Primary700,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Primary100)
-                    .padding(horizontal = 10.dp, vertical = 4.dp),
-            )
-        }
-    }
-}
-
-@Composable
-fun MembersSection(members: List<Member>) {
-    Text(stringResource(R.string.community_members_count, members.size), style = HitbosssType.titleBody, color = Gray800)
-    members.forEach { member ->
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            AsyncImage(
-                model = member.profilePic,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.size(40.dp).clip(CircleShape).background(Gray200),
-            )
-            Text(member.username, style = HitbosssType.bodyLargeRegular, color = Gray800, modifier = Modifier.weight(1f))
-            if (member.isAdmin) {
-                Box(
-                    modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Primary100).padding(horizontal = 8.dp, vertical = 2.dp),
-                ) {
-                    Text(stringResource(R.string.common_admin), style = HitbosssType.bodySmallEmphasis, color = Primary700)
-                }
-            }
-        }
-    }
-    if (members.isEmpty()) {
-        Text(stringResource(R.string.community_no_members), style = HitbosssType.bodySmallRegular, color = Gray500)
-    }
-}
-
 /**
  * Administradores a mostrar en la pestaña Información: miembros admin + el creador (aunque no figure
  * como admin), con el creador primero y el resto alfabético (fix iOS #645).

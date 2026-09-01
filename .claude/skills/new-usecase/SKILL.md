@@ -1,27 +1,29 @@
 ---
 name: new-usecase
-description: Crea un use case Kotlin + repositorio si hace falta. Uso: /new-usecase NombreUseCase Feature
+description: Crea un endpoint nuevo (repositorio + API) y, solo si hace falta, un use case. Uso: /new-usecase NombreUseCase Feature
 disable-model-invocation: true
 ---
 
-Crea un use case completo para: $ARGUMENTS
+Crea la operación completa para: $ARGUMENTS
 
 El nombre es la primera palabra; la feature/paquete la segunda.
 Ejemplo: `/new-usecase GetUserProfile Profile`.
 
-Lee `domain/usecase/GetRankingUseCase.kt` y `domain/repository/RankingRepository.kt` como referencia.
+## 0. ¿Hace falta un use case?
 
-1. **`domain/usecase/<Nombre>UseCase.kt`**:
-   - Clase con `@Inject constructor(private val repository: <X>Repository)`.
-   - `suspend operator fun invoke(...): Result<Modelo>` (o `Flow<...>` si es stream).
-   - Sin lógica de red/serialización; delega en el repositorio.
-2. Si necesita un **repositorio nuevo**:
-   - Interfaz en `domain/repository/<X>Repository.kt`.
-   - Impl `data/repository/<X>RepositoryImpl.kt` (`@Inject constructor(api)`, `withContext(Dispatchers.IO) { runCatching { ... } }`).
-   - DTOs `@Serializable` en `data/remote/dto/` + mapper `toDomain()` en `data/mapper/`.
-   - Añadir el endpoint a `data/remote/HitbosssApi.kt`.
-   - Bind en `core/di/RepositoryModule.kt` (`@Binds`).
-   - Si el repositorio ya existe, NO lo recrees: añade el método.
-3. Devuelve `Result<...>` (o un tipo de error de dominio) — nada de excepciones sin capturar hacia el ViewModel.
-4. Sigue la nomenclatura del `CLAUDE.md`. Compara con el use case equivalente en iOS
-   (`../Hitbosss_iOS/.../Domain/Use Cases/`).
+**Un use case que solo hace `= repository.metodo(args)` NO se crea**: el ViewModel inyecta el
+repositorio y lo llama directo. Se borraron 55 así; no los reintroduzcas.
+
+Créalo solo si tiene lógica propia (combina fuentes, transforma parámetros, calcula, reintenta).
+Referencia: `UploadHitUseCase` en `domain/usecase/HitUseCases.kt`.
+
+## 1. Repositorio (esto sí, siempre)
+
+- Interfaz en `domain/repository/<X>Repository.kt` — si ya existe, añade el método, NO la recrees.
+- Impl `data/repository/<X>RepositoryImpl.kt`: `runCatching { api.loQueSea(...).toDomain() }`.
+  **Sin `withContext(Dispatchers.IO)`**: las `suspend fun` de Retrofit ya salen del hilo principal
+  solas; envuelve solo trabajo bloqueante de verdad (`Tasks.await` en `AuthRepositoryImpl`).
+- DTOs `@Serializable` en `data/remote/dto/` + mapper `toDomain()` en `data/mapper/`.
+- Endpoint en `data/remote/HitbosssApi.kt`; `@Binds` en `core/di/RepositoryModule.kt` si el
+  repositorio es nuevo.
+- Devuelve `Result<...>` — nada de excepciones sin capturar hacia el ViewModel.

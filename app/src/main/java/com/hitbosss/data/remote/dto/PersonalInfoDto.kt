@@ -1,7 +1,6 @@
 package com.hitbosss.data.remote.dto
 
 import kotlinx.serialization.Serializable
-import androidx.compose.foundation.layout.height
 
 /** GET /users/personalInformation/{id} — datos del perfil (Wilks + editor). */
 @Serializable

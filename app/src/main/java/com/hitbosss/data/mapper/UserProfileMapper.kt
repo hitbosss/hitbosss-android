@@ -12,7 +12,6 @@ import com.hitbosss.domain.model.Participation
 import com.hitbosss.domain.model.PersonalInfo
 import com.hitbosss.domain.model.SocialNetwork
 import com.hitbosss.domain.model.UserProfile
-import androidx.compose.foundation.layout.height
 
 fun UserProfileDto.toDomain() = UserProfile(
     id = id.orEmpty(),

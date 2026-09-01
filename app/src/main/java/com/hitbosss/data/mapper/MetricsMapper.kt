@@ -22,7 +22,6 @@ import com.hitbosss.domain.model.MetricTrend
 import com.hitbosss.domain.model.ProgressPhoto
 import com.hitbosss.domain.model.StrengthStats
 import com.hitbosss.domain.model.StrengthMark
-import com.hitbosss.domain.model.TrainingEntry
 import com.hitbosss.domain.model.TrendPoint
 
 // El valor ya viene en la unidad pedida; nos quedamos con el número (la etiqueta la pone la UI).
@@ -88,12 +87,6 @@ fun StrengthStatsDto.toDomain(): StrengthStats = StrengthStats(
     communityAdvantageKg = communityAdvantage.value(),
     rankingPercentage = rankingPercentage,
 )
-
-fun TrainingEntryDto.toDomain(): TrainingEntry? {
-    val w = weight.value() ?: return null
-    val at = performedAt ?: return null
-    return TrainingEntry(weightKg = w, performedAt = at)
-}
 
 fun EvolutionPointDto.toDomain(): StrengthMark? {
     val w = weight.value() ?: return null

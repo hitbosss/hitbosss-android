@@ -39,9 +39,6 @@ import com.hitbosss.presentation.designsystem.theme.Gray800
 import com.hitbosss.presentation.designsystem.theme.HitbosssType
 import com.hitbosss.presentation.designsystem.theme.Primary500
 import com.hitbosss.presentation.designsystem.theme.Secondary800
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -53,6 +50,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Close
 import com.hitbosss.presentation.designsystem.theme.Secondary500
+import com.hitbosss.presentation.designsystem.components.formatEpochDate
 
 /** stringResource(R.string.hit_saved_list) — lista los HITs guardados localmente, permite borrarlos y reintentar la subida. */
 @Composable
@@ -217,7 +215,7 @@ private fun SavedHitRow(
             )
             Text(if (isPl) "POWERLIFTING" else "CROSSHIT", style = HitbosssType.bodyDefaultRegular, color = sportColor)
             Spacer(Modifier.weight(1f))
-            Text(formatSavedDate(hit.createdAt), style = HitbosssType.bodyDefaultRegular, color = Gray500)
+            Text(formatEpochDate(hit.createdAt), style = HitbosssType.bodyDefaultRegular, color = Gray500)
         }
         Spacer(Modifier.size(16.dp))
         // Ejercicio + peso (alineados a la línea base, igual que iOS #627)
@@ -273,5 +271,3 @@ private fun SavedHitsFilterSegment(selected: SavedHitsFilter, onSelect: (SavedHi
     }
 }
 
-private fun formatSavedDate(epochSec: Long): String =
-    SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(epochSec * 1000))

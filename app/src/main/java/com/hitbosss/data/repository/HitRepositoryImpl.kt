@@ -70,24 +70,16 @@ class HitRepositoryImpl @Inject constructor(
         }
 
     override suspend fun reportHit(hitId: Int, comment: String?): Result<Unit> =
-        withContext(Dispatchers.IO) {
-            runCatching { api.reportHit(hitId, ReportRequestDto(comment?.takeIf { it.isNotBlank() })); Unit }
-        }
+        runCatching { api.reportHit(hitId, ReportRequestDto(comment?.takeIf { it.isNotBlank() })); Unit }
 
     override suspend fun deleteHit(hitId: Int): Result<Unit> =
-        withContext(Dispatchers.IO) {
-            runCatching { api.deleteHit(hitId); Unit }
-        }
+        runCatching { api.deleteHit(hitId); Unit }
 
     override suspend fun toggleHitVisibility(hitId: Int, hidden: Boolean): Result<Unit> =
-        withContext(Dispatchers.IO) {
-            runCatching { api.toggleHitVisibility(hitId, HitVisibilityRequestDto(hidden)); Unit }
-        }
+        runCatching { api.toggleHitVisibility(hitId, HitVisibilityRequestDto(hidden)); Unit }
 
     override suspend fun getHiddenHits(unit: String): Result<List<Participation>> =
-        withContext(Dispatchers.IO) {
-            runCatching { api.getHiddenHits(unit).hits.orEmpty().map { it.toDomain() } }
-        }
+        runCatching { api.getHiddenHits(unit).hits.orEmpty().map { it.toDomain() } }
 
     override suspend fun editHit(
         hitId: Int,

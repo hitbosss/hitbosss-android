@@ -3,7 +3,7 @@ package com.hitbosss.presentation.feature.profile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hitbosss.domain.model.CreateUserData
-import com.hitbosss.domain.usecase.CreateUserUseCase
+import com.hitbosss.domain.repository.UserRepository
 import com.hitbosss.domain.usecase.GetCurrentUserUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -80,9 +80,9 @@ fun isValidUsername(u: String): Boolean {
 
 @HiltViewModel
 class CompleteProfileViewModel @Inject constructor(
+    private val userRepository: UserRepository,
     @ApplicationContext private val context: Context,
     private val getCurrentUser: GetCurrentUserUseCase,
-    private val createUser: CreateUserUseCase,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(CompleteProfileUiState())
@@ -106,7 +106,7 @@ class CompleteProfileViewModel @Inject constructor(
         val uid = getCurrentUser()?.uid ?: return
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null, usernameTaken = false) }
-            createUser(
+            userRepository.createUser(
                 uid,
                 CreateUserData(
                     username = s.username.trim(),

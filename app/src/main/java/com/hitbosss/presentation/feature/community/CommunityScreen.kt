@@ -70,6 +70,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import com.hitbosss.R
 import androidx.compose.ui.res.stringResource
+import com.hitbosss.presentation.designsystem.components.formatEpochDate
 
 private enum class SubTab { Mine, Community }
 
@@ -303,7 +304,7 @@ private fun EventCardBig(e: EventSummary, isPast: Boolean, onClick: () -> Unit) 
 
 /** "Faltan N días" / "Último día" / fecha si pasado (igual que EventStatusView de iOS). */
 private fun eventStatusText(e: EventSummary, isPast: Boolean, context: android.content.Context): String {
-    if (isPast) return java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()).format(java.util.Date(e.endTime * 1000))
+    if (isPast) return formatEpochDate(e.endTime)
     val days = ((e.endTime * 1000 - System.currentTimeMillis()) / 86_400_000L).toInt()
     return when {
         days > 1 -> context.getString(R.string.event_days_left, days)
@@ -419,16 +420,6 @@ private fun SectionList(
 private fun GroupCard(g: GroupSummary, onClick: () -> Unit) {
     CommunityCard(g.coverImageUrl, g.name, g.description, onClick) {
         CardStats(g.stats.memberCount, g.stats.exerciseCount)
-    }
-}
-
-@Composable
-private fun EventCard(e: EventSummary, onClick: () -> Unit) {
-    CommunityCard(e.coverImageUrl, e.name, e.description, onClick) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(com.hitbosss.domain.model.Sport.entries.firstOrNull { it.apiValue == e.sport }?.brandTitle ?: e.sport.replaceFirstChar { it.uppercase() }, style = HitbosssType.bodySmallRegular, color = Secondary500)
-            CardStats(e.stats.memberCount, e.stats.exerciseCount)
-        }
     }
 }
 

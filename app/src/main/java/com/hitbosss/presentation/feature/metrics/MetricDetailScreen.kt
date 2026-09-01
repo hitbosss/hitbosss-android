@@ -38,10 +38,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hitbosss.R
 import com.hitbosss.domain.model.BodyHistoryPoint
-import com.hitbosss.domain.usecase.GetBodyHistoryUseCase
+import com.hitbosss.domain.repository.MetricsRepository
+import com.hitbosss.domain.repository.UserRepository
 import com.hitbosss.domain.usecase.GetCurrentUserUseCase
-import com.hitbosss.domain.usecase.GetMetricGoalUseCase
-import com.hitbosss.domain.usecase.GetPersonalInfoUseCase
 import com.hitbosss.presentation.designsystem.components.ChartMarker
 import com.hitbosss.presentation.designsystem.components.ChartSeries
 import com.hitbosss.presentation.designsystem.components.HitPopup
@@ -74,10 +73,9 @@ data class MetricDetailUiState(
 
 @HiltViewModel
 class MetricDetailViewModel @Inject constructor(
+    private val metricsRepository: MetricsRepository,
+    private val userRepository: UserRepository,
     private val getCurrentUser: GetCurrentUserUseCase,
-    private val getHistory: GetBodyHistoryUseCase,
-    private val getGoal: GetMetricGoalUseCase,
-    private val getPersonalInfo: GetPersonalInfoUseCase,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -93,7 +91,7 @@ class MetricDetailViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             getCurrentUser()?.uid ?: return@launch
-            getPersonalInfo(getCurrentUser()!!.uid).onSuccess { info ->
+            userRepository.getPersonalInfo(getCurrentUser()!!.uid).onSuccess { info ->
                 _state.update { it.copy(unitSystem = info.measurementSystem) }
             }
         }
@@ -103,7 +101,7 @@ class MetricDetailViewModel @Inject constructor(
         // El objetivo (línea verde) se carga una vez por métrica.
         if (!_state.value.goals.containsKey(metric)) {
             viewModelScope.launch {
-                getGoal(metric.apiKey, _state.value.unitSystem).onSuccess { g ->
+                metricsRepository.getGoal(metric.apiKey, _state.value.unitSystem).onSuccess { g ->
                     _state.update { it.copy(goals = it.goals + (metric to g?.targetValue)) }
                 }
             }
@@ -112,7 +110,7 @@ class MetricDetailViewModel @Inject constructor(
         if (_state.value.series.containsKey(key)) return
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            getHistory(metric.apiKey, range, _state.value.unitSystem).onSuccess { pts ->
+            metricsRepository.getBodyCompositionHistory(metric.apiKey, range, _state.value.unitSystem).onSuccess { pts ->
                 _state.update { it.copy(isLoading = false, series = it.series + (key to pts)) }
             }.onFailure { _state.update { it.copy(isLoading = false) } }
         }

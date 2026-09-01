@@ -32,7 +32,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -67,6 +66,7 @@ import androidx.compose.ui.res.painterResource
 import com.hitbosss.R
 import com.hitbosss.presentation.designsystem.components.HitButtonType
 import com.hitbosss.presentation.designsystem.components.HitPopup
+import com.hitbosss.presentation.designsystem.components.formatEpochDate
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -137,7 +137,7 @@ fun EventDetailScreen(
                         Section(stringResource(R.string.create_event_name)) { Value(e.name) }
                         Section(stringResource(R.string.common_description)) { Value(e.description.orEmpty()) }
                         Section(stringResource(R.string.create_event_duration)) {
-                            Value("${formatDate(e.startTime)} — ${formatDate(e.endTime)}")
+                            Value("${formatEpochDate(e.startTime, blank = "—")} — ${formatEpochDate(e.endTime, blank = "—")}")
                             eventEndMessage(e, context)?.let { Text(it, style = HitbosssType.bodySmallRegular, color = Error500) }
                         }
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -255,8 +255,6 @@ private fun exerciseTitle(apiKey: String): String =
     com.hitbosss.presentation.feature.ranking.exerciseTitleResByApi(apiKey)?.let { stringResource(it) }
         ?: apiKey.replaceFirstChar { it.uppercase() }
 
-private fun formatDate(unixSeconds: Long): String =
-    if (unixSeconds <= 0) "—" else java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()).format(java.util.Date(unixSeconds * 1000))
 
 /** "Faltan N días para que finalice el evento." (igual que iOS eventEndMessage). */
 private fun eventEndMessage(e: EventDetail, context: android.content.Context): String? {

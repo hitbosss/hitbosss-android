@@ -24,10 +24,10 @@ import com.hitbosss.data.local.SavedHitStore
 import com.hitbosss.domain.model.Exercise
 import com.hitbosss.domain.model.PersonalInfo
 import com.hitbosss.domain.model.SavedHit
+import com.hitbosss.domain.repository.UserRepository
 import java.util.UUID
 import com.hitbosss.domain.usecase.EditHitUseCase
 import com.hitbosss.domain.usecase.GetCurrentUserUseCase
-import com.hitbosss.domain.usecase.GetPersonalInfoUseCase
 import com.hitbosss.domain.usecase.UploadHitParams
 import com.hitbosss.domain.usecase.UploadHitUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -70,9 +70,9 @@ data class EditVideoUiState(
  */
 @HiltViewModel
 class EditVideoViewModel @Inject constructor(
+    private val userRepository: UserRepository,
     @ApplicationContext private val context: Context,
     private val getCurrentUser: GetCurrentUserUseCase,
-    private val getPersonalInfo: GetPersonalInfoUseCase,
     private val uploadHit: UploadHitUseCase,
     private val editHitUseCase: EditHitUseCase,
     private val savedHitStore: SavedHitStore,
@@ -120,7 +120,7 @@ class EditVideoViewModel @Inject constructor(
 
     init {
         getCurrentUser()?.uid?.let { uid ->
-            viewModelScope.launch { getPersonalInfo(uid).onSuccess { personalInfo = it } }
+            viewModelScope.launch { userRepository.getPersonalInfo(uid).onSuccess { personalInfo = it } }
         }
         viewModelScope.launch {
             val frames = withContext(Dispatchers.IO) { generateFrames(File(videoPath), FRAME_COUNT) }

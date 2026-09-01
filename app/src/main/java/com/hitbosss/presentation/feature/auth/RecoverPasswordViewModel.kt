@@ -2,7 +2,6 @@ package com.hitbosss.presentation.feature.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.hitbosss.domain.usecase.SendPasswordResetUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -12,6 +11,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
+import com.hitbosss.domain.repository.AuthRepository
 
 data class RecoverPasswordUiState(
     val email: String = "",
@@ -24,8 +24,8 @@ data class RecoverPasswordUiState(
 
 @HiltViewModel
 class RecoverPasswordViewModel @Inject constructor(
+    private val authRepository: AuthRepository,
     @ApplicationContext private val appContext: Context,
-    private val sendPasswordReset: SendPasswordResetUseCase,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(RecoverPasswordUiState())
@@ -39,7 +39,7 @@ class RecoverPasswordViewModel @Inject constructor(
         if (!s.isFormValid) return
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
-            sendPasswordReset(s.email)
+            authRepository.sendPasswordReset(s.email)
                 .onSuccess { _state.update { it.copy(isLoading = false, sent = true) } }
                 .onFailure { e -> _state.update { it.copy(isLoading = false, error = e.toRecoverMessage(appContext)) } }
         }

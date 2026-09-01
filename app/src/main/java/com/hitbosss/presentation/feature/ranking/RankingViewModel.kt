@@ -6,9 +6,9 @@ import com.hitbosss.domain.model.RankingCategory
 import com.hitbosss.domain.model.RankingEntry
 import com.hitbosss.domain.model.Sport
 import com.hitbosss.domain.model.SportRanking
+import com.hitbosss.domain.repository.RankingRepository
+import com.hitbosss.domain.repository.UserRepository
 import com.hitbosss.domain.usecase.GetCurrentUserUseCase
-import com.hitbosss.domain.usecase.GetRankingUseCase
-import com.hitbosss.domain.usecase.GetUserProfileUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -128,10 +128,9 @@ data class RequiredExercise(@androidx.annotation.StringRes val labelRes: Int, va
 
 @HiltViewModel
 class RankingViewModel @Inject constructor(
-    private val getRanking: GetRankingUseCase,
+    private val rankingRepository: RankingRepository,
+    private val userRepository: UserRepository,
     private val getCurrentUser: GetCurrentUserUseCase,
-    private val getUserProfile: GetUserProfileUseCase,
-    private val updateProfile: com.hitbosss.domain.usecase.UpdateProfileUseCase,
     private val refreshCoordinator: com.hitbosss.core.RefreshCoordinator,
 ) : ViewModel() {
 
@@ -150,7 +149,7 @@ class RankingViewModel @Inject constructor(
     private fun loadCurrentUserProfile() {
         getCurrentUser()?.uid?.let { uid ->
             viewModelScope.launch {
-                getUserProfile(uid).onSuccess { p ->
+                userRepository.getUserProfile(uid).onSuccess { p ->
                     // Foto fiable para la fila "Tú": la entrada del ranking a veces no trae profilePic.
                     _state.update { it.copy(currentUserCountry = p.countryCode, currentUserPicUrl = p.profilePicUrl) }
                 }
@@ -177,11 +176,11 @@ class RankingViewModel @Inject constructor(
         lastLoadedAt = System.currentTimeMillis()
         viewModelScope.launch {
             if (showRefreshing) _state.update { it.copy(isRefreshing = true) }
-            getRanking(_state.value.sport)
+            rankingRepository.getRanking(_state.value.sport)
                 .onSuccess { r -> _state.update { it.copy(ranking = r, error = null) } }
                 .onFailure { e -> _state.update { it.copy(error = e.message ?: "Error") } }
             getCurrentUser()?.uid?.let { uid ->
-                getUserProfile(uid).onSuccess { p ->
+                userRepository.getUserProfile(uid).onSuccess { p ->
                     _state.update { it.copy(currentUserCountry = p.countryCode, currentUserPicUrl = p.profilePicUrl) }
                 }
             }
@@ -197,7 +196,7 @@ class RankingViewModel @Inject constructor(
         lastLoadedAt = System.currentTimeMillis()
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null, sport = sport, selectedCategory = official) }
-            getRanking(sport)
+            rankingRepository.getRanking(sport)
                 .onSuccess { ranking -> _state.update { it.copy(isLoading = false, ranking = ranking) } }
                 .onFailure { e -> _state.update { it.copy(isLoading = false, error = e.message ?: "Error") } }
         }
@@ -220,7 +219,7 @@ class RankingViewModel @Inject constructor(
         _state.update { it.copy(selectedLocation = RankingLocation.Current, userLat = lat, userLng = lng) }
         getCurrentUser()?.uid?.let { uid ->
             viewModelScope.launch {
-                updateProfile(uid, mapOf("latitude" to lat.toString(), "longitude" to lng.toString()), null, null)
+                userRepository.updateProfile(uid, mapOf("latitude" to lat.toString(), "longitude" to lng.toString()), null, null)
             }
         }
     }

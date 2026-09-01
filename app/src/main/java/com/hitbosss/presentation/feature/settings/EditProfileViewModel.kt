@@ -5,9 +5,8 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hitbosss.domain.model.PersonalInfo
+import com.hitbosss.domain.repository.UserRepository
 import com.hitbosss.domain.usecase.GetCurrentUserUseCase
-import com.hitbosss.domain.usecase.GetPersonalInfoUseCase
-import com.hitbosss.domain.usecase.UpdateProfileUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.hitbosss.R
@@ -83,10 +82,9 @@ data class EditProfileUiState(
 
 @HiltViewModel
 class EditProfileViewModel @Inject constructor(
+    private val userRepository: UserRepository,
     @ApplicationContext private val context: Context,
     private val getCurrentUser: GetCurrentUserUseCase,
-    private val getPersonalInfo: GetPersonalInfoUseCase,
-    private val updateProfile: UpdateProfileUseCase,
     private val refreshCoordinator: com.hitbosss.core.RefreshCoordinator,
 ) : ViewModel() {
 
@@ -103,7 +101,7 @@ class EditProfileViewModel @Inject constructor(
     private fun load() {
         val uid = getCurrentUser()?.uid ?: return
         viewModelScope.launch {
-            getPersonalInfo(uid).onSuccess { p ->
+            userRepository.getPersonalInfo(uid).onSuccess { p ->
                 fun social(name: String) = p.socialNetworks.firstOrNull { it.name.equals(name, true) }?.username ?: ""
                 val metric = !p.measurementSystem.equals("imperial", true)
                 _state.update {
@@ -206,7 +204,7 @@ class EditProfileViewModel @Inject constructor(
             val profileFile = s.profilePicUri?.let { uriToFile(it, "profile") }
             val coverFile = s.coverPicUri?.let { uriToFile(it, "cover") }
 
-            updateProfile(uid, fields, profileFile, coverFile)
+            userRepository.updateProfile(uid, fields, profileFile, coverFile)
                 .onSuccess {
                     // Inmediatez en TU perfil: si cambiaste foto/portada, invalida su caché (disco + memoria)
                     // para que se vea la nueva al instante aunque el servidor reutilice la misma URL.

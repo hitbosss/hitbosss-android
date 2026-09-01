@@ -8,13 +8,6 @@ import com.hitbosss.domain.util.WilksCalculator
 import java.io.File
 import javax.inject.Inject
 
-class GetPersonalInfoUseCase @Inject constructor(
-    private val userRepository: UserRepository,
-) {
-    suspend operator fun invoke(userId: String): Result<PersonalInfo> =
-        userRepository.getPersonalInfo(userId)
-}
-
 data class UploadHitParams(
     val userId: String,
     val sport: String,
@@ -60,33 +53,6 @@ class UploadHitUseCase @Inject constructor(
         }
         return hitRepository.uploadHit(params.videoFile, fields, params.onProgress)
     }
-}
-
-class ReportHitUseCase @Inject constructor(
-    private val hitRepository: HitRepository,
-) {
-    suspend operator fun invoke(hitId: Int, comment: String?): Result<Unit> =
-        hitRepository.reportHit(hitId, comment)
-}
-
-class DeleteHitUseCase @Inject constructor(
-    private val hitRepository: HitRepository,
-) {
-    suspend operator fun invoke(hitId: Int): Result<Unit> = hitRepository.deleteHit(hitId)
-}
-
-class ToggleHitVisibilityUseCase @Inject constructor(
-    private val hitRepository: HitRepository,
-) {
-    suspend operator fun invoke(hitId: Int, hidden: Boolean): Result<Unit> =
-        hitRepository.toggleHitVisibility(hitId, hidden)
-}
-
-class GetHiddenHitsUseCase @Inject constructor(
-    private val hitRepository: HitRepository,
-) {
-    suspend operator fun invoke(unit: String): Result<List<com.hitbosss.domain.model.Participation>> =
-        hitRepository.getHiddenHits(unit)
 }
 
 class EditHitUseCase @Inject constructor(

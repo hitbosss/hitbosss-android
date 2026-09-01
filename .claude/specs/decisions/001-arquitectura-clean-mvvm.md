@@ -21,6 +21,15 @@ Flujo unidireccional: `Composable → ViewModel → UseCase → Repository → A
 ✅ Testable por capas (mappers, repos, use cases, viewmodels).
 ⚠️ Algo de boilerplate (interfaz + impl + binding) — se asume por consistencia.
 
+## Enmienda (2026-08-26): el use case deja de ser obligatorio
+
+55 de los 64 use cases solo hacían `= repository.metodo(args)`; se borran y el ViewModel inyecta
+la interfaz de repositorio directamente. Sobreviven los 9 con lógica propia.
+
+Las interfaces de `domain/repository/` y sus `@Binds` se quedan: son la frontera real entre capas.
+
+**Regla:** un use case se escribe cuando tiene lógica. Si es reenvío puro, no se escribe.
+
 ## Equivalencias
 | iOS | Android |
 |-----|---------|

@@ -5,9 +5,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hitbosss.domain.model.SportRanking
 import com.hitbosss.domain.model.UserProfile
+import com.hitbosss.domain.repository.HitRepository
+import com.hitbosss.domain.repository.RankingRepository
+import com.hitbosss.domain.repository.UserRepository
 import com.hitbosss.domain.usecase.GetCurrentUserUseCase
-import com.hitbosss.domain.usecase.GetRankingUseCase
-import com.hitbosss.domain.usecase.GetUserProfileUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,7 +20,6 @@ import javax.inject.Inject
 import com.hitbosss.R
 import android.content.Context
 import com.hitbosss.domain.model.Participation
-import com.hitbosss.domain.usecase.DeleteHitUseCase
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -54,13 +54,11 @@ data class EditHitNav(
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
+    private val hitRepository: HitRepository,
+    private val rankingRepository: RankingRepository,
+    private val userRepository: UserRepository,
     @ApplicationContext private val appContext: Context,
     private val getCurrentUser: GetCurrentUserUseCase,
-    private val getUserProfile: GetUserProfileUseCase,
-    private val getRanking: GetRankingUseCase,
-    private val deleteHitUseCase: DeleteHitUseCase,
-    private val toggleHitVisibilityUseCase: com.hitbosss.domain.usecase.ToggleHitVisibilityUseCase,
-    private val reportUserUseCase: com.hitbosss.domain.usecase.ReportUserUseCase,
     private val refreshCoordinator: com.hitbosss.core.RefreshCoordinator,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -92,7 +90,7 @@ class ProfileViewModel @Inject constructor(
     fun reportUser(comment: String) {
         val target = otherUserId ?: return
         viewModelScope.launch {
-            reportUserUseCase(target, comment.ifBlank { null })
+            userRepository.reportUser(target, comment.ifBlank { null })
                 .onSuccess { _state.update { it.copy(reportSent = true) } }
                 .onFailure { _state.update { it.copy(reportFailed = true) } }
         }
@@ -116,9 +114,9 @@ class ProfileViewModel @Inject constructor(
         lastLoadedAt = System.currentTimeMillis()
         viewModelScope.launch {
             if (showRefreshing) _state.update { it.copy(isRefreshing = true) }
-            val profileD = async { getUserProfile(uid) }
-            val pl = async { getRanking("powerlifting").getOrNull() }
-            val cf = async { getRanking("crossfit").getOrNull() }
+            val profileD = async { userRepository.getUserProfile(uid) }
+            val pl = async { rankingRepository.getRanking("powerlifting").getOrNull() }
+            val cf = async { rankingRepository.getRanking("crossfit").getOrNull() }
             profileD.await().onSuccess { p -> _state.update { it.copy(profile = p, error = null) } }
             val map = buildMap {
                 pl.await()?.let { put("powerlifting", it) }
@@ -138,7 +136,7 @@ class ProfileViewModel @Inject constructor(
         lastLoadedAt = System.currentTimeMillis()
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
-            getUserProfile(uid)
+            userRepository.getUserProfile(uid)
                 .onSuccess { profile -> _state.update { it.copy(isLoading = false, profile = profile) } }
                 .onFailure { e -> _state.update { it.copy(isLoading = false, error = appContext.getString(R.string.common_unexpected_error_msg)) } }
         }
@@ -147,8 +145,8 @@ class ProfileViewModel @Inject constructor(
     /** Carga el ranking de ambos deportes para calcular TOP% / TOTAL oficial (igual que ProfileRankingStore de iOS). */
     private fun loadRankings() {
         viewModelScope.launch {
-            val pl = async { getRanking("powerlifting").getOrNull() }
-            val cf = async { getRanking("crossfit").getOrNull() }
+            val pl = async { rankingRepository.getRanking("powerlifting").getOrNull() }
+            val cf = async { rankingRepository.getRanking("crossfit").getOrNull() }
             val map = buildMap {
                 pl.await()?.let { put("powerlifting", it) }
                 cf.await()?.let { put("crossfit", it) }
@@ -164,7 +162,7 @@ class ProfileViewModel @Inject constructor(
         if (_state.value.isProcessingHit) return
         viewModelScope.launch {
             _state.update { it.copy(isProcessingHit = true, actionError = null) }
-            deleteHitUseCase(hitId)
+            hitRepository.deleteHit(hitId)
                 .onSuccess {
                     refreshCoordinator.onHitUploaded()  // invalida ranking + perfil
                     reloadAll(showRefreshing = false)
@@ -179,7 +177,7 @@ class ProfileViewModel @Inject constructor(
         if (_state.value.isProcessingHit) return
         viewModelScope.launch {
             _state.update { it.copy(isProcessingHit = true, actionError = null) }
-            toggleHitVisibilityUseCase(hitId, hidden)
+            hitRepository.toggleHitVisibility(hitId, hidden)
                 .onSuccess {
                     refreshCoordinator.onHitUploaded()  // invalida ranking + perfil (el hit desaparece/reaparece)
                     reloadAll(showRefreshing = false)

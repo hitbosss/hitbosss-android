@@ -3,8 +3,6 @@ package com.hitbosss.core.di
 import com.hitbosss.BuildConfig
 import com.hitbosss.core.network.AuthInterceptor
 import com.hitbosss.core.network.Environment
-import com.hitbosss.core.network.FirebaseTokenProvider
-import com.hitbosss.core.network.TokenProvider
 import com.hitbosss.data.remote.HitbosssApi
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import dagger.Module
@@ -29,10 +27,6 @@ object NetworkModule {
         coerceInputValues = true
         explicitNulls = false
     }
-
-    @Provides
-    @Singleton
-    fun provideTokenProvider(): TokenProvider = FirebaseTokenProvider()
 
     @Provides
     @Singleton

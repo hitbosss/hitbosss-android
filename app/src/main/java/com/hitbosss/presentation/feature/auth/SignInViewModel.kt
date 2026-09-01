@@ -2,10 +2,9 @@ package com.hitbosss.presentation.feature.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hitbosss.domain.repository.AuthRepository
 import com.hitbosss.domain.usecase.PostLoginDestination
 import com.hitbosss.domain.usecase.ResolvePostLoginUseCase
-import com.hitbosss.domain.usecase.SignInWithEmailPasswordUseCase
-import com.hitbosss.domain.usecase.SignInWithGoogleUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,9 +30,8 @@ data class SignInUiState(
 
 @HiltViewModel
 class SignInViewModel @Inject constructor(
+    private val authRepository: AuthRepository,
     @ApplicationContext private val appContext: Context,
-    private val signInWithEmailPassword: SignInWithEmailPasswordUseCase,
-    private val signInWithGoogle: SignInWithGoogleUseCase,
     private val resolvePostLogin: ResolvePostLoginUseCase,
 ) : ViewModel() {
 
@@ -53,7 +51,7 @@ class SignInViewModel @Inject constructor(
         if (!s.isFormValid) return
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
-            signInWithEmailPassword(s.email, s.password)
+            authRepository.signInWithEmailPassword(s.email, s.password)
                 .onFailure { e -> _state.update { it.copy(isLoading = false, error = e.toAuthMessage(appContext)) } }
                 .onSuccess { resolveDestination() }
         }
@@ -62,7 +60,7 @@ class SignInViewModel @Inject constructor(
     fun onGoogleIdToken(idToken: String) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
-            signInWithGoogle(idToken)
+            authRepository.signInWithGoogle(idToken)
                 .onFailure { e -> _state.update { it.copy(isLoading = false, error = e.toAuthMessage(appContext)) } }
                 .onSuccess { resolveDestination() }
         }

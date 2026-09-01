@@ -3,8 +3,8 @@ package com.hitbosss.presentation.feature.hit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hitbosss.domain.model.PersonalInfo
+import com.hitbosss.domain.repository.UserRepository
 import com.hitbosss.domain.usecase.GetCurrentUserUseCase
-import com.hitbosss.domain.usecase.GetPersonalInfoUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -34,8 +34,8 @@ data class HitSheetUiState(
 
 @HiltViewModel
 class HitUploadViewModel @Inject constructor(
+    private val userRepository: UserRepository,
     private val getCurrentUser: GetCurrentUserUseCase,
-    private val getPersonalInfo: GetPersonalInfoUseCase,
     private val savedHitStore: com.hitbosss.data.local.SavedHitStore,
 ) : ViewModel() {
 
@@ -46,7 +46,7 @@ class HitUploadViewModel @Inject constructor(
         _state.update { it.copy(pendingCount = savedHitStore.getAll().size) }
         getCurrentUser()?.uid?.let { uid ->
             viewModelScope.launch {
-                getPersonalInfo(uid).onSuccess { info -> _state.update { it.copy(personalInfo = info) } }
+                userRepository.getPersonalInfo(uid).onSuccess { info -> _state.update { it.copy(personalInfo = info) } }
             }
         }
     }

@@ -4,15 +4,9 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hitbosss.domain.model.EventDetail
+import com.hitbosss.domain.repository.CommunityRepository
+import com.hitbosss.domain.repository.UserRepository
 import com.hitbosss.domain.usecase.GetCurrentUserUseCase
-import com.hitbosss.domain.usecase.GetEventUseCase
-import com.hitbosss.domain.usecase.GetUserProfileUseCase
-import com.hitbosss.domain.usecase.LeaveEventUseCase
-import com.hitbosss.domain.usecase.DeleteEventUseCase
-import com.hitbosss.domain.usecase.MakeEventAdminUseCase
-import com.hitbosss.domain.usecase.RemoveEventMemberUseCase
-import com.hitbosss.domain.usecase.ReportEventUseCase
-import com.hitbosss.domain.usecase.ResetEventHitUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -57,16 +51,10 @@ data class EventDetailUiState(
 
 @HiltViewModel
 class EventDetailViewModel @Inject constructor(
+    private val communityRepository: CommunityRepository,
+    private val userRepository: UserRepository,
     @ApplicationContext private val context: Context,
-    private val getEvent: GetEventUseCase,
-    private val leaveEvent: LeaveEventUseCase,
-    private val deleteEvent: DeleteEventUseCase,
-    private val makeEventAdmin: MakeEventAdminUseCase,
-    private val removeEventMember: RemoveEventMemberUseCase,
-    private val reportEvent: ReportEventUseCase,
-    private val resetEventHit: ResetEventHitUseCase,
     private val getCurrentUser: GetCurrentUserUseCase,
-    private val getUserProfile: GetUserProfileUseCase,
     private val refreshCoordinator: com.hitbosss.core.RefreshCoordinator,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -79,7 +67,7 @@ class EventDetailViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
-            getEvent(eventId)
+            communityRepository.getEvent(eventId)
                 .onSuccess { e ->
                     // Abrir un evento te auto-une (backend) → refresca "Mis eventos".
                     refreshCoordinator.invalidateCommunity()
@@ -89,7 +77,7 @@ class EventDetailViewModel @Inject constructor(
         }
         getCurrentUser()?.uid?.let { uid ->
             viewModelScope.launch {
-                getUserProfile(uid).onSuccess { p -> _state.update { it.copy(currentUserCountry = p.countryCode, currentUserPicUrl = p.profilePicUrl) } }
+                userRepository.getUserProfile(uid).onSuccess { p -> _state.update { it.copy(currentUserCountry = p.countryCode, currentUserPicUrl = p.profilePicUrl) } }
             }
         }
         // Recarga el ranking de ESTE evento tras subir un HIT en su contexto.
@@ -100,7 +88,7 @@ class EventDetailViewModel @Inject constructor(
 
     private fun reloadEvent() {
         viewModelScope.launch {
-            getEvent(eventId).onSuccess { e -> _state.update { it.copy(event = e) } }
+            communityRepository.getEvent(eventId).onSuccess { e -> _state.update { it.copy(event = e) } }
         }
     }
 
@@ -108,7 +96,7 @@ class EventDetailViewModel @Inject constructor(
     fun retry() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
-            getEvent(eventId)
+            communityRepository.getEvent(eventId)
                 .onSuccess { e -> refreshCoordinator.invalidateCommunity(); _state.update { it.copy(isLoading = false, event = e) } }
                 .onFailure { e -> _state.update { it.copy(isLoading = false, error = context.getString(R.string.common_unexpected_error_msg)) } }
         }
@@ -117,7 +105,7 @@ class EventDetailViewModel @Inject constructor(
     fun leave() {
         viewModelScope.launch {
             _state.update { it.copy(leaving = true) }
-            leaveEvent(eventId)
+            communityRepository.leaveEvent(eventId)
                 .onSuccess { refreshCoordinator.invalidateCommunity(); _state.update { it.copy(leaving = false, left = true) } }
                 .onFailure { e -> _state.update { it.copy(leaving = false, error = context.getString(R.string.err_leave)) } }
         }
@@ -126,7 +114,7 @@ class EventDetailViewModel @Inject constructor(
     fun delete() {
         viewModelScope.launch {
             _state.update { it.copy(leaving = true) }
-            deleteEvent(eventId)
+            communityRepository.deleteEvent(eventId)
                 .onSuccess { refreshCoordinator.invalidateCommunity(); _state.update { it.copy(leaving = false, deleted = true) } }
                 .onFailure { e -> _state.update { it.copy(leaving = false, error = context.getString(R.string.err_delete)) } }
         }
@@ -135,7 +123,7 @@ class EventDetailViewModel @Inject constructor(
     /** Denuncia el evento (comentario opcional). Silencioso, igual que el report de HIT. */
     fun report(comment: String) {
         viewModelScope.launch {
-            reportEvent(eventId, comment.ifBlank { null })
+            communityRepository.reportEvent(eventId, comment.ifBlank { null })
                 .onSuccess { _state.update { it.copy(reportSent = true) } }
                 .onFailure { _state.update { it.copy(reportFailed = true) } }
         }
@@ -146,7 +134,7 @@ class EventDetailViewModel @Inject constructor(
     /** Resetea (anula) el hit de un participante (solo admin) y recarga el ranking. */
     fun resetHit(hitId: Int) {
         viewModelScope.launch {
-            resetEventHit(eventId, hitId)
+            communityRepository.resetEventHit(eventId, hitId)
                 .onSuccess { refreshCoordinator.invalidateCommunity(); reloadEvent() }
                 .onFailure { e -> _state.update { it.copy(error = context.getString(R.string.err_generic_action)) } }
         }
@@ -154,7 +142,7 @@ class EventDetailViewModel @Inject constructor(
 
     fun makeAdmin(userId: String) {
         viewModelScope.launch {
-            makeEventAdmin(eventId, userId)
+            communityRepository.makeEventAdmin(eventId, userId)
                 .onSuccess { refreshCoordinator.invalidateCommunity(); reloadEvent() }
                 .onFailure { e -> _state.update { it.copy(error = context.getString(R.string.err_generic_action)) } }
         }
@@ -162,7 +150,7 @@ class EventDetailViewModel @Inject constructor(
 
     fun removeMember(userId: String) {
         viewModelScope.launch {
-            removeEventMember(eventId, userId)
+            communityRepository.removeEventMember(eventId, userId)
                 .onSuccess { refreshCoordinator.invalidateCommunity(); reloadEvent() }
                 .onFailure { e -> _state.update { it.copy(error = context.getString(R.string.err_generic_action)) } }
         }

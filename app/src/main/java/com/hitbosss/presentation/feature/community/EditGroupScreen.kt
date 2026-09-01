@@ -15,14 +15,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -36,7 +34,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -59,6 +56,9 @@ import androidx.compose.ui.res.stringResource
 import com.hitbosss.R
 import com.hitbosss.presentation.designsystem.components.HitPopup
 import com.hitbosss.presentation.feature.ranking.titleRes
+import com.hitbosss.presentation.designsystem.components.Counter
+import com.hitbosss.presentation.designsystem.components.FieldLabel
+import com.hitbosss.presentation.designsystem.components.FormField
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -156,23 +156,3 @@ fun EditGroupScreen(
     }
 }
 
-@Composable
-private fun FieldLabel(text: String) =
-    Text(text, style = HitbosssType.bodyDefaultEmphasis, color = Gray500, modifier = Modifier.padding(bottom = 8.dp))
-
-@Composable
-private fun Counter(count: Int, max: Int) = Text(
-    "$count/$max", style = HitbosssType.bodySmallRegular, color = Gray500,
-    textAlign = TextAlign.End, modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-)
-
-@Composable
-private fun FormField(value: String, onChange: (String) -> Unit, height: androidx.compose.ui.unit.Dp, single: Boolean = true) {
-    Box(
-        Modifier.fillMaxWidth().let { if (single) it.height(height) else it.heightIn(min = height) }
-            .clip(RoundedCornerShape(8.dp)).background(Gray200).border(1.dp, Gray300, RoundedCornerShape(8.dp)).padding(16.dp),
-        contentAlignment = if (single) Alignment.CenterStart else Alignment.TopStart,
-    ) {
-        BasicTextField(value, onChange, singleLine = single, textStyle = HitbosssType.bodyDefaultRegular.copy(color = Gray800), modifier = Modifier.fillMaxWidth())
-    }
-}

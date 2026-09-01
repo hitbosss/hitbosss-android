@@ -309,14 +309,6 @@ interface HitbosssApi {
     @POST("metrics/strength/{exercise}/trainings")
     suspend fun createTraining(@Path("exercise") exercise: String, @Body body: CreateTrainingRequestDto): MessageResponseDto
 
-    /** GET /metrics/strength/{exercise}/trainings — entrenamientos del ejercicio en el rango. */
-    @GET("metrics/strength/{exercise}/trainings")
-    suspend fun getTrainings(
-        @Path("exercise") exercise: String,
-        @Query("range") range: String,
-        @Query("unit") unit: String? = null,
-    ): List<TrainingEntryDto>
-
     /** PATCH /metrics/strength/trainings/{trainingId} — edita un entrenamiento por id. */
     @PATCH("metrics/strength/trainings/{trainingId}")
     suspend fun updateTraining(@Path("trainingId") trainingId: Long, @Body body: CreateTrainingRequestDto): TrainingEntryDto

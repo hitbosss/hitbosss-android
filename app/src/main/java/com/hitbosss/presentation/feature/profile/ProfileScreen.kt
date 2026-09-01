@@ -87,6 +87,7 @@ import androidx.compose.runtime.LaunchedEffect
 import com.hitbosss.presentation.designsystem.components.HitPopup
 import androidx.compose.foundation.combinedClickable
 import com.hitbosss.presentation.feature.ranking.titleRes
+import com.hitbosss.presentation.designsystem.components.formatEpochDate
 
 private enum class MediaTab(@androidx.annotation.StringRes val label: Int) { Marcas(R.string.profile_tab_marks), Hits(R.string.profile_tab_hits) }
 private enum class RecordTab(@androidx.annotation.StringRes val label: Int) { Ranking(R.string.tab_ranking), Grupos(R.string.community_tab_groups), Eventos(R.string.community_tab_events) }
@@ -773,7 +774,7 @@ private fun ProfileEventCard(event: com.hitbosss.domain.model.ProfileEvent, onHi
                     .padding(horizontal = 8.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Text(formatShortDate(event.finalizedAt), style = HitbosssType.bodyDefaultRegular, color = Gray800)
+                Text(formatEpochDate(event.finalizedAt, "dd/MM/yy"), style = HitbosssType.bodyDefaultRegular, color = Gray800)
                 Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = Gray500, modifier = Modifier.size(16.dp))
             }
         }
@@ -1071,7 +1072,7 @@ fun Participation.toHitVideo(title: String) = HitVideoData(
     videoUrl = videoUrl.orEmpty(),
     seekSeconds = performedAt,
     exerciseTitle = title,
-    dateText = formatShortDate(createdAt),
+    dateText = formatEpochDate(createdAt, "dd/MM/yy"),
     weightText = maxLift?.let { "${formatWeight(it.value)} ${it.unit.uppercase()}" } ?: "",
     levelWeight = levelWeight,
     rankText = position?.let { "#$it" } ?: "",
@@ -1084,7 +1085,7 @@ private fun com.hitbosss.domain.model.ProfileHit.toHitVideo(title: String, fallb
     videoUrl = videoUrl.orEmpty(),
     seekSeconds = performedAt,
     exerciseTitle = title,
-    dateText = formatShortDate(createdAt),
+    dateText = formatEpochDate(createdAt, "dd/MM/yy"),
     weightText = maxLift?.let { "${formatWeight(it.value)} ${it.unit.uppercase()}" } ?: "",
     levelWeight = levelWeight,
     rankText = (position ?: fallbackPosition)?.let { "#$it" } ?: "",
@@ -1102,9 +1103,6 @@ private fun socialIcon(name: String): Int? = when (name.lowercase()) {
     else -> null
 }
 
-private fun formatShortDate(unixSeconds: Long): String =
-    if (unixSeconds <= 0) "" else java.text.SimpleDateFormat("dd/MM/yy", java.util.Locale.getDefault())
-        .format(java.util.Date(unixSeconds * 1000))
 
 /** Comparte el perfil con un deeplink profile/{userId} (1:1 con #637 de iOS). */
 private fun shareProfile(context: Context, userId: String) {

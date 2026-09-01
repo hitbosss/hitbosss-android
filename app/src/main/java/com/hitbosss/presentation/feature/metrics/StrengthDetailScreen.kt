@@ -20,6 +20,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import com.hitbosss.domain.model.RankingCategory
+import com.hitbosss.domain.repository.MetricsRepository
+import com.hitbosss.domain.repository.UserRepository
 import com.hitbosss.presentation.feature.hit.HitVideoData
 import com.hitbosss.presentation.feature.hit.HitVideoDialog
 import com.hitbosss.presentation.feature.hit.formatPointsText
@@ -49,9 +51,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hitbosss.R
 import com.hitbosss.domain.model.StrengthMark
 import com.hitbosss.domain.usecase.GetCurrentUserUseCase
-import com.hitbosss.domain.usecase.GetPersonalInfoUseCase
-import com.hitbosss.domain.usecase.GetStrengthEvolutionUseCase
-import com.hitbosss.domain.usecase.GetStrengthGoalUseCase
 import com.hitbosss.presentation.designsystem.components.ChartMarker
 import com.hitbosss.presentation.designsystem.components.ChartSeries
 import com.hitbosss.presentation.designsystem.components.HitPopup
@@ -73,6 +72,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
+import com.hitbosss.presentation.designsystem.components.formatEpochDate
 
 /** (performedAt Unix seg, valor en unidad del usuario). */
 private typealias Mark = Pair<Long, Double>
@@ -86,10 +86,9 @@ data class StrengthDetailUiState(
 
 @HiltViewModel
 class StrengthDetailViewModel @Inject constructor(
+    private val metricsRepository: MetricsRepository,
+    private val userRepository: UserRepository,
     private val getCurrentUser: GetCurrentUserUseCase,
-    private val getStrengthEvolution: GetStrengthEvolutionUseCase,
-    private val getStrengthGoal: GetStrengthGoalUseCase,
-    private val getPersonalInfo: GetPersonalInfoUseCase,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -101,8 +100,8 @@ class StrengthDetailViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             val uid = getCurrentUser()?.uid ?: return@launch
-            getPersonalInfo(uid).onSuccess { info -> _state.update { it.copy(unitSystem = info.measurementSystem) } }
-            getStrengthGoal(exercise, _state.value.unitSystem).onSuccess { g -> _state.update { it.copy(goal = g?.targetValue) } }
+            userRepository.getPersonalInfo(uid).onSuccess { info -> _state.update { it.copy(unitSystem = info.measurementSystem) } }
+            metricsRepository.getStrengthGoal(exercise, _state.value.unitSystem).onSuccess { g -> _state.update { it.copy(goal = g?.targetValue) } }
         }
     }
 
@@ -111,7 +110,7 @@ class StrengthDetailViewModel @Inject constructor(
         if (_state.value.marks.containsKey(key)) return
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            getStrengthEvolution(exercise, range, _state.value.unitSystem)
+            metricsRepository.getStrengthEvolution(exercise, range, _state.value.unitSystem)
                 .onSuccess { list -> _state.update { it.copy(isLoading = false, marks = it.marks + (key to list)) } }
                 .onFailure { _state.update { it.copy(isLoading = false) } }
         }
@@ -201,7 +200,7 @@ fun StrengthDetailScreen(
                                             videoUrl = url,
                                             seekSeconds = m.videoSecond ?: 0.0,
                                             exerciseTitle = exTitle,
-                                            dateText = if (m.performedAt > 0) java.text.SimpleDateFormat("dd/MM/yy", java.util.Locale.getDefault()).format(java.util.Date(m.performedAt * 1000)) else "",
+                                            dateText = formatEpochDate(m.performedAt, "dd/MM/yy"),
                                             weightText = "${formatNum(m.weightKg)} ${unit.uppercase()}",
                                             levelWeight = m.levelWeight,
                                             rankText = "",
