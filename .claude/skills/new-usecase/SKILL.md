@@ -27,3 +27,10 @@ Referencia: `UploadHitUseCase` en `domain/usecase/HitUseCases.kt`.
 - Endpoint en `data/remote/HitbosssApi.kt`; `@Binds` en `core/di/RepositoryModule.kt` si el
   repositorio es nuevo.
 - Devuelve `Result<...>` — nada de excepciones sin capturar hacia el ViewModel.
+
+## 2. Robustez R8 (si añades DTO nuevo)
+
+Un DTO nuevo `@Serializable` bajo `data.remote.dto.**` ya está cubierto por las keep-rules (ADR-004). Si lo
+pones fuera de ese paquete o usas reflexión, **compila `assembleRelease`** y valida que no rompe en release
+(R8 solo corre en release, no en debug). Ver skill `release-build`. Y recuerda: **no commitear Android** hasta
+que José lo diga.

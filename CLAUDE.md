@@ -19,7 +19,8 @@ Estado de la migración: `.claude/specs/migration-status.md`.
 ## Recuperación de contexto (sesión nueva)
 
 Leer en este orden antes de tocar nada:
-1. Este fichero + `.claude/specs/migration-status.md` (estado vivo — mantenerlo actualizado al completar features).
+1. **`.claude/specs/architecture-map.md`** (mapa navegable del repo — orienta sin re-explorar) + este fichero + `.claude/specs/migration-status.md` (estado vivo — mantenerlo actualizado al completar features).
+   - Si vas a tocar un subsistema con spec, léela: `.claude/specs/features/feature-ranking.md`, `feature-hit-pipeline.md`. Decisiones de robustez: `decisions/004-release-r8-obfuscacion.md`, `005-localizacion.md`.
 2. `git log --oneline -10` y `git diff --stat` (trabajo en curso real).
 3. `../hitbosss-api/PENDING.md`, `PENDING-2.1.0.md` y `CHANGELOG.md` (tareas API y contrato PRE vs PRO).
 4. Si se toca iOS: `../Hitbosss_iOS/Hitbosss/CLAUDE.md`.

@@ -462,7 +462,7 @@ private fun CardStats(members: Int, exercises: Int) {
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             Icon(Icons.Filled.FitnessCenter, contentDescription = null, tint = Purple300, modifier = Modifier.size(13.dp))
-            Text("Ejercicios: $exercises", style = HitbosssType.bodySmallRegular, color = Secondary800)
+            Text("${stringResource(R.string.community_exercises)}: $exercises", style = HitbosssType.bodySmallRegular, color = Secondary800)
         }
     }
 }

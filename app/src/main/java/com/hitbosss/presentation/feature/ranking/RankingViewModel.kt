@@ -94,8 +94,12 @@ data class RankingUiState(
             )
             .mapIndexed { i, e -> e.copy(rank = i + 1) }
 
-    /** Fila "Tú": entrada del usuario actual en esta categoría (o null si no participa). */
-    val currentUserEntry: RankingEntry? get() = allEntries.firstOrNull { it.userId == currentUserId }
+    /**
+     * Fila "Tú": la entrada del usuario dentro de la lista ya ordenada/filtrada (displayedEntries),
+     * para que su posición coincida siempre con la de la lista bajo el criterio actual (peso/points),
+     * igual que iOS (RankingListView usa el mismo displayedRanking para la fila y para "Tú").
+     */
+    val currentUserEntry: RankingEntry? get() = displayedEntries.firstOrNull { it.userId == currentUserId }
 
     /**
      * Ejercicios requeridos para la card "Aún no participas" (igual que iOS):

@@ -63,7 +63,7 @@ android {
 
         // === production · api.hitbosss.com (equivalente App Store; requiere firma release para instalar). (assembleRelease) ===
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true   // R8: ofuscación + shrink de código (requisito de optimización de Play)
             buildConfigField("String", "API_BASE_URL", "API_HOST_PROD")
             buildConfigField("String", "ENV_NAME", "\"production\"")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

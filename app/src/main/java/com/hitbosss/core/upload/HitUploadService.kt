@@ -84,19 +84,25 @@ class HitUploadService : Service() {
             .setColor(HitUploadManager.BRAND_COLOR)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
+            // Que se vea (con contenido) en la pantalla de bloqueo, como la Live Activity de iOS.
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setCategory(NotificationCompat.CATEGORY_PROGRESS)
             .addAction(0, getString(R.string.common_cancel), cancelIntent)
             .build()
     }
 
     private fun createChannel() {
         val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        nm.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, getString(R.string.upload_channel_name), NotificationManager.IMPORTANCE_LOW),
-        )
+        // Canal anterior no tenía lockscreenVisibility (no se puede cambiar tras crearlo); se retira.
+        nm.deleteNotificationChannel("hit_upload")
+        val channel = NotificationChannel(CHANNEL_ID, getString(R.string.upload_channel_name), NotificationManager.IMPORTANCE_LOW).apply {
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+        }
+        nm.createNotificationChannel(channel)
     }
 
     companion object {
-        const val CHANNEL_ID = "hit_upload"
+        const val CHANNEL_ID = "hit_upload_v2"
         const val NOTIFICATION_ID = 2001
         const val ACTION_CANCEL = "com.hitbosss.upload.CANCEL"
     }

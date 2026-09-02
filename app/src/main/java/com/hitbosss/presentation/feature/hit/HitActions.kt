@@ -89,7 +89,14 @@ class HitActionsViewModel @Inject constructor(
 
         fun composition(fancyOutro: Boolean): Composition {
             val overlay: androidx.media3.effect.TextureOverlay = BitmapOverlay.createStaticBitmapOverlay(headerBmp)
-            val videoItem = EditedMediaItem.Builder(MediaItem.fromUri(Uri.fromFile(source)))
+            // El HIT compartido empieza donde empieza el ejercicio (el pin performedAt), no en el segundo 0.
+            val startMs = (hit.seekSeconds * 1000).toLong().coerceAtLeast(0)
+            val clippedSource = MediaItem.fromUri(Uri.fromFile(source)).buildUpon()
+                .setClippingConfiguration(
+                    MediaItem.ClippingConfiguration.Builder().setStartPositionMs(startMs).build(),
+                )
+                .build()
+            val videoItem = EditedMediaItem.Builder(clippedSource)
                 .setEffects(Effects(emptyList(), listOf(scaleTo(outW, outH), OverlayEffect(ImmutableList.of(overlay)))))
                 .build()
 

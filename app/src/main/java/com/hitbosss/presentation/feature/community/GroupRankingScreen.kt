@@ -279,7 +279,9 @@ private fun GroupRankingContent(
             else compareByDescending<com.hitbosss.domain.model.RankingEntry> { it.lift?.value ?: 0.0 }.thenByDescending { it.score },
         )
         .mapIndexed { i, e -> e.copy(rank = i + 1) }
-    val currentUserEntry = ranking?.byCategory?.get(officialCat)?.firstOrNull { it.userId == currentUserId }
+    // Fila "Tú": desde la lista ya ordenada/filtrada del ejercicio seleccionado, para que su posición
+    // coincida con la de la lista bajo el criterio actual (peso/points), igual que iOS y el ranking global.
+    val currentUserEntry = entries.firstOrNull { it.userId == currentUserId }
 
     fun has(cat: RankingCategory) = ranking?.byCategory?.get(cat)?.any { it.userId == currentUserId } == true
     val required = if (isPl) listOf(
