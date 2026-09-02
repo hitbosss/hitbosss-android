@@ -27,24 +27,22 @@ El mismo patrón se reutiliza en rankings de **grupo** y **evento** (comunidad).
 **El bullet "Tú" y las filas de la lista deben salir de la MISMA lista ordenada/filtrada**, para que la
 posición (y el badge de nivel) del bullet coincida SIEMPRE con la de la lista bajo el criterio activo.
 
-- La lista visible = `displayedEntries`: `allEntries.filter{…}.sortedWith(orden actual).mapIndexed{ rank = i+1 }`.
-  - Orden por Points → `compareByDescending{ score }.thenByDescending{ lift.value }`; por peso → al revés.
+- Fuente única del orden: **`RankingSort.kt`** → `List<RankingEntry>.rankedBy(order)` ordena el ranking
+  **completo** y asigna la **posición global** (`rank = índice+1`, como `originalPosition` de iOS). Un solo sitio,
+  usado por el ranking global y los de grupo/evento (antes estaba duplicado en 3 ficheros).
+- La lista visible = `displayedEntries`: **`allEntries.rankedBy(order).filter{…}`** — se ordena y numera el
+  ranking completo y LUEGO se filtra, así con filtros/búsqueda activos cada fila conserva su **posición real**
+  del ranking (1:1 con iOS, que filtra tras enumerar), no una renumeración `1..N` del subconjunto.
   - El badge de nivel usa `levelWilks` si orderByPoints, si no `levelWeight` (`RankingUiState.level()`).
 - El bullet "Tú" **DEBE** ser `displayedEntries.firstOrNull { it.userId == currentUserId }`.
-  **NO** `allEntries.firstOrNull{…}` (lista cruda, sin reordenar) → eso muestra el `rank` viejo del backend y
-  el bullet queda desincronizado de la lista (parece que "no aplica" el orden). Fue exactamente el bug.
-- En grupo/evento (`EventRankingScreen`/`GroupRankingScreen`) lo mismo: `currentUserEntry = entries.firstOrNull{…}`
-  (la lista ordenada del ejercicio **seleccionado**), **no** `byCategory[officialCat].firstOrNull{…}`.
+  **NO** `allEntries.firstOrNull{…}` (lista cruda) → mostraría el `rank` viejo del backend. Bajo búsqueda/filtro
+  que dejen fuera al usuario, el bullet se oculta (igual que iOS, que muestra su fila de "no participa").
+- En grupo/evento (`EventRankingScreen`/`GroupRankingScreen`) lo mismo: `entries = allEntries.rankedBy(order).filter{…}`
+  del ejercicio **seleccionado**; `currentUserEntry = entries.firstOrNull{…}`. **No** `byCategory[officialCat]`.
 
 **Paridad iOS:** `RankingListView.swift` usa el mismo `displayedRanking` (con `originalPosition`) tanto para
-las filas como para `CurrentUserRowView` → por eso en iOS siempre coinciden. Si tocas el orden/filtro,
-mantén los dos consumiendo la misma lista.
-
-## Divergencia iOS conocida (pendiente, NO reportada como bug)
-Con **filtros activos**, Android renumera la lista `1..N` dentro del filtro (`mapIndexed`), mientras iOS
-mantiene la posición del ranking **completo** ordenado (`getDisplayedRanking` en iOS filtra DESPUÉS de
-`enumerated()`, conservando `originalPosition`). Sin filtros coinciden. Alinear requiere refactor de
-`displayedEntries` (ordenar el full → asignar rank → filtrar sin renumerar). Decidir con el equipo antes de tocar.
+las filas como para `CurrentUserRowView` → por eso coinciden. Si tocas el orden, hazlo en `RankingSort.kt` (un
+solo sitio) y mantén filas y bullet consumiendo la misma lista.
 
 ## Reglas / detalles (paridad iOS)
 - Categorías por deporte: `RankingCategory.forSport()`. Powerlifting oficial combina squat+bench+deadlift/sumo.

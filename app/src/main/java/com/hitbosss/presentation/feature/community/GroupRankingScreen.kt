@@ -82,6 +82,7 @@ import com.hitbosss.presentation.feature.ranking.LevelFilters
 import com.hitbosss.presentation.feature.ranking.NoParticipaCard
 import com.hitbosss.presentation.feature.ranking.RankingOrder
 import com.hitbosss.presentation.feature.ranking.RankingRow
+import com.hitbosss.presentation.feature.ranking.rankedBy
 import com.hitbosss.presentation.feature.ranking.RankingSortSheet
 import com.hitbosss.presentation.feature.ranking.RequiredExercise
 import androidx.compose.ui.res.stringResource
@@ -268,17 +269,14 @@ private fun GroupRankingContent(
     val isOfficial = selected == officialCat
     val usePoints = order == RankingOrder.Points
 
+    // Se ordena el ranking completo y se asigna la posición global (rankedBy) antes de filtrar, igual que
+    // el ranking principal y iOS: filtro/búsqueda no renumeran, cada fila conserva su posición real.
     val entries = ranking?.byCategory?.get(selected).orEmpty()
+        .rankedBy(order)
         .filter { e ->
             (search.isBlank() || e.username.contains(search, true)) &&
                 (selectedLevels.isEmpty() || (if (usePoints) e.levelWilks else e.levelWeight).orEmpty() in selectedLevels)
         }
-        // Re-ordena por el criterio elegido (peso/puntos) con desempate y re-numera, igual que iOS.
-        .sortedWith(
-            if (usePoints) compareByDescending<com.hitbosss.domain.model.RankingEntry> { it.score }.thenByDescending { it.lift?.value ?: 0.0 }
-            else compareByDescending<com.hitbosss.domain.model.RankingEntry> { it.lift?.value ?: 0.0 }.thenByDescending { it.score },
-        )
-        .mapIndexed { i, e -> e.copy(rank = i + 1) }
     // Fila "Tú": desde la lista ya ordenada/filtrada del ejercicio seleccionado, para que su posición
     // coincida con la de la lista bajo el criterio actual (peso/points), igual que iOS y el ranking global.
     val currentUserEntry = entries.firstOrNull { it.userId == currentUserId }
@@ -341,7 +339,7 @@ private fun GroupRankingContent(
                 if (entries.isEmpty() && !(isOfficial && notParticipating)) {
                     item { com.hitbosss.presentation.feature.ranking.RankingEmptyState() }
                 }
-                items(entries) { entry -> RankingRow(entry, usePoints) { selectedUserId = entry.userId } }
+                items(entries, key = { it.userId }) { entry -> RankingRow(entry, usePoints, Modifier.animateItem()) { selectedUserId = entry.userId } }
             }
 
             // Padding inferior común para tarjeta "Tú" y FAB (los sube respecto al borde), igual que

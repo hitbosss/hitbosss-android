@@ -77,11 +77,11 @@ import com.hitbosss.R
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 
-private const val MAX_SECONDS = 105 // 01:45, igual que iOS
+private const val MAX_SECONDS = 150 // 02:30, igual que iOS (RecordHitViewModel.maxRecordingTime)
 
 /**
  * Pantalla de grabación del HIT (equivale a RecordHitView de iOS): vista de cámara, área de
- * seguridad verde, contador 00:00 / 01:45, botón de grabar/parar y cambio de cámara.
+ * seguridad verde, contador 00:00 / <máximo>, botón de grabar/parar y cambio de cámara.
  */
 @Composable
 fun RecordHitScreen(
@@ -141,7 +141,7 @@ fun RecordHitScreen(
         onDispose { recordView.keepScreenOn = false }
     }
 
-    // Contador mientras graba; corta a 01:45.
+    // Contador mientras graba; corta al llegar a MAX_SECONDS.
     LaunchedEffect(isRecording) {
         if (!isRecording) return@LaunchedEffect
         while (isRecording && elapsed < MAX_SECONDS) {
@@ -205,13 +205,13 @@ fun RecordHitScreen(
                 )
             }
 
-            // Contador 00:00 / 01:45.
+            // Contador 00:00 / <máximo>.
             Box(Modifier.fillMaxWidth().padding(top = 16.dp), contentAlignment = Alignment.Center) {
                 Row(
                     modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Gray100).padding(horizontal = 8.dp, vertical = 4.dp),
                 ) {
                     Text("$timeText / ", style = HitbosssType.bodyDefaultRegular, color = Secondary800)
-                    Text("01:45", style = HitbosssType.bodyDefaultEmphasis, color = Secondary800)
+                    Text("%02d:%02d".format(MAX_SECONDS / 60, MAX_SECONDS % 60), style = HitbosssType.bodyDefaultEmphasis, color = Secondary800)
                 }
             }
 

@@ -7,7 +7,6 @@ import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
-import androidx.core.app.NotificationCompat
 import com.hitbosss.R
 import com.hitbosss.core.RefreshCoordinator
 import com.hitbosss.data.local.SavedHitStore
@@ -137,6 +136,9 @@ class HitUploadManager @Inject constructor(
 
     /** Cancela la subida en curso (notificación o app). El hit queda en HITS guardados. */
     fun cancel() {
+        // Si la subida ya terminó (éxito o fallo), no hacer nada: un tap de Cancelar que llega tarde no debe
+        // pisar la notificación de "HIT subido" ni tocar un hit ya borrado del store.
+        if (!_state.value.inProgress) return
         val hit = currentHit
         canceled = true
         unregisterNetworkCallback()
@@ -209,27 +211,39 @@ class HitUploadManager @Inject constructor(
             PendingIntent.FLAG_IMMUTABLE,
         )
         notify(
-            NotificationCompat.Builder(context, HitUploadService.CHANNEL_ID)
-                .setSmallIcon(android.R.drawable.stat_sys_upload_done)
-                .setContentTitle("${exerciseTitle(hit)} · ${liftLabel(hit)}")
-                .setContentText(context.getString(R.string.upload_notif_done))
-                .setColor(SUCCESS_COLOR)
-                .setContentIntent(openApp)
-                .addAction(0, context.getString(R.string.upload_notif_view_hit), openApp)
-                .setAutoCancel(true)
-                .build(),
+            UploadNotification.build(
+                context = context,
+                smallIcon = android.R.drawable.stat_sys_upload_done,
+                title = exerciseTitle(hit),
+                weight = liftLabel(hit),
+                icon = R.drawable.np_ic_check,
+                iconTint = SUCCESS_COLOR,
+                status = context.getString(R.string.upload_notif_done),
+                percent = null,
+                bar = UploadNotification.Bar.Green, // barra completa verde, como el diseño "HIT subido"
+                actionLabel = context.getString(R.string.upload_notif_view_hit),
+                actionIntent = openApp,
+                contentIntent = openApp,
+                ongoing = false,
+            ),
         )
     }
 
     private fun notifyCanceled(hit: SavedHit) {
         notify(
-            NotificationCompat.Builder(context, HitUploadService.CHANNEL_ID)
-                .setSmallIcon(android.R.drawable.stat_sys_upload_done)
-                .setContentTitle(context.getString(R.string.upload_notif_canceled))
-                .setStyle(NotificationCompat.BigTextStyle().bigText(context.getString(R.string.upload_notif_saved_msg)))
-                .setColor(BRAND_COLOR)
-                .setAutoCancel(true)
-                .build(),
+            UploadNotification.build(
+                context = context,
+                smallIcon = android.R.drawable.stat_sys_upload_done,
+                title = exerciseTitle(hit),
+                weight = liftLabel(hit),
+                icon = R.drawable.np_ic_close,
+                iconTint = BRAND_COLOR,
+                status = context.getString(R.string.upload_notif_canceled),
+                percent = null,
+                bar = UploadNotification.Bar.None,
+                message = context.getString(R.string.upload_notif_saved_msg),
+                ongoing = false,
+            ),
         )
     }
 
@@ -242,15 +256,22 @@ class HitUploadManager @Inject constructor(
             PendingIntent.FLAG_IMMUTABLE,
         )
         notify(
-            NotificationCompat.Builder(context, HitUploadService.CHANNEL_ID)
-                .setSmallIcon(android.R.drawable.stat_notify_error)
-                .setContentTitle(context.getString(R.string.upload_notif_failed))
-                .setStyle(NotificationCompat.BigTextStyle().bigText(context.getString(R.string.upload_notif_saved_msg)))
-                .setColor(BRAND_COLOR)
-                .setContentIntent(toSaved)
-                .addAction(0, context.getString(R.string.upload_notif_go_saved), toSaved)
-                .setAutoCancel(true)
-                .build(),
+            UploadNotification.build(
+                context = context,
+                smallIcon = android.R.drawable.stat_notify_error,
+                title = exerciseTitle(hit),
+                weight = liftLabel(hit),
+                icon = R.drawable.np_ic_warning,
+                iconTint = BRAND_COLOR,
+                status = context.getString(R.string.upload_notif_failed),
+                percent = null,
+                bar = UploadNotification.Bar.None,
+                message = context.getString(R.string.upload_notif_saved_msg),
+                actionLabel = context.getString(R.string.upload_notif_go_saved),
+                actionIntent = toSaved,
+                contentIntent = toSaved,
+                ongoing = false,
+            ),
         )
     }
 

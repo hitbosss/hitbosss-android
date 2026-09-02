@@ -11,6 +11,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.hitbosss.R
 import coil.imageLoader
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -209,11 +212,17 @@ class EditProfileViewModel @Inject constructor(
                     // Inmediatez en TU perfil: si cambiaste foto/portada, invalida su caché (disco + memoria)
                     // para que se vea la nueva al instante aunque el servidor reutilice la misma URL.
                     // Las fotos del resto NO se tocan: siguen cacheadas (ahorro de peticiones).
-                    if (s.profilePicUri != null || s.coverPicUri != null) {
+                    val changedUrls = listOfNotNull(
+                        s.profilePicUrl?.takeIf { s.profilePicUri != null },
+                        s.coverPicUrl?.takeIf { s.coverPicUri != null },
+                    )
+                    if (changedUrls.isNotEmpty()) {
                         val loader = context.imageLoader
-                        if (s.profilePicUri != null) s.profilePicUrl?.let { loader.diskCache?.remove(it) }
-                        if (s.coverPicUri != null) s.coverPicUrl?.let { loader.diskCache?.remove(it) }
-                        loader.memoryCache?.clear()
+                        // Solo las fotos cambiadas: disco + memoria. El resto sigue cacheado (no vaciar todo).
+                        changedUrls.forEach { url ->
+                            loader.diskCache?.remove(url)
+                            loader.memoryCache?.let { mc -> mc.keys.filter { it.key == url }.forEach(mc::remove) }
+                        }
                     }
                     refreshCoordinator.invalidateProfile()  // refleja los cambios al volver al perfil
                     _state.update { it.copy(saving = false, saved = true) }
@@ -235,9 +244,19 @@ class EditProfileViewModel @Inject constructor(
             Triple("tiktok", "https://tiktok.com/@", s.tiktok),
             Triple("facebook", "https://facebook.com/", s.facebook),
         ).filter { it.third.isNotBlank() }
-        return items.joinToString(",", "[", "]") { (name, base, user) ->
-            """{"name":"$name","url":"$base$user","username":"$user"}"""
-        }
+        // JsonPrimitive escapa comillas/backslash/saltos de línea del username tecleado por el usuario
+        // (interpolar el string a mano generaba JSON inválido y el servidor rechazaba el guardado).
+        return JsonArray(
+            items.map { (name, base, user) ->
+                JsonObject(
+                    mapOf(
+                        "name" to JsonPrimitive(name),
+                        "url" to JsonPrimitive("$base$user"),
+                        "username" to JsonPrimitive(user),
+                    ),
+                )
+            },
+        ).toString()
     }
 
     private suspend fun uriToFile(uri: Uri, prefix: String): File? = withContext(Dispatchers.IO) {

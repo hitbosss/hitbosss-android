@@ -3,6 +3,7 @@ package com.hitbosss.presentation.designsystem.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,6 +25,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -46,6 +49,8 @@ fun HitTextField(
     keyboardType: KeyboardType = KeyboardType.Text,
 ) {
     var revealed by remember { mutableStateOf(false) }
+    val focusRequester = remember { FocusRequester() }
+    val interaction = remember { MutableInteractionSource() }
 
     Row(
         modifier = modifier
@@ -53,6 +58,8 @@ fun HitTextField(
             .clip(RoundedCornerShape(4.dp))
             .background(Gray200)
             .border(1.dp, Gray300, RoundedCornerShape(4.dp))
+            // Tocar cualquier parte del campo (incluido el padding) enfoca el input, no solo la línea de texto.
+            .clickable(interactionSource = interaction, indication = null) { focusRequester.requestFocus() }
             .padding(horizontal = 12.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -67,7 +74,7 @@ fun HitTextField(
                 textStyle = HitbosssType.bodyDefaultRegular.copy(color = Gray700),
                 visualTransformation = if (isSecure && !revealed) PasswordVisualTransformation() else VisualTransformation.None,
                 keyboardOptions = KeyboardOptions(keyboardType = if (isSecure) KeyboardType.Password else keyboardType),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
             )
         }
         if (isSecure) {

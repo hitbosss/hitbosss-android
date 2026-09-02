@@ -87,10 +87,20 @@ class HitActionsViewModel @Inject constructor(
 
         val out = File(context.cacheDir, "shared/Hitbosss-Export-${System.currentTimeMillis()}.mp4")
 
+        // El HIT compartido empieza donde empieza el ejercicio (el pin performedAt), no en el segundo 0.
+        // Se acota por debajo de la duración para no generar un clip vacío (pin cerca del final o dato malo),
+        // que haría fallar el export y acabar compartiendo el vídeo crudo sin branding.
+        val startMs = run {
+            val retriever = android.media.MediaMetadataRetriever()
+            val durationMs = try {
+                retriever.setDataSource(source.absolutePath)
+                retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: Long.MAX_VALUE
+            } catch (_: Exception) { Long.MAX_VALUE } finally { retriever.release() }
+            (hit.seekSeconds * 1000).toLong().coerceIn(0L, (durationMs - 500L).coerceAtLeast(0L))
+        }
+
         fun composition(fancyOutro: Boolean): Composition {
             val overlay: androidx.media3.effect.TextureOverlay = BitmapOverlay.createStaticBitmapOverlay(headerBmp)
-            // El HIT compartido empieza donde empieza el ejercicio (el pin performedAt), no en el segundo 0.
-            val startMs = (hit.seekSeconds * 1000).toLong().coerceAtLeast(0)
             val clippedSource = MediaItem.fromUri(Uri.fromFile(source)).buildUpon()
                 .setClippingConfiguration(
                     MediaItem.ClippingConfiguration.Builder().setStartPositionMs(startMs).build(),

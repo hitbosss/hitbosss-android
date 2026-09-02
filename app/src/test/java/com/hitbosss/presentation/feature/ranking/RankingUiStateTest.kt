@@ -21,7 +21,13 @@ import org.junit.Test
  */
 class RankingUiStateTest {
 
-    private fun entry(userId: String, weightKg: Double, score: Double, backendRank: Int) = RankingEntry(
+    private fun entry(
+        userId: String,
+        weightKg: Double,
+        score: Double,
+        backendRank: Int,
+        levelWilks: String = "intermediate",
+    ) = RankingEntry(
         rank = backendRank,
         hitId = 1,
         userId = userId,
@@ -30,7 +36,7 @@ class RankingUiStateTest {
         score = score,
         lift = Measurement(value = weightKg, unit = "kg"),
         levelWeight = "advanced",
-        levelWilks = "intermediate",
+        levelWilks = levelWilks,
         profilePicUrl = null,
         countryCode = "ES",
         videoUrl = null,
@@ -85,5 +91,30 @@ class RankingUiStateTest {
             val expected = s.displayedEntries.indexOfFirst { it.userId == "me" } + 1
             assertEquals("orden $order", expected, s.currentUserEntry?.rank)
         }
+    }
+
+    @Test
+    fun `con filtro activo se conserva la posicion GLOBAL, no se renumera 1 a N`() {
+        // Por Points: b(#1), c(#2), me(#3). Un filtro de nivel deja fuera a c.
+        // La lista mostrada debe conservar las posiciones globales [1, 3], NO renumerar a [1, 2] (paridad iOS).
+        val s = RankingUiState(
+            ranking = SportRanking(
+                sport = "powerlifting",
+                byCategory = mapOf(
+                    RankingCategory.Squat to listOf(
+                        entry("me", weightKg = 150.0, score = 90.0, backendRank = 1, levelWilks = "elite"),
+                        entry("b", weightKg = 135.0, score = 102.0, backendRank = 3, levelWilks = "elite"),
+                        entry("c", weightKg = 140.0, score = 100.0, backendRank = 2, levelWilks = "intermediate"),
+                    ),
+                ),
+            ),
+            selectedCategory = RankingCategory.Squat,
+            orderBy = RankingOrder.Points,
+            currentUserId = "me",
+            selectedLevels = setOf("elite"), // deja fuera a "c" (intermediate)
+        )
+        assertEquals(listOf("b", "me"), s.displayedEntries.map { it.userId })
+        assertEquals(listOf(1, 3), s.displayedEntries.map { it.rank }) // global, no [1, 2]
+        assertEquals(3, s.currentUserEntry?.rank)
     }
 }

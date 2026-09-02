@@ -100,7 +100,8 @@ fun ReportDialog(title: String, message: String, onConfirm: (String) -> Unit, on
                         value = text,
                         onValueChange = { if (it.length <= 1000) text = it },
                         textStyle = HitbosssType.bodyDefaultRegular.copy(color = Gray800),
-                        modifier = Modifier.fillMaxWidth(),
+                        // Llena toda la caja para que se pueda tocar en cualquier punto, no solo la 1ª línea.
+                        modifier = Modifier.fillMaxSize(),
                     )
                 }
                 Text(

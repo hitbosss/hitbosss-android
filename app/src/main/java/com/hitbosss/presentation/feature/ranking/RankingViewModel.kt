@@ -73,7 +73,11 @@ data class RankingUiState(
             selectedGender != RankingGender.Both || selectedLocation != RankingLocation.World
 
     val displayedEntries: List<RankingEntry>
+        // Se ordena el ranking COMPLETO y se asigna la posición global (rankedBy) ANTES de filtrar: así, con
+        // filtros/búsqueda activos, cada fila conserva su posición real del ranking (originalPosition de iOS),
+        // no una renumeración 1..N del subconjunto.
         get() = allEntries
+            .rankedBy(orderBy)
             .filter { e ->
                 (searchText.isBlank() || e.username.contains(searchText, ignoreCase = true)) &&
                     (selectedLevels.isEmpty() || (e.level() ?: "") in selectedLevels) &&
@@ -86,13 +90,6 @@ data class RankingUiState(
                         (userLat != null && userLng != null && e.latitude != null && e.longitude != null &&
                             distanceKm(userLat, userLng, e.latitude, e.longitude) <= 10.0))
             }
-            // Orden: por peso levantado o por puntos (wilks), con desempate (igual que iOS).
-            // Re-numera la posición mostrada.
-            .sortedWith(
-                if (orderByPoints) compareByDescending<RankingEntry> { it.score }.thenByDescending { it.lift?.value ?: 0.0 }
-                else compareByDescending<RankingEntry> { it.lift?.value ?: 0.0 }.thenByDescending { it.score },
-            )
-            .mapIndexed { i, e -> e.copy(rank = i + 1) }
 
     /**
      * Fila "Tú": la entrada del usuario dentro de la lista ya ordenada/filtrada (displayedEntries),

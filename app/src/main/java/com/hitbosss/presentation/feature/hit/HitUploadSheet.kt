@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -194,9 +195,13 @@ private fun UploadHitSheet(
                         textStyle = HitbosssType.bodyLargeRegular.copy(color = Gray800),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         singleLine = true,
+                        // Llena toda la caja para que el área de tap sea el recuadro entero (68dp), no solo el texto.
+                        modifier = Modifier.fillMaxSize(),
                         decorationBox = { inner ->
-                            if (state.lift.isEmpty()) Text("0", style = HitbosssType.bodyLargeRegular, color = Gray500)
-                            inner()
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
+                                if (state.lift.isEmpty()) Text("0", style = HitbosssType.bodyLargeRegular, color = Gray500)
+                                inner()
+                            }
                         },
                     )
                 }

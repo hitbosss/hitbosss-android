@@ -184,8 +184,10 @@ fun RankingScreen(
                     if (state.displayedEntries.isEmpty() && !state.isOfficial) {
                         item { RankingEmptyState() }
                     }
-                    items(state.displayedEntries) { entry ->
-                        RankingRow(entry, state.orderByPoints) { selectedUserId = entry.userId }
+                    items(state.displayedEntries, key = { it.userId }) { entry ->
+                        // animateItem + key estable: al filtrar u ordenar, las filas se deslizan a su nueva
+                        // posición en vez de saltar, haciendo visible el cambio de posiciones.
+                        RankingRow(entry, state.orderByPoints, Modifier.animateItem()) { selectedUserId = entry.userId }
                     }
                   }
                 }
@@ -464,11 +466,11 @@ internal fun LevelFilters(count: Int, selected: Set<String>, onToggle: (String) 
 }
 
 @Composable
-internal fun RankingRow(entry: RankingEntry, usePoints: Boolean, onClick: () -> Unit) {
+internal fun RankingRow(entry: RankingEntry, usePoints: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
     // Sin padding uniforme: el badge de posición va pegado a la esquina (como PowerLiftingRowView).
     // Usuario eliminado (fix iOS #639): fila no tocable, sin avatar/nombre/país reales.
     Column(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Gray100)
+        modifier = modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Gray100)
             .border(1.dp, Gray300, RoundedCornerShape(10.dp))
             .let { if (entry.isDeleted) it else it.clickable { onClick() } }.padding(bottom = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),

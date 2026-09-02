@@ -7,7 +7,6 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.os.IBinder
-import androidx.core.app.NotificationCompat
 import com.hitbosss.R
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -71,38 +70,39 @@ class HitUploadService : Service() {
         )
         val pct = (st.progress * 100).toInt()
         val waiting = st.phase == HitUploadManager.Phase.WaitingConnection
-        val title = listOfNotNull(st.exerciseTitle, st.liftLabel).joinToString(" · ")
-            .ifEmpty { getString(R.string.upload_notif_title) }
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.stat_sys_upload)
-            .setContentTitle(title)
-            .setContentText(
-                if (waiting) getString(R.string.upload_notif_waiting)
-                else getString(R.string.upload_notif_title) + "  ·  $pct%",
-            )
-            .setProgress(100, pct, false)
-            .setColor(HitUploadManager.BRAND_COLOR)
-            .setOngoing(true)
-            .setOnlyAlertOnce(true)
-            // Que se vea (con contenido) en la pantalla de bloqueo, como la Live Activity de iOS.
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setCategory(NotificationCompat.CATEGORY_PROGRESS)
-            .addAction(0, getString(R.string.common_cancel), cancelIntent)
-            .build()
+        return UploadNotification.build(
+            context = this,
+            smallIcon = android.R.drawable.stat_sys_upload,
+            title = st.exerciseTitle ?: getString(R.string.upload_notif_title),
+            weight = st.liftLabel,
+            icon = if (waiting) R.drawable.np_ic_wifi else R.drawable.np_ic_upload,
+            iconTint = HitUploadManager.BRAND_COLOR,
+            status = getString(if (waiting) R.string.upload_notif_waiting else R.string.upload_notif_title),
+            percent = if (waiting) null else "$pct%",
+            bar = UploadNotification.Bar.PinkProgress,
+            progress = pct,
+            actionLabel = getString(R.string.common_cancel),
+            actionIntent = cancelIntent,
+            ongoing = true,
+        )
     }
 
     private fun createChannel() {
         val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        // Canal anterior no tenía lockscreenVisibility (no se puede cambiar tras crearlo); se retira.
-        nm.deleteNotificationChannel("hit_upload")
-        val channel = NotificationChannel(CHANNEL_ID, getString(R.string.upload_channel_name), NotificationManager.IMPORTANCE_LOW).apply {
+        // La config de un canal (importancia, lockscreenVisibility) no se puede cambiar tras crearlo → se
+        // versiona el id y se retiran los anteriores. IMPORTANCE_DEFAULT: LOW lo ocultan del bloqueo algunos
+        // OEMs (MIUI/HyperOS); DEFAULT sí se muestra. Sin sonido/vibración para no molestar en cada progreso.
+        listOf("hit_upload", "hit_upload_v2").forEach { nm.deleteNotificationChannel(it) }
+        val channel = NotificationChannel(CHANNEL_ID, getString(R.string.upload_channel_name), NotificationManager.IMPORTANCE_DEFAULT).apply {
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            setSound(null, null)
+            enableVibration(false)
         }
         nm.createNotificationChannel(channel)
     }
 
     companion object {
-        const val CHANNEL_ID = "hit_upload_v2"
+        const val CHANNEL_ID = "hit_upload_v3"
         const val NOTIFICATION_ID = 2001
         const val ACTION_CANCEL = "com.hitbosss.upload.CANCEL"
     }

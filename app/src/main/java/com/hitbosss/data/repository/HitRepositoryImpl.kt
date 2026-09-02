@@ -35,7 +35,9 @@ private class CountingRequestBody(
             override fun write(source: okio.Buffer, byteCount: Long) {
                 super.write(source, byteCount)
                 written += byteCount
-                if (total > 0) onProgress((written.toFloat() / total).coerceIn(0f, 1f))
+                // Se capa a 99%: `written` cuenta bytes entregados al buffer de OkHttp, no procesados por el
+                // servidor; el 100% se reserva para el éxito real (la notificación muestra 100% al completar).
+                if (total > 0) onProgress((written.toFloat() / total).coerceIn(0f, 0.99f))
             }
         }
         val buffered = counting.buffer()

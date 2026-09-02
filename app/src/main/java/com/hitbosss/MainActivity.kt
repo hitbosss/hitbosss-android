@@ -1,10 +1,15 @@
 package com.hitbosss
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import com.hitbosss.core.deeplink.DeepLinkBus
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,10 +25,17 @@ import dagger.hilt.android.AndroidEntryPoint
  */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    // Android 13+: sin POST_NOTIFICATIONS concedido, la notificación del foreground service de subida NO se
+    // muestra en ningún sitio (ni en la pantalla de bloqueo). Se pide al arrancar.
+    private val notificationsPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* si deniega, no bloquea nada */ }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Deeplink con el que se abrió la app (hitbosss://group|event/{id}).
         DeepLinkBus.post(intent?.data)
+        requestNotificationsPermission()
         enableEdgeToEdge()
         setContent {
             HitbosssTheme {
@@ -36,6 +48,14 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+        }
+    }
+
+    private fun requestNotificationsPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationsPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
 

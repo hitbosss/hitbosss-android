@@ -102,6 +102,7 @@ import com.hitbosss.presentation.designsystem.theme.Primary500
 import com.hitbosss.presentation.designsystem.theme.Secondary500
 import com.hitbosss.presentation.feature.hit.UploadHitFab
 import com.hitbosss.presentation.feature.ranking.CurrentUserRow
+import com.hitbosss.presentation.feature.ranking.rankedBy
 import com.hitbosss.presentation.feature.ranking.centerItem
 import com.hitbosss.presentation.feature.ranking.NoParticipaCard
 import com.hitbosss.presentation.feature.ranking.RankingRow
@@ -288,16 +289,11 @@ private fun EventRankingContent(
     val isOfficial = selected == officialCat
 
     val allEntries = ranking?.byCategory?.get(selected).orEmpty()
-    val usePoints = order == RankingOrder.Points
-    // Re-ordena por el criterio elegido (peso/puntos) con desempate y re-numera la posición, igual
-    // que el ranking principal y iOS.
+    // Se ordena el ranking completo y se asigna la posición global (rankedBy) antes de filtrar, igual que
+    // el ranking principal y iOS: la búsqueda no renumera, cada fila conserva su posición real.
     val entries = allEntries
+        .rankedBy(order)
         .filter { search.isBlank() || it.username.contains(search, true) }
-        .sortedWith(
-            if (usePoints) compareByDescending<com.hitbosss.domain.model.RankingEntry> { it.score }.thenByDescending { it.lift?.value ?: 0.0 }
-            else compareByDescending<com.hitbosss.domain.model.RankingEntry> { it.lift?.value ?: 0.0 }.thenByDescending { it.score },
-        )
-        .mapIndexed { i, e -> e.copy(rank = i + 1) }
     // Fila "Tú": desde la lista ya ordenada/filtrada del ejercicio seleccionado, para que su posición
     // coincida con la de la lista bajo el criterio actual (peso/points), igual que iOS y el ranking global.
     val currentUserEntry = entries.firstOrNull { it.userId == currentUserId }
@@ -372,7 +368,7 @@ private fun EventRankingContent(
                 if (entries.isEmpty() && !(isOfficial && notParticipating)) {
                     item { com.hitbosss.presentation.feature.ranking.RankingEmptyState() }
                 }
-                items(entries) { entry -> RankingRow(entry, order == RankingOrder.Points) { if (isAdmin) actionEntry = entry else selectedUserId = entry.userId } }
+                items(entries, key = { it.userId }) { entry -> RankingRow(entry, order == RankingOrder.Points, Modifier.animateItem()) { if (isAdmin) actionEntry = entry else selectedUserId = entry.userId } }
             }
 
             // Padding inferior común para tarjeta "Tú" y FAB (los sube respecto al borde), igual que

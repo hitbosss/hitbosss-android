@@ -248,8 +248,12 @@ class EditVideoViewModel @Inject constructor(
     /** Cancelar: guarda el HIT en local y muestra "HIT guardado" (igual que iOS). */
     fun cancelUpload() {
         uploadJob?.cancel()
-        saveLocally()
-        _state.update { it.copy(isUploading = false, isPreparing = false, progress = 0f, savedLater = true) }
+        // Solo se guarda para después si el recorte/preparación ya terminó (lastPrepared != null). Si se
+        // cancela mientras "Preparando HIT…", no hay clip preparado: guardar aquí persistiría el vídeo SIN
+        // recortar y con performedAt=0 (se perdería el recorte y el pin), así que se descarta.
+        val saved = lastPrepared != null
+        if (saved) saveLocally()
+        _state.update { it.copy(isUploading = false, isPreparing = false, progress = 0f, savedLater = saved) }
     }
 
     /** Recarga lo afectado según el contexto del HIT subido. */
@@ -417,7 +421,13 @@ class EditVideoViewModel @Inject constructor(
                 extractor.selectTrack(i)
             }
             muxer.start()
-            val buffer = java.nio.ByteBuffer.allocate(1 shl 20)
+            // Buffer al mayor max-input-size declarado por las pistas (con suelo de 1 MB): un vídeo de alto
+            // bitrate puede tener muestras > 1 MB y readSampleData lanzaría IllegalArgumentException, dejando
+            // la pista incompatible (AMR) sin remuxar → iOS no podría reproducir el HIT.
+            val maxSampleSize = keep.maxOfOrNull { i ->
+                runCatching { extractor.getTrackFormat(i).getInteger(MediaFormat.KEY_MAX_INPUT_SIZE) }.getOrDefault(0)
+            } ?: 0
+            val buffer = java.nio.ByteBuffer.allocate(maxSampleSize.coerceAtLeast(1 shl 20))
             val info = MediaCodec.BufferInfo()
             while (true) {
                 val size = extractor.readSampleData(buffer, 0)
